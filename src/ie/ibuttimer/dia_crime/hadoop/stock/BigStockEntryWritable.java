@@ -23,7 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
-import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
+import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
 
@@ -34,6 +34,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Optional;
 import java.util.UUID;
+
+import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 public class BigStockEntryWritable extends AbstractStockEntryWritable<BigStockEntryWritable> implements Writable {
 
@@ -224,16 +226,18 @@ public class BigStockEntryWritable extends AbstractStockEntryWritable<BigStockEn
     }
 
     @Override
-    public Optional<Number> getField(Fields field) {
-        Optional<Number> value;
-        switch (field) {
-            case OPEN:      value = Optional.of(open);      break;
-            case HIGH:      value = Optional.of(high);      break;
-            case LOW:       value = Optional.of(low);       break;
-            case CLOSE:     value = Optional.of(close);     break;
-            case ADJ_CLOSE: value = Optional.of(adjClose);  break;
-            case VOLUME:    value = Optional.of(volume);    break;
-            default:        value = Optional.empty();       break;
+    public Optional<Value> getField(String field) {
+        Optional<Value> value = super.getField(field);
+        if (value.isEmpty()) {
+            switch (field) {
+                case OPEN_PROP:     value = Value.ofOptional(open);     break;
+                case HIGH_PROP:     value = Value.ofOptional(high);     break;
+                case LOW_PROP:      value = Value.ofOptional(low);      break;
+                case CLOSE_PROP:    value = Value.ofOptional(close);    break;
+                case ADJCLOSE_PROP: value = Value.ofOptional(adjClose); break;
+                case VOLUME_PROP:   value = Value.ofOptional(volume);   break;
+                default:            value = Value.empty();              break;
+            }
         }
         return value;
     }
@@ -291,17 +295,14 @@ public class BigStockEntryWritable extends AbstractStockEntryWritable<BigStockEn
     }
 
     @Override
-    public <T extends AbstractBaseWritable> void set(T other) {
+    public void set(BigStockEntryWritable other) {
         super.set(other);
-        if (other instanceof BigStockEntryWritable) {
-            BigStockEntryWritable bsew = (BigStockEntryWritable) other;
-            this.open = bsew.open;
-            this.high = bsew.high;
-            this.low = bsew.low;
-            this.close = bsew.close;
-            this.adjClose = bsew.adjClose;
-            this.volume = bsew.volume;
-        }
+        this.open = other.open;
+        this.high = other.high;
+        this.low = other.low;
+        this.close = other.close;
+        this.adjClose = other.adjClose;
+        this.volume = other.volume;
     }
 
     @Override

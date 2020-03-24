@@ -23,14 +23,16 @@
 
 package ie.ibuttimer.dia_crime;
 
+import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeEntryMapper;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeEntryReducer;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeEntryWritable;
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.stock.DowJonesStockEntryMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.NasdaqStockEntryMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.SP500StockEntryMapper;
+import ie.ibuttimer.dia_crime.hadoop.weather.WeatherMapper;
 import ie.ibuttimer.dia_crime.misc.Constants;
+import org.apache.commons.cli.*;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -62,23 +64,118 @@ public class DiaCrimeMain {
         propDefaults.put(NASDAQ_PROP_SECTION, NasdaqStockEntryMapper.getCsvEntryMapperCfg());
         propDefaults.put(DOWJONES_PROP_SECTION, DowJonesStockEntryMapper.getCsvEntryMapperCfg());
         propDefaults.put(SP500_PROP_SECTION, SP500StockEntryMapper.getCsvEntryMapperCfg());
+        propDefaults.put(WEATHER_PROP_SECTION, WeatherMapper.getCsvEntryMapperCfg());
+    }
+
+    private static final String OPT_HELP = "h";
+    private static final String OPT_CFG = "c";
+    private static final String OPT_JOB = "j";
+    private static final String OPT_LIST_JOBS = "l";
+
+    private static final String JOB_WEATHER = "weather";
+    private static final String JOB_STOCKS = "stocks";
+    private static final String JOB_STOCK_STATS = "stockstats";
+    private static final List<Pair<String, String>> jobList;
+    private static final String jobListFmt;
+    static {
+        jobList = new ArrayList<>();
+        jobList.add(Pair.of(JOB_WEATHER, "process the weather file"));
+        jobList.add(Pair.of(JOB_STOCKS, "process the stock files"));
+        jobList.add(Pair.of(JOB_STOCK_STATS, "calculate stock statistics"));
+
+        OptionalInt width = jobList.stream().map(Pair::getLeft).mapToInt(String::length).max();
+        StringBuffer sb = new StringBuffer("  %");
+        width.ifPresent(w -> sb.append("-").append(w));
+        sb.append("s : %s%n");
+        jobListFmt = sb.toString();
+    }
+
+    private static Options options;
+    static {
+        options = new Options();
+        options.addOption(OPT_HELP, false, "print this message");
+        options.addOption(OPT_CFG, true, "configuration file");
+        options.addOption(OPT_JOB, true, "name of job to run");
+        options.addOption(OPT_LIST_JOBS, false, "list available jobs");
     }
 
     public static void main(String[] args) throws Exception {
 
         DiaCrimeMain app = new DiaCrimeMain();
-        Properties properties = app.getResources("config.properties");
 
-        StockDriver stockDriver = new StockDriver(app);
-        int resultCode =
-//                stockDriver.runStockJob(properties);
-//                stockDriver.runStockAvgJob(properties);
-                stockDriver.runStockStatsJob(properties);
+        CommandLineParser parser = new BasicParser();
+        int resultCode = ECODE_SUCCESS;
+        try {
+            CommandLine cmd = parser.parse(options, args);
+
+            if (cmd.hasOption(OPT_HELP)) {
+                // print help
+                app.help();
+            } else if (cmd.hasOption(OPT_LIST_JOBS)) {
+                // print job list
+                app.jobList();
+            } else {
+                String resourceFile;
+                if (cmd.hasOption(OPT_CFG)) {
+                    // print job list
+                    resourceFile = cmd.getOptionValue(OPT_CFG);
+                } else {
+                    resourceFile = "config.properties";
+                }
+
+                if (cmd.hasOption(OPT_JOB)) {
+                    Properties properties = app.getResources(resourceFile);
+
+                    switch (cmd.getOptionValue(OPT_JOB)) {
+                        case JOB_WEATHER:
+                            resultCode = WeatherDriver.of(app).runWeatherJob(properties);
+                            break;
+                        case JOB_STOCKS:
+                            resultCode = StockDriver.of(app).runStockJob(properties);
+                            break;
+                        case JOB_STOCK_STATS:
+                            resultCode = StockDriver.of(app).runStockStatsJob(properties);
+                            break;
+                        default:
+                            System.out.format("Unknown job: %s%n%n", cmd.getOptionValue(OPT_JOB));
+                            app.jobList();
+                            resultCode = ECODE_CONFIG_ERROR;
+                    }
+                    // TODO will probably remove stockDriver.runStockJob
+                    //StockDriver stockDriver = new StockDriver(app);
+                    //resultCode = stockDriver.runStockJob(properties);
+
+                } else {
+                    System.out.format("No arguments specified%n%n");
+                    app.help();
+                }
+            }
+        } catch (ParseException pe) {
+            System.out.format("%s%n%n", pe.getMessage());
+            app.help();
+            resultCode = ECODE_FAIL;
+        }
 
         System.exit(resultCode);
     }
 
+    private void help() {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.printHelp("dia_crime", options);
+    }
 
+    private void jobList() {
+        System.out.println("Job List");
+        jobList.forEach(pair -> System.out.format(jobListFmt, pair.getLeft(), pair.getRight()));
+    }
+
+
+    /**
+     * @param properties    Properties
+     * @param sections      Pair of main section, plus additional sections
+     * @return
+     * @throws Exception
+     */
     public Pair<Integer, Configuration> setupJob(Properties properties, Pair<String, List<String>> sections) throws Exception {
 
         String main = sections.getLeft();

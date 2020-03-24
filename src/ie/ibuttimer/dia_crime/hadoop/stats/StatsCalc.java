@@ -25,9 +25,9 @@ package ie.ibuttimer.dia_crime.hadoop.stats;
 
 import com.google.common.base.Charsets;
 import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
-import ie.ibuttimer.dia_crime.hadoop.stock.AbstractStockEntryWritable;
 import ie.ibuttimer.dia_crime.hadoop.stock.BigStockEntryWritable;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
+import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
@@ -58,7 +58,7 @@ public class StatsCalc implements IStats {
         this.fileUtil = new FileUtil(path, conf);
     }
 
-    public Result.Set calcStat(String id, List<Stat> stats, List<AbstractStockEntryWritable.Fields> fields) throws IOException {
+    public Result.Set calcStat(String id, List<Stat> stats, List<String> fields) throws IOException {
         Result.Set resultSet = new Result.Set();
         List<String> lines = getLines(id);
         if (lines != null) {
@@ -126,10 +126,12 @@ public class StatsCalc implements IStats {
                             assert finalSum != null;
                             finalSum.getField(f).ifPresent(s -> {
                                 BigDecimal meanVal;
-                                if (s instanceof BigDecimal) {
-                                    meanVal = calcMean((BigDecimal) s, finalCount);
+                                if (s.isBigInteger()) {
+                                    meanVal = calcMean(s.bigIntegerValue(), finalCount);
+                                } else if (s.isBigDecimal()) {
+                                    meanVal = calcMean(s.bigDecimalValue(), finalCount);
                                 } else {
-                                    meanVal = calcMean((BigInteger) s, finalCount);
+                                    throw new UnsupportedOperationException("Primitive means not supported atm");
                                 }
                                 result.setMean(meanVal.doubleValue());
                             });
@@ -147,58 +149,62 @@ public class StatsCalc implements IStats {
                             });
                             break;
                     }
-                    resultSet.set(f.name(), result);
+                    resultSet.set(f, result);
                 });
             });
         }
         return resultSet;
     }
 
-    private double calcStdDev(Number sum, Number sumOfSq, long count) {
+    private double calcStdDev(Value sum, Value sumOfSq, long count) {
         double stddev;
         if (sumsumOfSqCheck(sum, sumOfSq).equals(BigDecimal.class.getSimpleName())) {
-            stddev = calcStdDev((BigDecimal)sum, (BigDecimal)sumOfSq, count);
+            stddev = calcStdDev(sum.bigDecimalValue(), sumOfSq.bigDecimalValue(), count);
         } else {
-            stddev = calcStdDev((BigInteger)sum, (BigInteger)sumOfSq, count);
+            stddev = calcStdDev(sum.bigIntegerValue(), sumOfSq.bigIntegerValue(), count);
         }
         return stddev;
     }
 
-    private double calcVariance(Number sum, Number sumOfSq, long count) {
+    private double calcVariance(Value sum, Value sumOfSq, long count) {
         BigDecimal stddev;
         if (sumsumOfSqCheck(sum, sumOfSq).equals(BigDecimal.class.getSimpleName())) {
-            stddev = calcVariance((BigDecimal)sum, (BigDecimal)sumOfSq, count);
+            stddev = calcVariance(sum.bigDecimalValue(), sumOfSq.bigDecimalValue(), count);
         } else {
-            stddev = calcVariance((BigInteger)sum, (BigInteger)sumOfSq, count);
+            stddev = calcVariance(sum.bigIntegerValue(), sumOfSq.bigIntegerValue(), count);
         }
         return stddev.doubleValue();
     }
 
-    private String sumsumOfSqCheck(Number sum, Number sumOfSq) {
+    private String sumsumOfSqCheck(Value sum, Value sumOfSq) {
         String type;
-        if (sum instanceof BigDecimal && sumOfSq instanceof BigDecimal) {
+        Class<?> sumCls = sum.getValueClass();
+        Class<?> sumOfSqCls = sumOfSq.getValueClass();
+        if (!sumCls.equals(sumOfSqCls)) {
+            throw new IllegalArgumentException("Mixed type sum and sum of squares arg");
+        } else if (sumCls.equals(BigDecimal.class)) {
             type = BigDecimal.class.getSimpleName();
-        } else if (sum instanceof BigInteger && sumOfSq instanceof BigInteger) {
+        } else if (sumCls.equals(BigInteger.class)) {
             type = BigInteger.class.getSimpleName();
         } else {
-            throw new IllegalArgumentException("Mixed type sum and sum of squares arg");
+            throw new UnsupportedOperationException("Only BigNumbers supported atm");
         }
         return type;
     }
 
-    public Result.Set calcStdDev(String id, List<AbstractStockEntryWritable.Fields> fields) throws IOException {
+    public Result.Set calcStdDev(String id, List<String> fields) throws IOException {
         return calcStat(id, STDDEV, fields);
     }
 
-    public Result.Set calcMean(String id, List<AbstractStockEntryWritable.Fields> fields) throws IOException {
+    public Result.Set calcMean(String id, List<String> fields) throws IOException {
         return calcStat(id, MEAN, fields);
     }
 
-    public Result.Set calcAll(String id, List<AbstractStockEntryWritable.Fields> fields) throws IOException {
+    public Result.Set calcAll(String id, List<String> fields) throws IOException {
         return calcStat(id, Arrays.asList(Stat.values()), fields);
     }
 
-    public Result.Set calcStat(String id, Stat stat, List<AbstractStockEntryWritable.Fields> fields) throws IOException {
+    public Result.Set calcStat(String id, Stat stat, List<String> fields) throws IOException {
         return calcStat(id, Collections.singletonList(stat), fields);
     }
 

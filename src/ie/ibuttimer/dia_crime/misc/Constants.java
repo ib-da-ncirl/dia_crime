@@ -25,6 +25,7 @@ package ie.ibuttimer.dia_crime.misc;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -40,11 +41,13 @@ public class Constants {
     /* properties are stored in the format "<section>.<property>" */
     public static final String PROPERTY_SEPARATOR = ".";
 
+    public static final String GLOBAL_PROP_SECTION = "global";
     public static final String CRIME_PROP_SECTION = "crime";
     public static final String STOCK_PROP_SECTION = "stock";    // common section for stocks
     public static final String NASDAQ_PROP_SECTION = "nasdaq";
     public static final String DOWJONES_PROP_SECTION = "dowjones";
     public static final String SP500_PROP_SECTION = "sp500";
+    public static final String WEATHER_PROP_SECTION = "weather";
 
     // common properties
     public static final String STOCK_TAG_PROP = "stock_tag";
@@ -68,7 +71,7 @@ public class Constants {
     );
     public static final List<String> ALL_PATH_PROP_LIST;
     static {
-        ALL_PATH_PROP_LIST = Stream.of(PATH_PROP_LIST, Arrays.asList(STATS_PATH_PROP))
+        ALL_PATH_PROP_LIST = Stream.of(PATH_PROP_LIST, Collections.singletonList(STATS_PATH_PROP))
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
     }
@@ -90,6 +93,23 @@ public class Constants {
 
     public static final String COUNT_PROP = "count";
 
+    // weather specific properties
+    public static final String TEMP_PROP = "temp";
+    public static final String FEELS_LIKE_PROP = "feels_like";
+    public static final String TEMP_MIN_PROP = "temp_min";
+    public static final String TEMP_MAX_PROP = "temp_max";
+    public static final String PRESSURE_PROP = "pressure";
+    public static final String HUMIDITY_PROP = "humidity";
+    public static final String WIND_SPEED_PROP = "wind_speed";
+    public static final String WIND_DEG_PROP = "wind_deg";
+    public static final String RAIN_1H_PROP = "rain_1h";
+    public static final String RAIN_3H_PROP = "rain_3h";
+    public static final String SNOW_1H_PROP = "snow_1h";
+    public static final String SNOW_3H_PROP = "snow_3h";
+    public static final String CLOUDS_ALL_PROP = "clouds_all";
+    public static final String WEATHER_ID_PROP = "weather_id";
+    public static final String WEATHER_MAIN_PROP = "weather_main";
+    public static final String WEATHER_DESC_PROP = "weather_description";
 
     public static final int ECODE_CONFIG_ERROR = -1;
     public static final int ECODE_SUCCESS = 0;

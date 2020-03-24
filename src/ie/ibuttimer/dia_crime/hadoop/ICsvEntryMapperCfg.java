@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime.hadoop;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -44,6 +45,10 @@ public interface ICsvEntryMapperCfg {
      *          if applicable
      */
     Pair<Integer, List<String>> checkConfiguration(Configuration conf);
+
+    default List<Pair<String, String>> getRequiredProps() {
+        return List.of();
+    }
 
     /**
      * Return a list of the names of properties

@@ -34,7 +34,10 @@ import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -46,8 +49,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - input value : StockEntryWritable
  */
 public abstract class AbstractStockEntryMapper
-        extends AbstractCsvEntryMapper<Text, MapWritable> implements IAbstractStockEntryMapper
-{
+        extends AbstractCsvEntryMapper<Text, MapWritable> implements IAbstractStockEntryMapper {
 
     public enum StockMapperKey { DATE, STOCK_ID };
 
@@ -178,6 +180,11 @@ public abstract class AbstractStockEntryMapper
     protected abstract CounterEnums.MapperCounter getCounter(Context context);
 
     private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg() {
+
+        @Override
+        public List<Pair<String, String>> getRequiredProps() {
+            return List.of(Pair.of(STOCK_TAG_PROP, "stock tag"));
+        }
 
         @Override
         public List<String> getPropertyIndices() {

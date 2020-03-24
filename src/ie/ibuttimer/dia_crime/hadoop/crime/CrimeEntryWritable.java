@@ -24,6 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop.crime;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
+import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
@@ -31,8 +32,19 @@ import org.apache.log4j.Logger;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.*;
 
-public class CrimeEntryWritable extends AbstractBaseWritable implements Writable {
+import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.Constants.DESCRIPTION_PROP;
+
+public class CrimeEntryWritable extends AbstractBaseWritable<CrimeEntryWritable> implements Writable {
+
+    public static List<String> FIELDS;
+    static {
+        FIELDS = new ArrayList<>(AbstractBaseWritable.FIELDS);
+        FIELDS.addAll(Arrays.asList(PRIMARYTYPE_PROP, DESCRIPTION_PROP, LOCATIONDESCRIPTION_PROP, IUCR_PROP,
+            FBICODE_PROP));
+    }
 
     private String primaryType;
     private String description;
@@ -118,6 +130,44 @@ public class CrimeEntryWritable extends AbstractBaseWritable implements Writable
 
     public void setFbiCode(String fbiCode) {
         this.fbiCode = fbiCode;
+    }
+
+    @Override
+    public void set(CrimeEntryWritable other) {
+        super.set(other);
+        this.primaryType = other.primaryType;
+        this.description = other.description;
+        this.locationDescription = other.locationDescription;
+        this.iucr = other.iucr;
+        this.fbiCode = other.fbiCode;
+    }
+
+    @Override
+    public CrimeEntryWritable copyOf() {
+        CrimeEntryWritable other = new CrimeEntryWritable();
+        other.set(this);
+        return other;
+    }
+
+    @Override
+    public Optional<Value> getField(String field) {
+        Optional<Value> value = super.getField(field);
+        if (value.isEmpty()) {
+            switch (field) {
+                case PRIMARYTYPE_PROP:          value = Value.ofOptional(primaryType);          break;
+                case DESCRIPTION_PROP:          value = Value.ofOptional(description);          break;
+                case LOCATIONDESCRIPTION_PROP:  value = Value.ofOptional(locationDescription);  break;
+                case IUCR_PROP:                 value = Value.ofOptional(iucr);                 break;
+                case FBICODE_PROP:              value = Value.ofOptional(fbiCode);              break;
+                default:                        value = Value.empty();                          break;
+            }
+        }
+        return value;
+    }
+
+    @Override
+    public List<String> getFieldsList() {
+        return FIELDS;
     }
 
     @Override

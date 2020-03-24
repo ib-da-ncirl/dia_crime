@@ -23,8 +23,10 @@
 
 package ie.ibuttimer.dia_crime.hadoop;
 
-import ie.ibuttimer.dia_crime.hadoop.stock.StockEntryWritable;
+import ie.ibuttimer.dia_crime.hadoop.stats.IStatWritable;
+import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.io.Writable;
+import org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
 
 import java.io.DataInput;
@@ -38,13 +40,18 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.*;
+
+import static ie.ibuttimer.dia_crime.misc.Constants.DATE_PROP;
 
 /**
  * Base class for customer Writables
  */
-public abstract class AbstractBaseWritable implements Writable {
+public abstract class AbstractBaseWritable<W extends AbstractBaseWritable> implements Writable, IStatWritable<W> {
 
     private LocalDateTime localDateTime;
+
+    public static List<String> FIELDS = Collections.singletonList(DATE_PROP);
 
     // Default constructor to allow (de)serialization
     public AbstractBaseWritable() {
@@ -81,8 +88,31 @@ public abstract class AbstractBaseWritable implements Writable {
         this.localDateTime = LocalDateTime.of(localDate, LocalTime.MIN);
     }
 
-    public <W extends AbstractBaseWritable> void set(W other) {
+    @Override
+    public void set(W other) {
         this.localDateTime = ((AbstractBaseWritable)other).localDateTime;
+    }
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap<>();
+        getFieldsList().forEach(p -> {
+            getField(p).ifPresent(v -> map.put(p, v.value()));
+        });
+        return map;
+    }
+
+    public List<String> getFieldsList() {
+        return FIELDS;
+    }
+
+    public Optional<Value> getField(String field) {
+        Optional<Value> value;
+        if (DATE_PROP.equals(field)) {
+            value = Value.ofOptional(getLocalDate());
+        } else {
+            value = Value.empty();
+        }
+        return value;
     }
 
     @Override
@@ -146,50 +176,72 @@ public abstract class AbstractBaseWritable implements Writable {
 
         protected double getDouble(String text) {
             double value = 0;
-            try {
-                value = Double.parseDouble(text);
-            } catch (NumberFormatException nfe) {
-                logger.error("Unable to parse " + text + " as double", nfe);
+            if (!TextUtils.isEmpty(text)) {
+                try {
+                    value = Double.parseDouble(text);
+                } catch (NumberFormatException nfe) {
+                    logger.error("Unable to parse " + text + " as double", nfe);
+                }
+            }
+            return value;
+        }
+
+        protected float getFloat(String text) {
+            float value = 0;
+            if (!TextUtils.isEmpty(text)) {
+                try {
+                    value = Float.parseFloat(text);
+                } catch (NumberFormatException nfe) {
+                    logger.error("Unable to parse " + text + " as float", nfe);
+                }
             }
             return value;
         }
 
         protected int getInt(String text) {
             int value = 0;
-            try {
-                value = Integer.parseInt(text);
-            } catch (NumberFormatException nfe) {
-                logger.error("Unable to parse " + text + " as int", nfe);
+            if (!TextUtils.isEmpty(text)) {
+                try {
+                    value = Integer.parseInt(text);
+                } catch (NumberFormatException nfe) {
+                    logger.error("Unable to parse " + text + " as int", nfe);
+                }
             }
             return value;
         }
 
         protected long getLong(String text) {
             long value = 0;
-            try {
-                value = Long.parseLong(text);
-            } catch (NumberFormatException nfe) {
-                logger.error("Unable to parse " + text + " as long", nfe);
+            if (!TextUtils.isEmpty(text)) {
+                try {
+                    value = Long.parseLong(text);
+                } catch (NumberFormatException nfe) {
+                    logger.error("Unable to parse " + text + " as long", nfe);
+                }
             }
             return value;
         }
 
         protected BigDecimal getBigDecimal(String text) {
             BigDecimal value = BigDecimal.ZERO;
-            try {
-                value = new BigDecimal(text);
-            } catch (NumberFormatException nfe) {
-                logger.error("Unable to parse " + text + " as BigDecimal", nfe);
+            if (!TextUtils.isEmpty(text)) {
+                try {
+                    value = new BigDecimal(text);
+                } catch (NumberFormatException nfe) {
+                    logger.error("Unable to parse " + text + " as BigDecimal", nfe);
+                }
             }
             return value;
         }
 
         protected BigInteger getBigInteger(String text) {
             BigInteger value = BigInteger.ZERO;
-            try {
-                value = new BigInteger(text);
-            } catch (NumberFormatException nfe) {
-                logger.error("Unable to parse " + text + " as BigInteger", nfe);
+            if (!TextUtils.isEmpty(text)) {
+                try {
+                    value = new BigInteger(text);
+                } catch (NumberFormatException nfe) {
+                    logger.error("Unable to parse " + text + " as BigInteger", nfe);
+                }
             }
             return value;
         }

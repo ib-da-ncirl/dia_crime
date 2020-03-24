@@ -24,50 +24,28 @@
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
+import ie.ibuttimer.dia_crime.hadoop.stats.IStatWritable;
 import org.apache.hadoop.io.Writable;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+
+import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 public abstract class AbstractStockEntryWritable<W extends AbstractBaseWritable>
-    extends AbstractBaseWritable
-    implements Writable {
+    extends AbstractBaseWritable<W>
+    implements Writable, IStatWritable<W> {
 
-    public enum Fields { DATE, OPEN, HIGH, LOW, CLOSE, ADJ_CLOSE, VOLUME };
-    public static List<Fields> NUMERIC_FIELDS = Arrays.asList(Fields.OPEN, Fields.HIGH, Fields.LOW, Fields.CLOSE,
-        Fields.ADJ_CLOSE, Fields.VOLUME);
-
-    public abstract Optional<Number> getField(Fields field);
-
-    /**
-     * Add other's values to this object's values
-     * @param other
-     */
-    public void add(W other) {
-        // no op
+    public static List<String> FIELDS;
+    public static List<String> NUMERIC_FIELDS = Arrays.asList(OPEN_PROP, HIGH_PROP, LOW_PROP, CLOSE_PROP, ADJCLOSE_PROP,
+        VOLUME_PROP);
+    static {
+        FIELDS = new ArrayList<>(AbstractBaseWritable.FIELDS);
+        FIELDS.addAll(NUMERIC_FIELDS);
     }
 
     @Override
-    public <T extends AbstractBaseWritable> void set(T other) {
-        super.set(other);
+    public List<String> getFieldsList() {
+        return FIELDS;
     }
-    /**
-     * Set this object's values to the min of this object's and other's values
-     * @param other
-     */
-    public void min(W other) {
-        // no op
-    }
-
-    /**
-     * Set this object's values to the max of this object's and other's values
-     * @param other
-     */
-    public void max(W other) {
-        // no op
-    }
-
-    public abstract W copyOf();
 
 }

@@ -23,16 +23,13 @@
 
 package ie.ibuttimer.dia_crime.hadoop.crime;
 
-import org.apache.hadoop.io.SortedMapWritable;
+import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 public class CrimeEntryReducer extends Reducer<Text, CrimeEntryWritable, Text, Text> {
@@ -48,42 +45,31 @@ public class CrimeEntryReducer extends Reducer<Text, CrimeEntryWritable, Text, T
     @Override
     protected void reduce(Text key, Iterable<CrimeEntryWritable> values, Context context) throws IOException, InterruptedException {
 
-        Map<String, Integer> crimeCategoryCounts = new HashMap<>();
+        Map<String, Integer> counts = new HashMap<>();
 
         // get counts for each category
         for (CrimeEntryWritable entry : values) {
             String category = entry.getFbiCode();
 
-            if (!crimeCategoryCounts.containsKey(category)) {
-                crimeCategoryCounts.put(category, 0);
+            if (!counts.containsKey(category)) {
+                counts.put(category, 0);
             }
-            crimeCategoryCounts.put(category, crimeCategoryCounts.get(category) + 1);
+            counts.put(category, counts.get(category) + 1);
         }
 
         // sort based on category
         int total = 0;  // total crimes for the day
-        Map<String, Integer> crimeCategoryCountMap = new TreeMap<>();
-        for (String category : crimeCategoryCounts.keySet()) {
-            int count = crimeCategoryCounts.get(category);
+        Map<String, Integer> map = new TreeMap<>();
+        for (String category : counts.keySet()) {
+            int count = counts.get(category);
             total += count;
-            crimeCategoryCountMap.put(category, count);
+            map.put(category, count);
         }
+        map.put("total", total);
 
         // create value string of <category>:<count> separated by ',' with <total>:<count> at the end
         // e.g. 2001-01-01	01A:2, 02:87, 03:41, 04A:28, 04B:44, 05:66, 06:413, 07:60, 08A:43, 08B:252, 10:12, 11:73, 12:7, 14:233, 15:32, 16:5, 17:68, 18:89, 19:2, 20:44, 22:3, 24:4, 26:211, total:1819
-        StringBuilder sb = new StringBuilder();
-        for (String category : crimeCategoryCountMap.keySet()) {
-            if (sb.length() > 0) {
-                sb.append(", ");
-            }
-            sb.append(category)
-                    .append(":")
-                    .append(crimeCategoryCounts.get(category));
-        }
-        sb.append(", total:")
-            .append(total);
-
-        context.write(key, new Text(sb.toString()));
+        context.write(key, new Text(MapStringifier.stringify(map)));
     }
 }
 

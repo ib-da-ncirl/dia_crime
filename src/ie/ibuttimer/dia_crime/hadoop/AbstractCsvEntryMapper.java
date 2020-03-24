@@ -34,16 +34,11 @@ import org.apache.hadoop.shaded.org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.Period;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -77,6 +72,8 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
 
     private DateFilter dateFilter = null;
 
+    private Map<String, Integer> indices = new HashMap<>();
+    private int maxIndex = -1;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -94,6 +91,19 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
 
         dateFilter = new DateFilter(conf.get(FILTER_START_DATE_PROP, ""),
                 conf.get(FILTER_END_DATE_PROP, ""));
+    }
+
+    protected void setup(Context context, List<String> propertyIndices) throws IOException, InterruptedException {
+        Configuration conf = context.getConfiguration();
+
+        // read the element indices from the configuration
+        for (String prop : propertyIndices) {
+            int index = conf.getInt(prop, -1);
+            if (index > maxIndex) {
+                maxIndex = index;
+            }
+            indices.put(prop, index);
+        }
     }
 
     /**
@@ -121,6 +131,14 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
     }
 
 
+    public Map<String, Integer> getIndices() {
+        return indices;
+    }
+
+    public int getMaxIndex() {
+        return maxIndex;
+    }
+
     /**
      * Check if the specified key is a header line and if it should be skipped
      * @param key   Key; line number
@@ -140,6 +158,21 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
      */
     public DateTimeFormatter getDateTimeFormatter() {
         return dateTimeFormatter;
+    }
+
+    /**
+     * Get the date and time
+     * @param dateTime  String of the date and time
+     * @return  Converted date and time
+     */
+    public ZonedDateTime getZonedDateTime(String dateTime) {
+        ZonedDateTime zdt = ZonedDateTime.of(LocalDateTime.MIN, ZoneId.systemDefault());
+        try {
+            zdt = ZonedDateTime.parse(dateTime, getDateTimeFormatter());
+        } catch (DateTimeParseException dpte) {
+            getLogger().error("Cannot parse '" + dateTime + "' using format " + dateTimeFormatter.toString(), dpte);
+        }
+        return zdt;
     }
 
     /**
@@ -170,6 +203,16 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
             getLogger().error("Cannot parse '" + date + "' using format " + dateTimeFormatter.toString(), dpte);
         }
         return ld;
+    }
+
+    /**
+     * Get the date and time and check if it is filtered
+     * @param dateTime  String of the date and time
+     * @return  Pair of filter result (TRUE if passes filter) and converted date and time
+     */
+    public Pair<Boolean, LocalDateTime> getZonedDateTimeAndFilter(String dateTime) {
+        LocalDateTime ldt = getZonedDateTime(dateTime).toLocalDateTime();
+        return Pair.of(dateFilter.filter(ldt), ldt);
     }
 
     /**
@@ -228,11 +271,10 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
             List<String> errors = new ArrayList<>();
 
             // check for tag & input/output path config
-            Pair<String, String>[] props = new Pair[] {
-                Pair.of(STOCK_TAG_PROP, "stack tag"),
-                Pair.of(IN_PATH_PROP, "input path"),
-                Pair.of(OUT_PATH_PROP, "output path")
-            };
+            List<Pair<String, String>> props = new ArrayList<>(getRequiredProps());
+            props.add(Pair.of(IN_PATH_PROP, "input path"));
+            props.add(Pair.of(OUT_PATH_PROP, "output path"));
+
             for (Pair<String, String> pair : props) {
                 String prop = pair.getLeft();
                 if (TextUtils.isEmpty(conf.get(prop))) {

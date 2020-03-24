@@ -40,30 +40,33 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 
-public class StockDriver {
+public class StockDriver extends AbstractDriver {
 
     private static final Logger logger = Logger.getLogger(StockDriver.class);
 
     private DiaCrimeMain app;
 
     public StockDriver(DiaCrimeMain app) {
-        this.app = app;
+        super(app);
+    }
+
+    public static StockDriver of(DiaCrimeMain app) {
+        return new StockDriver(app);
     }
 
     public int runStockJob(Properties properties) throws Exception {
 
         Pair<Integer, Map<String, Pair<Integer, Configuration>>> configRes = readConfigs(properties,
-            Arrays.asList(NASDAQ_PROP_SECTION, DOWJONES_PROP_SECTION, SP500_PROP_SECTION));
+            Arrays.asList(NASDAQ_PROP_SECTION, DOWJONES_PROP_SECTION, SP500_PROP_SECTION),
+            Collections.singletonList(STOCK_PROP_SECTION));
 
         int resultCode = configRes.getLeft();
 
@@ -106,58 +109,11 @@ public class StockDriver {
         return resultCode;
     }
 
-    public Job initJob(String name, Map<String, Pair<Integer, Configuration>> configs,
-                       Map<String, Class<? extends Mapper>> sections) throws Exception {
-
-        if (sections.size() == 0) {
-            throw new IllegalArgumentException("No sections specified");
-        }
-        if (sections.size() != configs.size()) {
-            throw new IllegalArgumentException("Number of sections and configurations does not match");
-        }
-
-        // doesn't matter which config is used for job
-        Configuration primaryConf = configs.entrySet().iterator().next().getValue().getRight();
-        Job job = Job.getInstance(primaryConf);
-        job.setJarByClass(StockDriver.class);
-        job.setJobName(name);
-
-        String outPath = primaryConf.get(OUT_PATH_PROP);
-        if (sections.size() > 1) {
-            // multiple inputs
-            Map<String, String> outputPaths = new HashMap<>();
-            sections.forEach((s, cls) -> {
-                Configuration conf = configs.get(s).getRight();
-                MultipleInputs.addInputPath(job, new Path(conf.get(IN_PATH_PROP)), TextInputFormat.class, cls);
-
-                outputPaths.put(s, conf.get(OUT_PATH_PROP));
-            });
-
-            // check all out paths are the same
-            for (String key : outputPaths.keySet()) {
-                if (!outPath.equals(outputPaths.get(key))) {
-                    outPath = null;
-                    break;
-                }
-            }
-        } else {
-            FileInputFormat.addInputPath(job, new Path(primaryConf.get(IN_PATH_PROP)));
-        }
-
-        if (outPath != null) {
-            FileOutputFormat.setOutputPath(job, new Path(outPath));
-        } else {
-            // TODO MultipleOutputs
-            throw new UnsupportedOperationException("Multiple output path not currently supported");
-        }
-
-        return job;
-    }
-
     public int runStockStatsJob(Properties properties) throws Exception {
 
         Pair<Integer, Map<String, Pair<Integer, Configuration>>> configRes = readConfigs(properties,
-            Arrays.asList(NASDAQ_PROP_SECTION, DOWJONES_PROP_SECTION, SP500_PROP_SECTION));
+            Arrays.asList(NASDAQ_PROP_SECTION, DOWJONES_PROP_SECTION, SP500_PROP_SECTION),
+            Collections.singletonList(STOCK_PROP_SECTION));
 
         int resultCode = configRes.getLeft();
 
@@ -208,10 +164,10 @@ public class StockDriver {
 
                             Result.Set finalResults = results;
                             BigStockEntryWritable.NUMERIC_FIELDS.forEach(f -> {
-                                Result result = finalResults.get(f.name());
+                                Result result = finalResults.get(f);
                                 if (result.isSuccess()) {
 
-                                    outputText.add(f.name());
+                                    outputText.add(f);
 
                                     Arrays.asList(StatsCalc.Stat.values()).forEach(stat -> {
                                         switch (stat) {
@@ -257,7 +213,7 @@ public class StockDriver {
 
     public int runStockAvgJob(Properties properties) throws Exception {
 
-        Pair<Integer, Configuration> nasdaqSetup = app.setupJob(properties,
+        Pair<Integer, Configuration> nasdaqSetup = getApp().setupJob(properties,
                 Pair.of(NASDAQ_PROP_SECTION, Collections.singletonList(STOCK_PROP_SECTION)));
 //        Pair<Integer, Configuration> dowjonesSetup = app.setupJob(properties,
 //                Pair.of(DOWJONES_PROP_SECTION, Collections.singletonList(STOCK_PROP_SECTION)));
@@ -309,31 +265,6 @@ public class StockDriver {
         }
 
         return resultCode;
-    }
-
-    private Pair<Integer, Map<String, Pair<Integer, Configuration>>> readConfigs(Properties properties, List<String> sections) {
-
-        // There is duplication of common property reading for stocks, unnecessary but convenient
-
-        Map<String, Pair<Integer, Configuration>> configs = new HashMap<>();
-
-        sections.forEach(s -> {
-            try {
-                configs.put(s, app.setupJob(properties, Pair.of(s, Collections.singletonList(STOCK_PROP_SECTION))));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-
-        int resultCode = ECODE_CONFIG_ERROR;
-        for (String id : configs.keySet()) {
-            resultCode = configs.get(id).getLeft();
-            if (resultCode != ECODE_SUCCESS) {
-                break;
-            }
-        }
-
-        return Pair.of(resultCode, configs);
     }
 
 }
