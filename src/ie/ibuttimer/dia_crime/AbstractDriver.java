@@ -23,6 +23,7 @@
 
 package ie.ibuttimer.dia_crime;
 
+import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -34,6 +35,7 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -50,46 +52,55 @@ public abstract class AbstractDriver {
         return app;
     }
 
-    public Job initJob(String name, Map<String, Pair<Integer, Configuration>> configs,
-                       Map<String, Class<? extends Mapper>> sections) throws Exception {
+    public Job initJob(String name, Configuration conf,
+                       Map<String, Class<? extends Mapper<?, ?, ?, ?>>> sections) throws Exception {
 
         if (sections.size() == 0) {
             throw new IllegalArgumentException("No sections specified");
         }
-        if (sections.size() != configs.size()) {
-            throw new IllegalArgumentException("Number of sections and configurations does not match");
-        }
 
-        // doesn't matter which config is used for job
-        Configuration primaryConf = configs.entrySet().iterator().next().getValue().getRight();
-        Job job = Job.getInstance(primaryConf);
+        Job job = Job.getInstance(conf);
         job.setJarByClass(AbstractDriver.class);
         job.setJobName(name);
 
-        String outPath = primaryConf.get(OUT_PATH_PROP);
+        PropertyWrangler propertyWrangler = new PropertyWrangler();
+
+        String outPath = null;
         if (sections.size() > 1) {
             // multiple inputs
             Map<String, String> outputPaths = new HashMap<>();
-            sections.forEach((s, cls) -> {
-                Configuration conf = configs.get(s).getRight();
-                MultipleInputs.addInputPath(job, new Path(conf.get(IN_PATH_PROP)), TextInputFormat.class, cls);
+            sections.forEach((section, cls) -> {
+                propertyWrangler.setRoot(section);
 
-                outputPaths.put(s, conf.get(OUT_PATH_PROP));
+                MultipleInputs.addInputPath(job,
+                    new Path(conf.get(propertyWrangler.getPropertyPath(IN_PATH_PROP))), TextInputFormat.class, cls);
+
+                outputPaths.put(section, conf.get(propertyWrangler.getPropertyPath(OUT_PATH_PROP)));
             });
 
             // check all out paths are the same
             for (String key : outputPaths.keySet()) {
-                if (!outPath.equals(outputPaths.get(key))) {
+                String pathOut = outputPaths.get(key);
+                if (outPath == null) {
+                    outPath = pathOut;
+                } else if (!outPath.equals(pathOut)) {
                     outPath = null;
                     break;
                 }
             }
         } else {
-            FileInputFormat.addInputPath(job, new Path(primaryConf.get(IN_PATH_PROP)));
+            assert sections.size() == 1;
 
-            sections.forEach((s, cls) -> {
+            AtomicReference<String> singleOutPath = new AtomicReference<>();
+            sections.forEach((section, cls) -> {
+                propertyWrangler.setRoot(section);
+                singleOutPath.set(conf.get(propertyWrangler.getPropertyPath(OUT_PATH_PROP)));
+
                 job.setMapperClass(cls);
             });
+
+            outPath = singleOutPath.get();
+            FileInputFormat.addInputPath(job, new Path(conf.get(propertyWrangler.getPropertyPath(IN_PATH_PROP))));
         }
 
         if (outPath != null) {
@@ -102,33 +113,54 @@ public abstract class AbstractDriver {
         return job;
     }
 
-    protected Pair<Integer, Map<String, Pair<Integer, Configuration>>>
-                    readConfigs(Properties properties, List<String> sections, List<String> commonSection) {
+    protected int readConfigs(Configuration conf, Properties properties, List<String> sections, List<String> commonSection) {
 
         // There is duplication of common property reading for stocks, unnecessary but convenient
 
-        Map<String, Pair<Integer, Configuration>> configs = new HashMap<>();
+        Map<String, Integer> configResults = new HashMap<>();
 
-        sections.forEach(s -> {
+        sections.forEach(section -> {
             try {
-                List<String> allSections = new ArrayList<>(commonSection);
-                allSections.add(GLOBAL_PROP_SECTION);
+                List<String> supplementarySections = new ArrayList<>(commonSection);
+                supplementarySections.add(GLOBAL_PROP_SECTION);
 
-                configs.put(s, app.setupJob(properties, Pair.of(s, allSections)));
+                configResults.put(section, app.setupJob(conf, properties, section, supplementarySections));
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
 
         int resultCode = ECODE_CONFIG_ERROR;
-        for (String id : configs.keySet()) {
-            resultCode = configs.get(id).getLeft();
+        for (String id : configResults.keySet()) {
+            resultCode = configResults.get(id);
             if (resultCode != ECODE_SUCCESS) {
                 break;
             }
         }
 
-        return Pair.of(resultCode, configs);
+        return resultCode;
+    }
+
+    protected void setMultipleInputsInputPath(Job job, String section,
+                  Map<String, Pair<Integer, Configuration>> configs, Map<String, Class<? extends Mapper>> sections) {
+
+        if (configs.containsKey(section)) {
+            Configuration conf = configs.get(section).getRight();
+
+            MultipleInputs.addInputPath(job, new Path(conf.get(IN_PATH_PROP)), TextInputFormat.class,
+                sections.get(section));
+        }
+    }
+
+    protected void setAllMultipleInputsInputPath(Job job,
+                  Map<String, Pair<Integer, Configuration>> configs, Map<String, Class<? extends Mapper>> sections) {
+
+        configs.forEach((section, value) -> {
+            Configuration conf = configs.get(section).getRight();
+
+            MultipleInputs.addInputPath(job, new Path(conf.get(IN_PATH_PROP)), TextInputFormat.class,
+                sections.get(section));
+        });
     }
 
 }

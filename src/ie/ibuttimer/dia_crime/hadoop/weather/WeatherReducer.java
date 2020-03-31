@@ -23,20 +23,23 @@
 
 package ie.ibuttimer.dia_crime.hadoop.weather;
 
+import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
 import ie.ibuttimer.dia_crime.misc.Counter;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-public class WeatherReducer extends Reducer<Text, MapWritable, Text, Text> {
+import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
+
+public class WeatherReducer extends AbstractWeatherReducer<Text, MapWritable, Text, Text> {
 
     /**
      * Reduce the values for a key
@@ -49,30 +52,43 @@ public class WeatherReducer extends Reducer<Text, MapWritable, Text, Text> {
     @Override
     protected void reduce(Text key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
 
+        CounterEnums.ReducerCounter counter = getCounter(context, WeatherCountersEnum.REDUCER_COUNT);
+
+        // flatten the maps in values and get a list of the CrimeEntryWritables
+        List<WeatherWritable> weatherReadings = iterableOfMapsToList(values, WeatherWritable.class);
+
+        // get average for all daily measurements
+        Map<String, Object> map = reduceToAverages(weatherReadings, counter);
+
+        // create value string of <field>:<value> separated by ','
+        // e.g. 2001-01-01	date:2001-01-01, temp:-5.8541665, weather_id:804, snow_3h:0.0, weather_description:overcast clouds, rain_1h:0.0, snow_1h:0.0, clouds_all:47, rain_3h:0.0, pressure:1028, feels_like:-11.464583, temp_max:-2.777917, weather_main:Clouds, temp_min:-8.428333, wind_deg:270, humidity:71, wind_speed:3.619583
+        context.write(key, new Text(MapStringifier.stringify(map)));
+    }
+
+    public static Map<String, Object> reduceToAverages(List<WeatherWritable> values, CounterEnums.ReducerCounter counter) {
+
         // get average for all daily measurements
         WeatherWritable avgCalc = new WeatherWritable();
         AtomicInteger total = new AtomicInteger();
         Counter<Integer, Triple<Integer, String, String>> descCounter = new Counter<>();
 
-        values.forEach(hourlyVal -> {
-            hourlyVal.forEach((hourKey, hourEntry) -> {
-                WeatherWritable weather = (WeatherWritable)hourEntry;
-                Triple<Integer, String, String> toCount =
-                    Triple.of(weather.getWeatherId(), weather.getWeatherMain(), weather.getWeatherDescription());
-                descCounter.inc(toCount.getLeft(), toCount);
+        values.forEach(weather -> {
+            Triple<Integer, String, String> toCount =
+                Triple.of(weather.getWeatherId(), weather.getWeatherMain(), weather.getWeatherDescription());
+            descCounter.inc(toCount.getLeft(), toCount);
 
-                avgCalc.setLocalDate(weather.getLocalDate());
-                avgCalc.add(weather);
+            avgCalc.setLocalDate(weather.getLocalDate());
+            avgCalc.add(weather);
 
-                total.incrementAndGet();
-            });
+            total.incrementAndGet();
+            counter.incrementValue(1);
         });
         avgCalc.divide(total.get());
 
 
         /* see https://openweathermap.org/weather-conditions for conditions
             in the case of more than one highest count, take the one with the highest id, as weather conditions get
-            the id increases
+            worse as the id increases
          */
         List<Triple<Integer, String, String>> weatherDesc = descCounter.highest();
         List<Triple<Integer, String, String>> weatherList = weatherDesc;
@@ -87,8 +103,6 @@ public class WeatherReducer extends Reducer<Text, MapWritable, Text, Text> {
             avgCalc.setWeatherDescription(w.getRight());
         });
 
-        // create value string of <category>:<count> separated by ',' with <total>:<count> at the end
-        // e.g. 2001-01-01	01A:2, 02:87, 03:41, 04A:28, 04B:44, 05:66, 06:413, 07:60, 08A:43, 08B:252, 10:12, 11:73, 12:7, 14:233, 15:32, 16:5, 17:68, 18:89, 19:2, 20:44, 22:3, 24:4, 26:211, total:1819
-        context.write(key, new Text(MapStringifier.stringify(avgCalc.toMap())));
+        return avgCalc.toMap();
     }
 }

@@ -29,7 +29,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.shaded.org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
 
@@ -39,6 +38,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.function.Consumer;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -49,7 +49,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * @param <K>   output key type
  * @param <V>   output value type
  */
-public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, Text, K, V> {
+public abstract class AbstractCsvEntryMapper<K, V> extends AbstractMapper<LongWritable, Text, K, V> {
 
     public static final String DEFAULT_SEPARATOR = ",";
     public static final boolean DEFAULT_HAS_HEADER = false;
@@ -75,22 +75,32 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
     private Map<String, Integer> indices = new HashMap<>();
     private int maxIndex = -1;
 
+    private DebugLevel debugLevel;  // current debug level
+
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         Configuration conf = context.getConfiguration();
 
-        separator = conf.get(SEPARATOR_PROP, DEFAULT_SEPARATOR);
-        hasHeader = conf.getBoolean(HAS_HEADER_PROP, DEFAULT_HAS_HEADER);
-        dateTimeFmt = conf.get(DATE_FORMAT_PROP, DEFAULT_DATE_TIME_FMT);
-        numIndices = conf.getInt(NUM_INDICES_PROP, 0);
+        super.setup(context);
+
+        separator = conf.get(getPropertyPath(SEPARATOR_PROP), DEFAULT_SEPARATOR);
+        hasHeader = conf.getBoolean(getPropertyPath(HAS_HEADER_PROP), DEFAULT_HAS_HEADER);
+        dateTimeFmt = conf.get(getPropertyPath(DATE_FORMAT_PROP), DEFAULT_DATE_TIME_FMT);
+        numIndices = conf.getInt(getPropertyPath(NUM_INDICES_PROP), 0);
 
         dateTimeFormatter = new DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .appendPattern(dateTimeFmt)
             .toFormatter();
 
-        dateFilter = new DateFilter(conf.get(FILTER_START_DATE_PROP, ""),
-                conf.get(FILTER_END_DATE_PROP, ""));
+        dateFilter = new DateFilter(conf.get(getPropertyPath(FILTER_START_DATE_PROP), ""),
+                conf.get(getPropertyPath(FILTER_END_DATE_PROP), ""));
+
+        debugLevel = DebugLevel.getSetting(conf, getEntryMapperCfg());
+
+        if (show(DebugLevel.MEDIUM)) {
+            getEntryMapperCfg().dumpConfiguration(getLogger(), getClass().getSimpleName(), conf);
+        }
     }
 
     protected void setup(Context context, List<String> propertyIndices) throws IOException, InterruptedException {
@@ -98,7 +108,7 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
 
         // read the element indices from the configuration
         for (String prop : propertyIndices) {
-            int index = conf.getInt(prop, -1);
+            int index = conf.getInt(getPropertyPath(prop), -1);
             if (index > maxIndex) {
                 maxIndex = index;
             }
@@ -241,6 +251,11 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
      */
     protected abstract Logger getLogger();
 
+
+    protected boolean show(DebugLevel level) {
+        return level.showMe(debugLevel);
+    }
+
     public abstract static class AbstractCsvEntryMapperCfg implements ICsvEntryMapperCfg {
         @Override
         public HashMap<String, String> getPropertyDefaults() {
@@ -249,6 +264,7 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
             for (String key : ALL_PATH_PROP_LIST) {
                 propDefault.put(key, "");
             }
+            propDefault.put(DEBUG_PROP, DebugLevel.OFF.name());
             propDefault.put(STOCK_TAG_PROP, "");
             propDefault.put(SEPARATOR_PROP, DEFAULT_SEPARATOR);
             propDefault.put(HAS_HEADER_PROP, Boolean.toString(DEFAULT_HAS_HEADER));
@@ -277,7 +293,7 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
 
             for (Pair<String, String> pair : props) {
                 String prop = pair.getLeft();
-                if (TextUtils.isEmpty(conf.get(prop))) {
+                if (TextUtils.isEmpty(conf.get(getPropertyPath(prop)))) {
                     errors.add("Error: No " + pair.getRight() + " specified, set '" + prop + "'.");
                     resultCode = ECODE_CONFIG_ERROR;
                 }
@@ -287,7 +303,7 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
             LocalDate startDate = null;
             LocalDate endDate = null;
             for (String key : DATE_FILTER_PROPS) {
-                String dateStr = conf.get(key, "");
+                String dateStr = conf.get(getPropertyPath(key), "");
                 if (!TextUtils.isEmpty(dateStr)) {
                     try {
                         LocalDate date = LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
@@ -314,7 +330,7 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
 
             // check property indices
             for (String key : getPropertyIndices()) {
-                if (conf.getInt(key, -1) < 0) {
+                if (conf.getInt(getPropertyPath(key), -1) < 0) {
                     errors.add("Error: '" + key + "' not specified.");
                     resultCode = ECODE_CONFIG_ERROR;
                 }
@@ -322,7 +338,20 @@ public abstract class AbstractCsvEntryMapper<K, V> extends Mapper<LongWritable, 
 
             return Pair.of(resultCode, errors);
         }
-    };
+
+        public void dumpConfiguration(Logger logger, String section, Configuration conf) {
+
+            // use info as its the default level
+            Consumer<String> consumer = s -> logger.info(
+                String.format("%s - %s [%s]", section, s, conf.get(getPropertyPath(s), "")));
+            ALL_PATH_PROP_LIST.forEach(consumer);
+            List.of(STOCK_TAG_PROP, SEPARATOR_PROP, HAS_HEADER_PROP, DATE_FORMAT_PROP, NUM_INDICES_PROP)
+                .forEach(consumer);
+            DATE_FILTER_PROPS.forEach(consumer);
+            getPropertyIndices().forEach(consumer);
+        }
+
+    }
 }
 
 

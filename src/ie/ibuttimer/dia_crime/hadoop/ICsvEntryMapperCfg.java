@@ -25,6 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.log4j.Logger;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -55,4 +56,10 @@ public interface ICsvEntryMapperCfg {
      * @return List of names
      */
     List<String> getPropertyIndices();
+
+    String getPropertyRoot();
+
+    String getPropertyPath(String propertyName);
+
+    void dumpConfiguration(Logger logger, String section, Configuration conf);
 }

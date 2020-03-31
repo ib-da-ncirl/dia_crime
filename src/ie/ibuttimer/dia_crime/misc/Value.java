@@ -26,6 +26,8 @@ package ie.ibuttimer.dia_crime.misc;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -49,20 +51,160 @@ public class Value extends Object {
         return Optional.of(new Value(value));
     }
 
-    public boolean isNumber() {
+    public static boolean isNumber(Object value)  {
         return value instanceof Number;
     }
 
-    public boolean isBigNumber() {
-        return isBigInteger() || isBigDecimal();
+    public static boolean isBigNumber(Object value) {
+        return isBigInteger(value) || isBigDecimal(value);
     }
 
-    public boolean isBigInteger() {
+    public static boolean isBigInteger(Object value) {
         return (value instanceof BigInteger);
     }
 
-    public boolean isBigDecimal() {
+    public static boolean isBigDecimal(Object value) {
         return (value instanceof BigDecimal);
+    }
+
+    public static boolean isString(Object value) {
+        return (value instanceof String);
+    }
+
+    public static boolean isDouble(Object value) {
+        return (value instanceof Double);
+    }
+
+    public static boolean isFloat(Object value) {
+        return (value instanceof Float);
+    }
+
+    public static boolean isLong(Object value) {
+        return (value instanceof Long);
+    }
+
+    public static boolean isInteger(Object value) {
+        return (value instanceof Integer);
+    }
+
+    public static boolean isShort(Object value) {
+        return (value instanceof Short);
+    }
+
+    public static boolean isByte(Object value) {
+        return (value instanceof Byte);
+    }
+
+    public static boolean isCharacter(Object value) {
+        return (value instanceof Character);
+    }
+
+    public static boolean isLocalDateTime(Object value) {
+        return (value instanceof LocalDateTime);
+    }
+
+    public static boolean isLocalDate(Object value) {
+        return (value instanceof LocalDate);
+    }
+
+    public static void ifNumber(Object value, Consumer<? super Number> action) {
+        if (isNumber(value)) {
+            action.accept((Number)value);
+        }
+    }
+
+    public static void ifBigNumber(Object value, Consumer<? super Number> action) {
+        if (isBigNumber(value)) {
+            action.accept((Number)value);
+        }
+    }
+
+    public static void ifBigInteger(Object value, Consumer<? super BigInteger> action) {
+        if (isBigInteger(value)) {
+            action.accept((BigInteger)value);
+        }
+    }
+
+    public static void ifBigDecimal(Object value, Consumer<? super BigDecimal> action) {
+        if (isBigDecimal(value)) {
+            action.accept((BigDecimal)value);
+        }
+    }
+
+    public static void ifString(Object value, Consumer<? super String> action) {
+        if (isString(value)) {
+            action.accept((String)value);
+        }
+    }
+
+    public static void ifDouble(Object value, Consumer<? super Double> action) {
+        if (isDouble(value)) {
+            action.accept((Double)value);
+        }
+    }
+
+    public static void ifFloat(Object value, Consumer<? super Float> action) {
+        if (isFloat(value)) {
+            action.accept((Float)value);
+        }
+    }
+
+    public static void ifLong(Object value, Consumer<? super Long> action) {
+        if (isLong(value)) {
+            action.accept((Long)value);
+        }
+    }
+
+    public static void ifInteger(Object value, Consumer<? super Integer> action) {
+        if (isInteger(value)) {
+            action.accept((Integer)value);
+        }
+    }
+
+    public static void ifShort(Object value, Consumer<? super Short> action) {
+        if (isShort(value)) {
+            action.accept((Short)value);
+        }
+    }
+
+    public static void ifByte(Object value, Consumer<? super Byte> action) {
+        if (isByte(value)) {
+            action.accept((Byte)value);
+        }
+    }
+
+    public static void ifCharacter(Object value, Consumer<? super Character> action) {
+        if (isCharacter(value)) {
+            action.accept((Character)value);
+        }
+    }
+
+    public static void ifLocalDateTime(Object value, Consumer<? super LocalDateTime> action) {
+        if (isLocalDateTime(value)) {
+            action.accept((LocalDateTime)value);
+        }
+    }
+
+    public static void ifLocalDate(Object value, Consumer<? super LocalDate> action) {
+        if (isLocalDate(value)) {
+            action.accept((LocalDate)value);
+        }
+    }
+
+    public boolean isNumber() {
+        return isNumber(value);
+    }
+
+    public boolean isBigNumber() {
+        return isBigNumber(value);
+    }
+
+    public boolean isBigInteger() {
+        return isBigInteger(value);
+    }
+
+    public boolean isBigDecimal() {
+        return isBigDecimal(value);
     }
 
     public Class getValueClass() {

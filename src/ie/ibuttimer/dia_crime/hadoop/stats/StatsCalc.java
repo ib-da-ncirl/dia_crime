@@ -25,7 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop.stats;
 
 import com.google.common.base.Charsets;
 import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
-import ie.ibuttimer.dia_crime.hadoop.stock.BigStockEntryWritable;
+import ie.ibuttimer.dia_crime.hadoop.stock.BigStockWritable;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.conf.Configuration;
@@ -82,10 +82,10 @@ public class StatsCalc implements IStats {
                 }
             });
 
-            BigStockEntryWritable sum = null;
-            BigStockEntryWritable sumOfSq = null;
-            BigStockEntryWritable min = null;
-            BigStockEntryWritable max = null;
+            BigStockWritable sum = null;
+            BigStockWritable sumOfSq = null;
+            BigStockWritable min = null;
+            BigStockWritable max = null;
             long count = -1;
             for (String key : req) {
                 switch (key) {
@@ -97,11 +97,11 @@ public class StatsCalc implements IStats {
                 }
             }
 
-            BigStockEntryWritable finalSumOfSq = sumOfSq;
-            BigStockEntryWritable finalSum = sum;
+            BigStockWritable finalSumOfSq = sumOfSq;
+            BigStockWritable finalSum = sum;
             long finalCount = count;
-            BigStockEntryWritable finalMin = min;
-            BigStockEntryWritable finalMax = max;
+            BigStockWritable finalMin = min;
+            BigStockWritable finalMax = max;
             fields.forEach(f -> {
                 Result result = new Result();
                 stats.forEach(stat -> {
@@ -225,8 +225,8 @@ public class StatsCalc implements IStats {
         return lines;
     }
 
-    private BigStockEntryWritable readBigStock(List<String> lines, String lineTag) {
-        BigStockEntryWritable entry = new BigStockEntryWritable();
+    private BigStockWritable readBigStock(List<String> lines, String lineTag) {
+        BigStockWritable entry = new BigStockWritable();
         lines.stream()
             .filter(l -> l.startsWith(lineTag))
             .findFirst()

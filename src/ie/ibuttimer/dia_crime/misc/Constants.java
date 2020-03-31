@@ -23,6 +23,9 @@
 
 package ie.ibuttimer.dia_crime.misc;
 
+import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import org.apache.hadoop.conf.Configuration;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -41,6 +44,8 @@ public class Constants {
     /* properties are stored in the format "<section>.<property>" */
     public static final String PROPERTY_SEPARATOR = ".";
 
+    public static final String CONF_PROPERTY_ROOT = "conf_property_root";
+
     public static final String GLOBAL_PROP_SECTION = "global";
     public static final String CRIME_PROP_SECTION = "crime";
     public static final String STOCK_PROP_SECTION = "stock";    // common section for stocks
@@ -50,6 +55,7 @@ public class Constants {
     public static final String WEATHER_PROP_SECTION = "weather";
 
     // common properties
+    public static final String DEBUG_PROP = "debug";
     public static final String STOCK_TAG_PROP = "stock_tag";
     public static final String IN_PATH_PROP = "in_path";
     public static final String OUT_PATH_PROP = "out_path";
@@ -82,6 +88,9 @@ public class Constants {
     public static final String LOCATIONDESCRIPTION_PROP = "locationdescription";
     public static final String IUCR_PROP = "iucr";
     public static final String FBICODE_PROP = "fbicode";
+    public static final String TOTAL_PROP = "total";    // total count, generated from data
+
+    public static final String CATEGORIES_PATH_PROP = "categories_path";  // path for categories output file
 
     // stock specific properties
     public static final String OPEN_PROP = "open";
@@ -90,6 +99,7 @@ public class Constants {
     public static final String CLOSE_PROP = "close";
     public static final String ADJCLOSE_PROP = "adjclose";
     public static final String VOLUME_PROP = "volume";
+    public static final String ID_PROP = "id";
 
     public static final String COUNT_PROP = "count";
 
@@ -114,6 +124,27 @@ public class Constants {
     public static final int ECODE_CONFIG_ERROR = -1;
     public static final int ECODE_SUCCESS = 0;
     public static final int ECODE_FAIL = 1;
+
+    public enum DebugLevel { OFF, LOW, MEDIUM, HIGH, VERBOSE;
+
+        public static DebugLevel getSetting(Configuration conf, ICsvEntryMapperCfg sCfgChk) {
+            String setting = conf.get(sCfgChk.getPropertyPath(DEBUG_PROP), OFF.name());
+            return DebugLevel.valueOf(setting);
+        }
+
+        public static boolean show(DebugLevel setting, DebugLevel level) {
+            return (setting != OFF) && (level.ordinal() <= setting.ordinal());
+        }
+
+        public boolean showMe(DebugLevel setting) {
+            return show(setting, this);
+        }
+
+        public static boolean show(Configuration conf, ICsvEntryMapperCfg sCfgChk, DebugLevel level) {
+            DebugLevel setting = getSetting(conf, sCfgChk);
+            return show(setting, level);
+        }
+    }
 
     /**
      * Private default constructor so class can't be instantiated

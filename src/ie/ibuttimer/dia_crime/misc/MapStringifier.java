@@ -23,6 +23,8 @@
 
 package ie.ibuttimer.dia_crime.misc;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -75,4 +77,36 @@ public class MapStringifier<K, V> {
         return mapify(line, new HashMap<>());
     }
 
+    public static ElementStringify elementStringifier() {
+        return new ElementStringify(KV_SEPARATOR);
+    }
+
+
+    public static class ElementStringify {
+
+        private String separator;
+
+        public ElementStringify(String separator) {
+            this.separator = separator;
+        }
+
+        public static ElementStringify of(String separator) {
+            return new ElementStringify(separator);
+        }
+
+        public String stringifyElement(String field, String value) {
+            return field+separator+value;
+        }
+
+        public Pair<String, String> destringifyElement(String element) {
+            Pair<String, String> result;
+            String[] splits = element.split(separator);
+            if (splits.length == 2) {
+                result = Pair.of(splits[0], splits[1]);
+            } else {
+                result = Pair.of(null, null);
+            }
+            return result;
+        }
+    }
 }

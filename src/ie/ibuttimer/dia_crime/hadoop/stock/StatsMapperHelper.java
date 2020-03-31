@@ -28,6 +28,7 @@ import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -35,16 +36,19 @@ import java.util.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.VOLUME_PROP;
 
-public class StatsMapperHelper implements IStats, IAbstractStockEntryMapper {
+public class StatsMapperHelper implements IStats, IAbstractStockMapper {
 
-    private BigStockEntryWritable.BigStockEntryWritableBuilder builder;
+    private BigStockWritable.BigStockEntryWritableBuilder builder;
 
-    public StatsMapperHelper(BigStockEntryWritable.BigStockEntryWritableBuilder builder) {
+    private MapWritable mapOut = new MapWritable();
+    private MapWritable sqMapOut = new MapWritable();
+
+    public StatsMapperHelper(BigStockWritable.BigStockEntryWritableBuilder builder) {
         this.builder = builder;
     }
 
     @Override
-    public AbstractBaseWritable generateEntry(LocalDate date, String[] splits, Map<String, Integer> indices) {
+    public AbstractBaseWritable<?> generateEntry(LocalDate date, String[] splits, Map<String, Integer> indices) {
         return builder.clear()
             .setLocalDate(date)
             .setOpen(splits[indices.get(OPEN_PROP)])
@@ -57,12 +61,13 @@ public class StatsMapperHelper implements IStats, IAbstractStockEntryMapper {
     }
 
     @Override
-    public List<Pair<String, MapWritable>> getWriteOutput(AbstractBaseWritable entry, MapWritable mapOut, Text id, AbstractStockEntryMapper.StockMapperKey keyOutType) {
+    public List<Pair<String, Writable>> getWriteOutput(AbstractBaseWritable<?> entry, Text id,
+                                                       AbstractStockMapper.StockMapperKey keyOutType, IStockEntryKeyGenerator keyGenerator) {
 
-        List<Pair<String, MapWritable>> output = new ArrayList<>();
+        List<Pair<String, Writable>> output = new ArrayList<>();
 
-        if (entry instanceof BigStockEntryWritable) {
-            BigStockEntryWritable bigEntry = (BigStockEntryWritable) entry;
+        if (entry instanceof BigStockWritable) {
+            BigStockWritable bigEntry = (BigStockWritable) entry;
 
             // write the output
             mapOut.clear();
@@ -71,7 +76,7 @@ public class StatsMapperHelper implements IStats, IAbstractStockEntryMapper {
             output.add(Pair.of(id.toString(), mapOut));
 
             // write squared version of the output
-            BigStockEntryWritable sqEntry = bigEntry.copyOf();
+            BigStockWritable sqEntry = bigEntry.copyOf();
             sqEntry.setOpen(bigEntry.getOpen().pow(2));
             sqEntry.setHigh(bigEntry.getHigh().pow(2));
             sqEntry.setLow(bigEntry.getLow().pow(2));
@@ -79,10 +84,10 @@ public class StatsMapperHelper implements IStats, IAbstractStockEntryMapper {
             sqEntry.setAdjClose(bigEntry.getAdjClose().pow(2));
             sqEntry.setVolume(bigEntry.getVolume().pow(2));
 
-            MapWritable map = new MapWritable();
-            map.put(id, sqEntry);
+            sqMapOut.clear();
+            sqMapOut.put(id, sqEntry);
 
-            output.add(Pair.of(getSquareKeyTag(id.toString()), map));
+            output.add(Pair.of(getSquareKeyTag(id.toString()), sqMapOut));
         }
         return output;
     }

@@ -23,12 +23,12 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
+import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
 import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -46,16 +46,20 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : stock id
  * - input value : text with
  */
-public class StockEntryStatsReducer extends Reducer<Text, MapWritable, Text, Text> implements IStats {
+public class StockEntryStatsReducer extends AbstractStockReducer<Text, MapWritable, Text, Text> implements IStats {
 
     static BigDecimal MAX_DECIMAL = new BigDecimal(Double.MAX_VALUE);
     static BigDecimal MIN_DECIMAL = new BigDecimal(Double.MIN_VALUE);
     static BigInteger MAX_INTEGER = BigInteger.valueOf(Long.MAX_VALUE);
     static BigInteger MIN_INTEGER = BigInteger.valueOf(Long.MIN_VALUE);
 
+    private CounterEnums.ReducerCounter counter;
+
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
+
+        counter = getCounter(context, StockCountersEnum.REDUCER_COUNT);
     }
 
     /**
@@ -69,22 +73,18 @@ public class StockEntryStatsReducer extends Reducer<Text, MapWritable, Text, Tex
     @Override
     protected void reduce(Text key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
 
-        BigStockEntryWritable summer = new BigStockEntryWritable();
-        BigStockEntryWritable minimiser = new BigStockEntryWritable(
-                MAX_DECIMAL, MAX_DECIMAL, MAX_DECIMAL, MAX_DECIMAL, MAX_DECIMAL, MAX_INTEGER);
-        BigStockEntryWritable maximiser = new BigStockEntryWritable(
-                MIN_DECIMAL, MIN_DECIMAL, MIN_DECIMAL, MIN_DECIMAL, MIN_DECIMAL, MIN_INTEGER);
-
-        // TODO probably need reducer only counter
-        CounterEnums.ReducerCounter counter = getCounter(context);
-        counter.reset();
+        BigStockWritable summer = new BigStockWritable();
+        BigStockWritable minimiser = new BigStockWritable(
+                MAX_DECIMAL, MAX_DECIMAL, MAX_DECIMAL, MAX_DECIMAL, MAX_DECIMAL, MAX_INTEGER, "");
+        BigStockWritable maximiser = new BigStockWritable(
+                MIN_DECIMAL, MIN_DECIMAL, MIN_DECIMAL, MIN_DECIMAL, MIN_DECIMAL, MIN_INTEGER, "");
 
         if (isStandardKey(key.toString())) {
             values.forEach(stock -> {
                 stock.forEach((stockKey, stockEntry) -> {
-                    summer.add((BigStockEntryWritable) stockEntry);
-                    minimiser.min((BigStockEntryWritable) stockEntry);
-                    maximiser.max((BigStockEntryWritable) stockEntry);
+                    summer.add((BigStockWritable) stockEntry);
+                    minimiser.min((BigStockWritable) stockEntry);
+                    maximiser.max((BigStockWritable) stockEntry);
                     counter.increment();
                 });
             });
@@ -97,7 +97,7 @@ public class StockEntryStatsReducer extends Reducer<Text, MapWritable, Text, Tex
             // slight duplication but min/min not required for squared values and it'll be quicker
             values.forEach(stock -> {
                 stock.forEach((stockKey, stockEntry) -> {
-                    summer.add((BigStockEntryWritable) stockEntry);
+                    summer.add((BigStockWritable) stockEntry);
                     counter.increment();
                 });
             });
@@ -113,11 +113,11 @@ public class StockEntryStatsReducer extends Reducer<Text, MapWritable, Text, Tex
         });
     }
 
-    private void writeOutput(Context context, Stream<Pair<BigStockEntryWritable, Text>> stream) {
+    private void writeOutput(Context context, Stream<Pair<BigStockWritable, Text>> stream) {
         Map<String, String> map = new TreeMap<>();
 
         stream.forEach(pair -> {
-            BigStockEntryWritable result = pair.getLeft();
+            BigStockWritable result = pair.getLeft();
             map.clear();
             map.put(OPEN_PROP, result.getOpen().toPlainString());
             map.put(HIGH_PROP, result.getHigh().toPlainString());
@@ -136,10 +136,5 @@ public class StockEntryStatsReducer extends Reducer<Text, MapWritable, Text, Tex
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-    }
-
-    protected CounterEnums.ReducerCounter getCounter(Reducer.Context context) {
-        return new CounterEnums.ReducerCounter(context, CounterEnums.NasdaqCountersEnum.class.getName(),
-                CounterEnums.NasdaqCountersEnum.COUNT.toString());
     }
 }

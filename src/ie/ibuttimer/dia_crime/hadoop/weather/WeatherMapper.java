@@ -23,108 +23,36 @@
 
 package ie.ibuttimer.dia_crime.hadoop.weather;
 
-import ie.ibuttimer.dia_crime.hadoop.AbstractCsvEntryMapper;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-
-import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 /**
  * Mapper for a crime entry:
  * - input key : csv file line number
  * - input value : csv file line text
  * - output key : date
- * - input value : WeatherWritable
+ * - output value : MapWritable<date, WeatherWritable>
  */
-public class WeatherMapper extends AbstractCsvEntryMapper<Text, MapWritable> {
+public class WeatherMapper extends AbstractWeatherMapper<MapWritable> {
 
     private static final Logger logger = Logger.getLogger(WeatherMapper.class);
-
-    private WeatherWritable.WeatherWritableBuilder builder;
-
-    private Map<String, Integer> indices;
-    private int maxIndex;
 
     public static final List<String> WEATHER_PROPERTY_INDICES = WeatherWritable.FIELDS;
 
     private MapWritable mapOut = new MapWritable();
 
     @Override
-    protected void setup(Context context) throws IOException, InterruptedException {
-        super.setup(context);
-        super.setup(context, WEATHER_PROPERTY_INDICES);
+    protected void writeOutput(Context context, Text key, WeatherWritable value) throws IOException, InterruptedException {
+        mapOut.clear();
+        mapOut.put(key, value);
 
-        indices = getIndices();
-        maxIndex = getMaxIndex();
-
-        builder = WeatherWritable.getBuilder();
-    }
-
-    /**
-     * Map lines from a csv file
-     * @param key       Key; line number
-     * @param value     Text for specified line in file
-     * @param context   Current context
-     * @throws IOException
-     * @throws InterruptedException
-     */
-    @Override
-    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-
-        if (!skipHeader(key)) {
-            /* dt,dt_iso,timezone,city_name,lat,lon,temp,feels_like,temp_min,temp_max,pressure,sea_level,grnd_level,humidity,
-                wind_speed,wind_deg,rain_1h,rain_3h,snow_1h,snow_3h,clouds_all,weather_id,weather_main,weather_description,weather_icon
-             */
-            String line = value.toString();
-            String[] splits = line.split(getSeparator());
-            // if the line ends with separators, they are ignored and consequently the num of splits doesn't match
-            // num of columns in csv file
-            if (splits.length > maxIndex) {
-                int dateIdx = indices.get(DATE_PROP);
-                Pair<Boolean, LocalDateTime> filterRes = getZonedDateTimeAndFilter(splits[indices.get(DATE_PROP)]);
-
-                if (filterRes.getLeft()) {
-                    LocalDateTime dateTime = filterRes.getRight();
-
-                    WeatherWritable entry = builder.clear()
-                        .setLocalDateTime(dateTime)
-                        .setTemp(splits[indices.get(TEMP_PROP)])
-                        .setFeelsLike(splits[indices.get(FEELS_LIKE_PROP)])
-                        .setTempMin(splits[indices.get(TEMP_MIN_PROP)])
-                        .setTempMax(splits[indices.get(TEMP_MAX_PROP)])
-                        .setPressure(splits[indices.get(PRESSURE_PROP)])
-                        .setHumidity(splits[indices.get(HUMIDITY_PROP)])
-                        .setWindSpeed(splits[indices.get(WIND_SPEED_PROP)])
-                        .setWindDeg(splits[indices.get(WIND_DEG_PROP)])
-                        .setRain1h(splits[indices.get(RAIN_1H_PROP)])
-                        .setRain3h(splits[indices.get(RAIN_3H_PROP)])
-                        .setSnow1h(splits[indices.get(SNOW_1H_PROP)])
-                        .setSnow3h(splits[indices.get(SNOW_3H_PROP)])
-                        .setClouds(splits[indices.get(CLOUDS_ALL_PROP)])
-                        .setWeatherId(splits[indices.get(WEATHER_ID_PROP)])
-                        .setWeatherMain(splits[indices.get(WEATHER_MAIN_PROP)])
-                        .setWeatherDescription(splits[indices.get(WEATHER_DESC_PROP)])
-                        .build();
-
-                    mapOut.clear();
-                    mapOut.put(new Text(entry.getLocalDate().toString()), entry);
-
-                    // return the day as the key and the crime entry as the value
-                    context.write(new Text(dateTime.toLocalDate().toString()), mapOut);
-                }
-            } else {
-                logger.warn("Line " + key.get() + " ignored, insufficient columns: " + splits.length);
-            }
-        }
+        // return the day as the key and the weather entry as the value
+        write(context, key, mapOut);
     }
 
     @Override
@@ -132,16 +60,8 @@ public class WeatherMapper extends AbstractCsvEntryMapper<Text, MapWritable> {
         return logger;
     }
 
-
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg() {
-        @Override
-        public List<String> getPropertyIndices() {
-            return WEATHER_PROPERTY_INDICES;
-        }
-    };
-
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
-        return sCfgChk;
+        return AbstractWeatherMapper.getCsvEntryMapperCfg();
     }
 }
 

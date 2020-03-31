@@ -28,6 +28,7 @@ import ie.ibuttimer.dia_crime.hadoop.stats.Result;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsCalc;
 import ie.ibuttimer.dia_crime.hadoop.stock.*;
 import ie.ibuttimer.dia_crime.misc.Constants;
+import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -36,10 +37,6 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -52,7 +49,8 @@ public class StockDriver extends AbstractDriver {
 
     private static final Logger logger = Logger.getLogger(StockDriver.class);
 
-    private DiaCrimeMain app;
+    public static List<String> STOCK_SECTIONS =
+        Arrays.asList(NASDAQ_PROP_SECTION, DOWJONES_PROP_SECTION, SP500_PROP_SECTION);
 
     public StockDriver(DiaCrimeMain app) {
         super(app);
@@ -62,33 +60,27 @@ public class StockDriver extends AbstractDriver {
         return new StockDriver(app);
     }
 
-    public int runStockJob(Properties properties) throws Exception {
+    public static Pair<List<String>, List<String>> getSectionLists() {
+        // List<String> sections, List<String> commonSection
+        return Pair.of(STOCK_SECTIONS, Collections.singletonList(STOCK_PROP_SECTION));
+    }
 
-        Pair<Integer, Map<String, Pair<Integer, Configuration>>> configRes = readConfigs(properties,
-            Arrays.asList(NASDAQ_PROP_SECTION, DOWJONES_PROP_SECTION, SP500_PROP_SECTION),
-            Collections.singletonList(STOCK_PROP_SECTION));
+    public Job getStockJob(Properties properties) throws Exception {
 
-        int resultCode = configRes.getLeft();
+        Pair<List<String>, List<String>> sectionLists = getSectionLists();
+
+        Job job = null;
+        Configuration conf = new Configuration();
+        int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, Pair<Integer, Configuration>> configs = configRes.getRight();
+            Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
 
-            Configuration nasdaqConf = configs.get(NASDAQ_PROP_SECTION).getRight();
-            Configuration dowjonesSetup = configs.get(DOWJONES_PROP_SECTION).getRight();
-            Configuration sp500Setup = configs.get(SP500_PROP_SECTION).getRight();
+            sections.put(NASDAQ_PROP_SECTION, NasdaqStockMapper.class);
+            sections.put(DOWJONES_PROP_SECTION, DowJonesStockMapper.class);
+            sections.put(SP500_PROP_SECTION, SP500StockMapper.class);
 
-            Job job = Job.getInstance(nasdaqConf);
-            job.setJarByClass(StockDriver.class);
-            job.setJobName("Stocks");
-
-            MultipleInputs.addInputPath(job, new Path(nasdaqConf.get(IN_PATH_PROP)),
-                    TextInputFormat.class, NasdaqStockEntryMapper.class);
-            MultipleInputs.addInputPath(job, new Path(dowjonesSetup.get(IN_PATH_PROP)),
-                    TextInputFormat.class, DowJonesStockEntryMapper.class);
-            MultipleInputs.addInputPath(job, new Path(sp500Setup.get(IN_PATH_PROP)),
-                    TextInputFormat.class, SP500StockEntryMapper.class);
-
-            FileOutputFormat.setOutputPath(job, new Path(nasdaqConf.get(OUT_PATH_PROP)));
+            job = initJob("Stocks", conf, sections);
 
             job.setReducerClass(StockEntryReducer.class);
 
@@ -101,8 +93,17 @@ public class StockDriver extends AbstractDriver {
              * (input) <LongWritable, Text> -> map -> <Text, MapWritable> -> reduce -> <Text, Text> (output)
              */
             job.setOutputKeyClass(Text.class);
-            job.setOutputValueClass(MapWritable.class);
+            job.setOutputValueClass(Text.class);
+        }
 
+        return job;
+    }
+
+    public int runStockJob(Properties properties) throws Exception {
+
+        int resultCode = Constants.ECODE_FAIL;
+        Job job = getStockJob(properties);
+        if (job != null) {
             resultCode = job.waitForCompletion(true) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
         }
 
@@ -111,25 +112,24 @@ public class StockDriver extends AbstractDriver {
 
     public int runStockStatsJob(Properties properties) throws Exception {
 
-        Pair<Integer, Map<String, Pair<Integer, Configuration>>> configRes = readConfigs(properties,
-            Arrays.asList(NASDAQ_PROP_SECTION, DOWJONES_PROP_SECTION, SP500_PROP_SECTION),
-            Collections.singletonList(STOCK_PROP_SECTION));
+        Pair<List<String>, List<String>> sectionLists = getSectionLists();
 
-        int resultCode = configRes.getLeft();
+        Job job = null;
+        Configuration conf = new Configuration();
+        int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, Pair<Integer, Configuration>> configs = configRes.getRight();
-            Map<String, Class<? extends Mapper>> sections = new HashMap<>();
+            Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
             Map<String, String> tags = new HashMap<>();
 
-            sections.put(NASDAQ_PROP_SECTION, NasdaqStockEntryStatsMapper.class);
-            sections.put(DOWJONES_PROP_SECTION, DowJonesStockEntryStatsMapper.class);
-            sections.put(SP500_PROP_SECTION, SP500StockEntryStatsMapper.class);
+            sections.put(NASDAQ_PROP_SECTION, NasdaqStockStatsMapper.class);
+            sections.put(DOWJONES_PROP_SECTION, DowJonesStockStatsMapper.class);
+            sections.put(SP500_PROP_SECTION, SP500StockStatsMapper.class);
             tags.put(NASDAQ_PROP_SECTION, NASDAQ_ID);
             tags.put(DOWJONES_PROP_SECTION, DOWJONES_ID);
             tags.put(SP500_PROP_SECTION, SP500_ID);
 
-            Job job = initJob("StocksStats", configs, sections);
+            job = initJob("Stocks", conf, sections);
 
             job.setReducerClass(StockEntryStatsReducer.class);
 
@@ -148,22 +148,24 @@ public class StockDriver extends AbstractDriver {
 
             if (resultCode == ECODE_SUCCESS) {
 
-                configs.forEach((key, value) -> {
-                    Configuration conf = value.getRight();
-                    Path outDir = new Path(value.getRight().get(OUT_PATH_PROP));
+                PropertyWrangler propertyWrangler = new PropertyWrangler();
+
+                sections.forEach((section, value) -> {
+                    propertyWrangler.setRoot(section);
+                    Path outDir = new Path(conf.get(propertyWrangler.getPropertyPath(OUT_PATH_PROP)));
                     StatsCalc statsCalc = new StatsCalc(outDir, conf, "part-r-00000");
-                    String outPath = conf.get(STATS_PATH_PROP, key + "_stats.txt");
+                    String outPath = conf.get(STATS_PATH_PROP, section + "_stats.txt");
                     FileUtil fileUtil = new FileUtil(outDir, conf);
 
                     Result.Set results = null;
                     try {
-                        results = statsCalc.calcAll(tags.get(key), BigStockEntryWritable.NUMERIC_FIELDS);
+                        results = statsCalc.calcAll(tags.get(section), BigStockWritable.NUMERIC_FIELDS);
                         try (FSDataOutputStream stream = fileUtil.fileWriteOpen(outPath, true)) {
 
                             List<String> outputText = new ArrayList<>();
 
                             Result.Set finalResults = results;
-                            BigStockEntryWritable.NUMERIC_FIELDS.forEach(f -> {
+                            BigStockWritable.NUMERIC_FIELDS.forEach(f -> {
                                 Result result = finalResults.get(f);
                                 if (result.isSuccess()) {
 
@@ -211,60 +213,5 @@ public class StockDriver extends AbstractDriver {
         return resultCode;
     }
 
-    public int runStockAvgJob(Properties properties) throws Exception {
-
-        Pair<Integer, Configuration> nasdaqSetup = getApp().setupJob(properties,
-                Pair.of(NASDAQ_PROP_SECTION, Collections.singletonList(STOCK_PROP_SECTION)));
-//        Pair<Integer, Configuration> dowjonesSetup = app.setupJob(properties,
-//                Pair.of(DOWJONES_PROP_SECTION, Collections.singletonList(STOCK_PROP_SECTION)));
-//        Pair<Integer, Configuration> sp500Setup = app.setupJob(properties,
-//                Pair.of(SP500_PROP_SECTION, Collections.singletonList(STOCK_PROP_SECTION)));
-
-        int resultCode = ECODE_CONFIG_ERROR;
-//        for (Pair<Integer, Configuration> setup : Arrays.asList(nasdaqSetup, dowjonesSetup, sp500Setup)) {
-        for (Pair<Integer, Configuration> setup : Arrays.asList(nasdaqSetup)) {
-            resultCode = setup.getLeft();
-            if (resultCode != ECODE_SUCCESS) {
-                break;
-            }
-        }
-
-        if (resultCode == Constants.ECODE_SUCCESS) {
-            Configuration nasdaqConf = nasdaqSetup.getRight();
-
-            Job job = Job.getInstance(nasdaqConf);
-            job.setJarByClass(StockDriver.class);
-            job.setJobName("StocksAvg");
-
-//            MultipleInputs.addInputPath(job, new Path(nasdaqConf.get(IN_PATH_PROP)),
-//                    TextInputFormat.class, NasdaqStockEntryMapper.class);
-//            MultipleInputs.addInputPath(job, new Path(dowjonesSetup.getRight().get(IN_PATH_PROP)),
-//                    TextInputFormat.class, DowJonesStockEntryMapper.class);
-//            MultipleInputs.addInputPath(job, new Path(sp500Setup.getRight().get(IN_PATH_PROP)),
-//                    TextInputFormat.class, SP500StockEntryMapper.class);
-
-            FileInputFormat.addInputPath(job, new Path(nasdaqConf.get(IN_PATH_PROP)));
-            FileOutputFormat.setOutputPath(job, new Path(nasdaqConf.get(OUT_PATH_PROP)));
-
-            job.setMapperClass(NasdaqStockEntryAvgMapper.class);
-            job.setCombinerClass(StockEntryAvgCombiner.class);
-            job.setReducerClass(StockEntryAvgReducer.class);
-
-            job.setMapOutputKeyClass(Text.class);
-            job.setMapOutputValueClass(MapWritable.class);
-
-            /*
-             * Input and Output types of a MapReduce job:
-             * (input) <k1, v1> -> map -> <k2, v2> -> combine -> <k2, v2> -> reduce -> <k3, v3> (output)
-             * (input) <LongWritable, Text> -> map -> <Text, MapWritable> -> reduce -> <Text, Text> (output)
-             */
-            job.setOutputKeyClass(Text.class);
-            job.setOutputValueClass(MapWritable.class);
-
-            resultCode = job.waitForCompletion(true) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
-        }
-
-        return resultCode;
-    }
 
 }

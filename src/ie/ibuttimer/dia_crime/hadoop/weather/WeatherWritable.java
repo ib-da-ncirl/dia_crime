@@ -33,6 +33,8 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -98,10 +100,15 @@ public class WeatherWritable extends AbstractBaseWritable<WeatherWritable> imple
         this.weatherDescription = "";
     }
 
-    public static WeatherWritable read(DataInput in) throws IOException {
-        WeatherWritable cew = new WeatherWritable();
-        cew.readFields(in);
-        return cew;
+    @Override
+    public WeatherWritable getInstance() {
+        return new WeatherWritable();
+    }
+
+    public static WeatherWritable read(DataInput dataInput) throws IOException {
+        WeatherWritable writable = new WeatherWritable();
+        writable.readFields(dataInput);
+        return writable;
     }
 
     @Override
@@ -541,8 +548,70 @@ public class WeatherWritable extends AbstractBaseWritable<WeatherWritable> imple
     }
 
     @Override
+    public boolean setField(String field, Object value) {
+        AtomicBoolean set = new AtomicBoolean(super.setField(field, value));
+        if (!set.get()) {
+            Value.ifFloat(value, v -> {
+                set.set(true);
+                switch (field) {
+                    case TEMP_PROP:          setTemp(v);        break;
+                    case FEELS_LIKE_PROP:    setFeelsLike(v);   break;
+                    case TEMP_MIN_PROP:      setTempMin(v);     break;
+                    case TEMP_MAX_PROP:      setTempMax(v);     break;
+                    case WIND_SPEED_PROP:    setWindSpeed(v);   break;
+                    case RAIN_1H_PROP:       setRain1h(v);      break;
+                    case RAIN_3H_PROP:       setRain3h(v);      break;
+                    case SNOW_1H_PROP:       setSnow1h(v);      break;
+                    case SNOW_3H_PROP:       setSnow3h(v);      break;
+                    default:                 set.set(false);    break;
+                }
+            });
+            if (!set.get()) {
+                Value.ifInteger(value, v -> {
+                    set.set(true);
+                    switch (field) {
+                        case PRESSURE_PROP:      setPressure(v);    break;
+                        case HUMIDITY_PROP:      setHumidity(v);    break;
+                        case WIND_DEG_PROP:      setWindDeg(v);     break;
+                        case CLOUDS_ALL_PROP:    setClouds(v);      break;
+                        case WEATHER_ID_PROP:    setWeatherId(v);   break;
+                        default:                 set.set(false);    break;
+                    }
+                });
+                if (!set.get()) {
+                    Value.ifString(value, v -> {
+                        set.set(true);
+                        switch (field) {
+                            case WEATHER_MAIN_PROP:
+                                setWeatherMain(v);
+                                break;
+                            case WEATHER_DESC_PROP:
+                                setWeatherDescription(v);
+                                break;
+                            default:
+                                set.set(false);
+                                break;
+                        }
+                    });
+                }
+            }
+        }
+        return set.get();
+    }
+
+    @Override
     public List<String> getFieldsList() {
         return FIELDS;
+    }
+
+    public static void ifInstance(Object value, Consumer<WeatherWritable> action) {
+        if (isInstance(value)) {
+            action.accept((WeatherWritable)value);
+        }
+    }
+
+    public static boolean isInstance(Object value) {
+        return (value instanceof WeatherWritable);
     }
 
     @Override

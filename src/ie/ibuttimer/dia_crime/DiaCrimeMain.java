@@ -24,22 +24,16 @@
 package ie.ibuttimer.dia_crime;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import ie.ibuttimer.dia_crime.hadoop.crime.CrimeEntryMapper;
-import ie.ibuttimer.dia_crime.hadoop.crime.CrimeEntryReducer;
-import ie.ibuttimer.dia_crime.hadoop.crime.CrimeEntryWritable;
-import ie.ibuttimer.dia_crime.hadoop.stock.DowJonesStockEntryMapper;
-import ie.ibuttimer.dia_crime.hadoop.stock.NasdaqStockEntryMapper;
-import ie.ibuttimer.dia_crime.hadoop.stock.SP500StockEntryMapper;
+import ie.ibuttimer.dia_crime.hadoop.crime.CrimeMapper;
+import ie.ibuttimer.dia_crime.hadoop.stock.DowJonesStockMapper;
+import ie.ibuttimer.dia_crime.hadoop.stock.NasdaqStockMapper;
+import ie.ibuttimer.dia_crime.hadoop.stock.SP500StockMapper;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherMapper;
 import ie.ibuttimer.dia_crime.misc.Constants;
+import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.cli.*;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.shaded.org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
 
@@ -48,6 +42,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -60,21 +55,34 @@ public class DiaCrimeMain {
     static {
         propDefaults = new HashMap<>();
 
-        propDefaults.put(CRIME_PROP_SECTION, CrimeEntryMapper.getCsvEntryMapperCfg());
-        propDefaults.put(NASDAQ_PROP_SECTION, NasdaqStockEntryMapper.getCsvEntryMapperCfg());
-        propDefaults.put(DOWJONES_PROP_SECTION, DowJonesStockEntryMapper.getCsvEntryMapperCfg());
-        propDefaults.put(SP500_PROP_SECTION, SP500StockEntryMapper.getCsvEntryMapperCfg());
+        propDefaults.put(CRIME_PROP_SECTION, CrimeMapper.getCsvEntryMapperCfg());
+        propDefaults.put(NASDAQ_PROP_SECTION, NasdaqStockMapper.getCsvEntryMapperCfg());
+        propDefaults.put(DOWJONES_PROP_SECTION, DowJonesStockMapper.getCsvEntryMapperCfg());
+        propDefaults.put(SP500_PROP_SECTION, SP500StockMapper.getCsvEntryMapperCfg());
         propDefaults.put(WEATHER_PROP_SECTION, WeatherMapper.getCsvEntryMapperCfg());
     }
+
+    private static final String DEFLT_CFG_FILE = "config.properties";
+    private static final String MULTIPLE_CFG_FILE_SEP = ";";
 
     private static final String OPT_HELP = "h";
     private static final String OPT_CFG = "c";
     private static final String OPT_JOB = "j";
     private static final String OPT_LIST_JOBS = "l";
 
+    /* sample argument lists
+        -j weather
+        -j stocks
+        -j crime
+        -j stock_stats -c config.properties;stock_stats.properties
+        -j merge
+     */
+
     private static final String JOB_WEATHER = "weather";
     private static final String JOB_STOCKS = "stocks";
-    private static final String JOB_STOCK_STATS = "stockstats";
+    private static final String JOB_STOCK_STATS = "stock_stats";
+    private static final String JOB_CRIME = "crime";
+    private static final String JOB_MERGE = "merge";
     private static final List<Pair<String, String>> jobList;
     private static final String jobListFmt;
     static {
@@ -82,6 +90,8 @@ public class DiaCrimeMain {
         jobList.add(Pair.of(JOB_WEATHER, "process the weather file"));
         jobList.add(Pair.of(JOB_STOCKS, "process the stock files"));
         jobList.add(Pair.of(JOB_STOCK_STATS, "calculate stock statistics"));
+        jobList.add(Pair.of(JOB_CRIME, "process the crime file"));
+        jobList.add(Pair.of(JOB_MERGE, "merge crime, stocks & weather to a single file"));
 
         OptionalInt width = jobList.stream().map(Pair::getLeft).mapToInt(String::length).max();
         StringBuffer sb = new StringBuffer("  %");
@@ -94,7 +104,8 @@ public class DiaCrimeMain {
     static {
         options = new Options();
         options.addOption(OPT_HELP, false, "print this message");
-        options.addOption(OPT_CFG, true, "configuration file");
+        options.addOption(OPT_CFG, true, "configuration file(s), multiple files separated by '" +
+            MULTIPLE_CFG_FILE_SEP + "'");
         options.addOption(OPT_JOB, true, "name of job to run");
         options.addOption(OPT_LIST_JOBS, false, "list available jobs");
     }
@@ -120,31 +131,40 @@ public class DiaCrimeMain {
                     // print job list
                     resourceFile = cmd.getOptionValue(OPT_CFG);
                 } else {
-                    resourceFile = "config.properties";
+                    resourceFile = DEFLT_CFG_FILE;
                 }
 
                 if (cmd.hasOption(OPT_JOB)) {
+                    // read the config
                     Properties properties = app.getResources(resourceFile);
-
-                    switch (cmd.getOptionValue(OPT_JOB)) {
-                        case JOB_WEATHER:
-                            resultCode = WeatherDriver.of(app).runWeatherJob(properties);
-                            break;
-                        case JOB_STOCKS:
-                            resultCode = StockDriver.of(app).runStockJob(properties);
-                            break;
-                        case JOB_STOCK_STATS:
-                            resultCode = StockDriver.of(app).runStockStatsJob(properties);
-                            break;
-                        default:
-                            System.out.format("Unknown job: %s%n%n", cmd.getOptionValue(OPT_JOB));
-                            app.jobList();
-                            resultCode = ECODE_CONFIG_ERROR;
+                    if (properties.isEmpty()) {
+                        resultCode = ECODE_CONFIG_ERROR;
+                        System.out.format("No configuration specified, properties empty%n%n");
+                        app.help();
+                    } else {
+                        // run the job
+                        switch (cmd.getOptionValue(OPT_JOB)) {
+                            case JOB_WEATHER:
+                                resultCode = WeatherDriver.of(app).runWeatherJob(properties);
+                                break;
+                            case JOB_STOCKS:
+                                resultCode = StockDriver.of(app).runStockJob(properties);
+                                break;
+                            case JOB_STOCK_STATS:
+                                resultCode = StockDriver.of(app).runStockStatsJob(properties);
+                                break;
+                            case JOB_CRIME:
+                                resultCode = CrimeDriver.of(app).runCrimeJob(properties);
+                                break;
+                            case JOB_MERGE:
+                                resultCode = MergeDriver.of(app).runMergeJob(properties);
+                                break;
+                            default:
+                                System.out.format("Unknown job: %s%n%n", cmd.getOptionValue(OPT_JOB));
+                                app.jobList();
+                                resultCode = ECODE_CONFIG_ERROR;
+                        }
                     }
-                    // TODO will probably remove stockDriver.runStockJob
-                    //StockDriver stockDriver = new StockDriver(app);
-                    //resultCode = stockDriver.runStockJob(properties);
-
                 } else {
                     System.out.format("No arguments specified%n%n");
                     app.help();
@@ -171,15 +191,13 @@ public class DiaCrimeMain {
 
 
     /**
-     * @param properties    Properties
-     * @param sections      Pair of main section, plus additional sections
+     * @param conf
+     * @param properties
+     * @param main
+     * @param supplementary
      * @return
-     * @throws Exception
      */
-    public Pair<Integer, Configuration> setupJob(Properties properties, Pair<String, List<String>> sections) throws Exception {
-
-        String main = sections.getLeft();
-        List<String> supplementary = sections.getRight();
+    public int setupJob(Configuration conf, Properties properties, String main, List<String> supplementary) {
 
         List<String> allSections = new ArrayList<>();
         allSections.add(main);
@@ -187,9 +205,9 @@ public class DiaCrimeMain {
             allSections.addAll(supplementary);
         }
 
-        Configuration conf = getConfiguration(properties, main, allSections);
+        getConfiguration(conf, properties, main, allSections);
 
-        int resultCode = checkConfiguration(conf, sections.getLeft());
+        int resultCode = checkConfiguration(conf, main);
 
         if (resultCode == Constants.ECODE_SUCCESS) {
 
@@ -200,87 +218,61 @@ public class DiaCrimeMain {
             }
         }
 
-        return Pair.of(resultCode, conf);
-    }
-
-    public int runCrimeJob(DiaCrimeMain app, Properties properties) throws Exception {
-
-        Pair<Integer, Configuration> setup = setupJob(properties, Pair.of(CRIME_PROP_SECTION, null));
-        int resultCode = setup.getLeft();
-
-        if (resultCode == Constants.ECODE_SUCCESS) {
-            Configuration conf = setup.getRight();
-
-            Job job = Job.getInstance(conf);
-            job.setJarByClass(DiaCrimeMain.class);
-            job.setJobName("DIA Crime");
-
-            FileInputFormat.addInputPath(job, new Path(conf.get(IN_PATH_PROP)));
-            FileOutputFormat.setOutputPath(job, new Path(conf.get(OUT_PATH_PROP)));
-
-            job.setMapperClass(CrimeEntryMapper.class);
-            job.setReducerClass(CrimeEntryReducer.class);
-
-            /*
-             * Input and Output types of a MapReduce job:
-             * (input) <k1, v1> -> map -> <k2, v2> -> combine -> <k2, v2> -> reduce -> <k3, v3> (output)
-             * (input) <LongWritable, Text> -> map -> <Text, CrimeEntryWritable> -> reduce -> <Text, Text> (output)
-             */
-            job.setOutputKeyClass(Text.class);
-            job.setOutputValueClass(CrimeEntryWritable.class);
-
-            resultCode = job.waitForCompletion(true) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
-        }
-
         return resultCode;
     }
 
     /**
-     * Load resources from the specified file
-     * @param filename  Resource filename
+     * Load resources from the specified file(s). Multiple files are separated by ':'.
+     * @param filename  Resource filename(s)
      * @return Properties
      */
     private Properties getResources(String filename) {
         Properties properties = new Properties();
-        try (InputStream input = getClass().getClassLoader().getResourceAsStream(filename)) {
-            if (input != null) {
-                properties.load(input);
-            } else {
-                System.out.println("Unable to load " + filename);
+
+        Arrays.asList(filename.split(MULTIPLE_CFG_FILE_SEP)).forEach(name -> {
+            try (InputStream input = getClass().getClassLoader().getResourceAsStream(name)) {
+                if (input != null) {
+                    properties.load(input);
+                } else {
+                    System.out.println("Unable to load " + name);
+                }
+            } catch (IOException ex) {
+                ex.printStackTrace();
             }
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
+        });
         return properties;
     }
 
     /**
      * Load configuration for specified MapReduce
      * @param properties    Property object to read
-     * @param key           Key for ICsvEntryMapperCfg
+     * @param main          Main section used as key for ICsvEntryMapperCfg
      * @param sections      Property sections for MapReduce
      * @return Configuration
      */
-    private Configuration getConfiguration(Properties properties, String key, List<String> sections) {
-        Configuration conf = new Configuration();
+    private Configuration getConfiguration(Configuration conf, Properties properties, String main, List<String> sections) {
 
-        ICsvEntryMapperCfg entryMapperCfg = propDefaults.get(key);
+        ICsvEntryMapperCfg entryMapperCfg = propDefaults.get(main);
         if (entryMapperCfg != null) {
+            PropertyWrangler confPropWrangler = new PropertyWrangler(main);
 
             // get map of possible keys and default values
             HashMap<String, String> propDefault = entryMapperCfg.getPropertyDefaults();
 
+            // read all the sections and save to conf under main section
             for (String section : sections) {
                 // read the config
-                String sectionMark = section + PROPERTY_SEPARATOR;
+                PropertyWrangler sectionWrangler = new PropertyWrangler(section);
+
                 properties.stringPropertyNames().stream()
-                        .filter(k -> k.startsWith(sectionMark))
-                        .forEach(k -> {
-                            String prop = k.substring(sectionMark.length());
-                            if (propDefault.containsKey(prop)) {
-                                conf.set(prop, properties.getProperty(k, propDefault.get(prop)));
-                            }
-                        });
+                    .filter(sectionWrangler::hasRoot)
+                    .forEach(k -> {
+                        String prop = sectionWrangler.getPropertyName(k);
+                        if (propDefault.containsKey(prop)) {
+                            conf.set(confPropWrangler.getPropertyPath(prop),
+                                properties.getProperty(k, propDefault.get(prop)));
+                        }
+                    });
             }
         }
         return conf;
@@ -300,8 +292,7 @@ public class DiaCrimeMain {
             Pair<Integer, List<String>> chkRes = entryMapperCfg.checkConfiguration(conf);
             resultCode = chkRes.getLeft();
             if (resultCode != ECODE_SUCCESS) {
-                chkRes.getRight()
-                        .forEach(this::logConfigurationError);
+                chkRes.getRight().forEach(this::logConfigurationError);
             }
         } else {
             resultCode = ECODE_CONFIG_ERROR;
@@ -323,25 +314,32 @@ public class DiaCrimeMain {
      * @return  ECODE_SUCCESS or ECODE_FAIL
      */
     private int devPrep(Configuration conf) {
-        int resultCode = Constants.ECODE_SUCCESS;
-        String outPath = conf.get(OUT_PATH_PROP);
-        if (!TextUtils.isEmpty(outPath)) {
-            java.nio.file.Path path = java.nio.file.Path.of(outPath);
-            if (Files.isDirectory(path)) {
-                try {
-                    Files.walk(java.nio.file.Path.of(outPath))
-                            .sorted(Comparator.reverseOrder())
-                            .map(java.nio.file.Path::toFile)
-                            .forEach(File::delete);
-                } catch (IOException e) {
-                    String error = "Error: devPrep IOException";
-                    System.err.println(error);
-                    logger.error(error, e);
-                    resultCode = Constants.ECODE_FAIL;
+        AtomicInteger resultCode = new AtomicInteger(ECODE_SUCCESS);
+
+        conf.iterator().forEachRemaining(entry -> {
+            String key = entry.getKey();
+            if (key.endsWith(OUT_PATH_PROP)) {
+                String outPath = conf.get(key);
+                if (!TextUtils.isEmpty(outPath)) {
+                    java.nio.file.Path path = java.nio.file.Path.of(outPath);
+                    if (Files.isDirectory(path)) {
+                        try {
+                            Files.walk(java.nio.file.Path.of(outPath))
+                                .sorted(Comparator.reverseOrder())
+                                .map(java.nio.file.Path::toFile)
+                                .forEach(File::delete);
+                        } catch (IOException e) {
+                            String error = "Error: devPrep IOException";
+                            System.err.println(error);
+                            logger.error(error, e);
+                            resultCode.set(ECODE_FAIL);
+                        }
+                    }
                 }
             }
-        }
-        return resultCode;
+        });
+
+        return resultCode.get();
     }
 
 }

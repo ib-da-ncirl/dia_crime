@@ -23,22 +23,41 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
+import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.function.BiConsumer;
 
 /**
- *
+ * Reducer for a stock entries:
+ * - input key : date
+ * - input value : MapWritable<StockWritable>
+ * - output key : date
+ * - output value : MapWritable<StockWritable>
  */
-public class StockEntryReducer extends Reducer<Text, MapWritable, Text, Text> {
+public class StockEntryReducer extends AbstractStockReducer<Text, MapWritable, Text, Text> {
+
+    private static final Log LOG = LogFactory.getLog(StockEntryReducer.class);
+
+    public static final String STOCK_ID_SEPARATOR = ">";
+
+    private MapStringifier.ElementStringify idValStringifier = MapStringifier.ElementStringify.of(STOCK_ID_SEPARATOR);
+
+    private CounterEnums.ReducerCounter counter;
+
+    @Override
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+
+        counter = getCounter(context, StockCountersEnum.REDUCER_COUNT);
+    }
 
     /**
      * Reduce the values for a key
@@ -56,16 +75,49 @@ public class StockEntryReducer extends Reducer<Text, MapWritable, Text, Text> {
 
         values.forEach(stock -> {
             stock.forEach((stockKey, stockEntry) -> {
-                StockEntryWritable stockValue = (StockEntryWritable) stockEntry;
-                map.put(stockKey + "_Open", Double.toString(stockValue.getOpen()));
-                map.put(stockKey + "_High", Double.toString(stockValue.getHigh()));
-                map.put(stockKey + "_Low", Double.toString(stockValue.getLow()));
-                map.put(stockKey + "_Close", Double.toString(stockValue.getClose()));
-                map.put(stockKey + "_AdjClose", Double.toString(stockValue.getAdjClose()));
-                map.put(stockKey + "_Volume", Long.toString(stockValue.getVolume()));
+                if (stockEntry instanceof StockWritable) {
+
+                    map.clear();
+
+                    // convert the StockWritable object map to a string map
+                    ((StockWritable)stockEntry).toMap().forEach((k, v) -> map.put(k, v.toString()));
+
+                    // create value string of <field>:<value> separated by ',' with leading stock id marker
+                    // e.g. 2001-01-02	DJI>adjclose:10646.150391, close:10646.150391, date:2001-01-02, high:10797.019531, low:10585.360352, open:10790.919922, volume:253300000
+                    try {
+                        write(context, key, new Text(
+                            idValStringifier.stringifyElement(stockKey.toString(), MapStringifier.stringify(map))
+                        ));
+
+                        counter.incrementValue(1);
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    if (stockEntry == null) {
+                        LOG.warn("Ignoring null object");
+                    } else {
+                        LOG.warn("Unexpected object of class: " + stockEntry.getClass().getName());
+                    }
+                }
+            });
+        });
+    }
+
+    public static Map<String, String> reduce(List<Map<String, StockWritable>> values, CounterEnums.ReducerCounter counter) {
+
+        // sort based on stock
+        Map<String, String> map = new TreeMap<>();
+
+        values.forEach(stock -> {
+            stock.forEach((stockKey, stockEntry) -> {
+                // convert the StockWritable object map to a string map
+                stockEntry.toMap().forEach((k, v) -> map.put(stockKey + "_" + k, v.toString()));
+
+                counter.incrementValue(1);
             });
         });
 
-        context.write(key, new Text(MapStringifier.stringify(map)));
+        return map;
     }
 }

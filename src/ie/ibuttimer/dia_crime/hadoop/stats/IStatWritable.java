@@ -25,7 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop.stats;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
 
-public interface IStatWritable<W extends AbstractBaseWritable> {
+public interface IStatWritable<W extends AbstractBaseWritable<?>> {
 
     /**
      * Add other's values to this object's values

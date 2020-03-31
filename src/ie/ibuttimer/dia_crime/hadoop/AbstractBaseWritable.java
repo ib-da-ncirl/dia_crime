@@ -47,7 +47,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.DATE_PROP;
 /**
  * Base class for customer Writables
  */
-public abstract class AbstractBaseWritable<W extends AbstractBaseWritable> implements Writable, IStatWritable<W> {
+public abstract class AbstractBaseWritable<W extends AbstractBaseWritable<?>> implements Writable, IStatWritable<W> {
 
     private LocalDateTime localDateTime;
 
@@ -66,6 +66,24 @@ public abstract class AbstractBaseWritable<W extends AbstractBaseWritable> imple
     @Override
     public void readFields(DataInput dataInput) throws IOException {
         this.localDateTime = LocalDateTime.ofEpochSecond(dataInput.readLong(), 0, ZoneOffset.UTC);
+    }
+
+    public static <W extends AbstractBaseWritable<?>> void writeNullable(DataOutput dataOutput, W toWrite) throws IOException {
+        boolean notNull = (toWrite != null);
+        dataOutput.writeBoolean(notNull);
+        if (notNull) {
+            toWrite.write(dataOutput);
+        }
+    }
+
+    public static <W extends AbstractBaseWritable<?>> W readNullable(DataInput dataInput, W newInstance) throws IOException {
+        boolean notNull = dataInput.readBoolean();
+        W read = null;
+        if (notNull) {
+            newInstance.readFields(dataInput);
+            read = newInstance;
+        }
+        return read;
     }
 
     public LocalDateTime getLocalDateTime() {
@@ -90,16 +108,32 @@ public abstract class AbstractBaseWritable<W extends AbstractBaseWritable> imple
 
     @Override
     public void set(W other) {
-        this.localDateTime = ((AbstractBaseWritable)other).localDateTime;
+        this.localDateTime = ((AbstractBaseWritable<?>)other).localDateTime;
     }
 
     public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap<>();
+        return addToMap(new HashMap<>());
+    }
+
+    public Map<String, Object> addToMap(Map<String, Object> map) {
         getFieldsList().forEach(p -> {
             getField(p).ifPresent(v -> map.put(p, v.value()));
         });
         return map;
     }
+
+    public W fromMap(Map<String, Object> map) {
+        W obj = getInstance();
+        List<String> fields = getFieldsList();
+        map.forEach((key, value) -> {
+            if (fields.contains(key)) {
+                obj.setField(key, value);
+            }
+        });
+        return obj;
+    }
+
+    public abstract W getInstance();
 
     public List<String> getFieldsList() {
         return FIELDS;
@@ -115,6 +149,25 @@ public abstract class AbstractBaseWritable<W extends AbstractBaseWritable> imple
         return value;
     }
 
+    public boolean setField(String field, Object value) {
+        boolean set = true;
+        switch (field) {
+            case DATE_PROP:
+                if (Value.isLocalDateTime(value)) {
+                    setLocalDateTime((LocalDateTime)value);
+                } else if (value instanceof LocalDate) {
+                    setLocalDate((LocalDate)value);
+                } else {
+                    set = false;
+                }
+                break;
+            default:
+                set = false;
+                break;
+        }
+        return set;
+    }
+
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
@@ -128,7 +181,7 @@ public abstract class AbstractBaseWritable<W extends AbstractBaseWritable> imple
      * @param <B>   The builder class
      * @param <W>   The Writable class
      */
-    public abstract static class AbstractBaseWritableBuilder<B, W extends AbstractBaseWritable>
+    public abstract static class AbstractBaseWritableBuilder<B, W extends AbstractBaseWritable<?>>
                                     implements IBaseWritableBuilder<B, W> {
 
         private Logger logger;
@@ -247,7 +300,7 @@ public abstract class AbstractBaseWritable<W extends AbstractBaseWritable> imple
         }
     }
 
-    public interface IBaseWritableBuilder<B, W extends AbstractBaseWritable> {
+    public interface IBaseWritableBuilder<B, W extends AbstractBaseWritable<?>> {
 
         B clear();
 

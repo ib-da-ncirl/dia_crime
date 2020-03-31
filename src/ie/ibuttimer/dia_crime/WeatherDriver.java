@@ -51,21 +51,26 @@ public class WeatherDriver extends AbstractDriver {
         return new WeatherDriver(app);
     }
 
-    public int runWeatherJob(Properties properties) throws Exception {
+    public static Pair<List<String>, List<String>> getSectionLists() {
+        // List<String> sections, List<String> commonSection
+        return Pair.of(Collections.singletonList(WEATHER_PROP_SECTION), List.of());
+    }
 
-        Pair<Integer, Map<String, Pair<Integer, Configuration>>> configRes = readConfigs(properties,
-            Arrays.asList(WEATHER_PROP_SECTION), List.of());
+    public Job getWeatherJob(Properties properties) throws Exception {
 
-        int resultCode = configRes.getLeft();
+        Pair<List<String>, List<String>> sectionLists = getSectionLists();
+
+        Job job = null;
+        Configuration conf = new Configuration();
+        int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, Pair<Integer, Configuration>> configs = configRes.getRight();
-            Map<String, Class<? extends Mapper>> sections = new HashMap<>();
+            Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
             Map<String, String> tags = new HashMap<>();
 
             sections.put(WEATHER_PROP_SECTION, WeatherMapper.class);
 
-            Job job = initJob("Weather", configs, sections);
+            job = initJob("Weather", conf, sections);
 
             job.setReducerClass(WeatherReducer.class);
 
@@ -78,14 +83,18 @@ public class WeatherDriver extends AbstractDriver {
              * (input) <LongWritable, Text> -> map -> <Text, MapWritable> -> reduce -> <Text, Text> (output)
              */
             job.setOutputKeyClass(Text.class);
-            job.setOutputValueClass(MapWritable.class);
+            job.setOutputValueClass(Text.class);
+        }
 
-            resultCode = job.waitForCompletion(true) ? ECODE_SUCCESS : ECODE_FAIL;
+        return job;
+    }
 
-            if (resultCode == ECODE_SUCCESS) {
+    public int runWeatherJob(Properties properties) throws Exception {
 
-
-            }
+        int resultCode = Constants.ECODE_FAIL;
+        Job job = getWeatherJob(properties);
+        if (job != null) {
+            resultCode = job.waitForCompletion(true) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
         }
 
         return resultCode;
