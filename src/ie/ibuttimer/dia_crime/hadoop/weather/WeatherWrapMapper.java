@@ -39,8 +39,6 @@ import java.io.IOException;
  */
 public class WeatherWrapMapper extends AbstractWeatherMapper<CSWWrapperWritable> {
 
-    private static final Logger logger = Logger.getLogger(WeatherWrapMapper.class);
-
     private CSWWrapperWritable wrapOut = new CSWWrapperWritable();
 
     @Override
@@ -52,8 +50,9 @@ public class WeatherWrapMapper extends AbstractWeatherMapper<CSWWrapperWritable>
     }
 
     @Override
-    protected Logger getLogger() {
-        return logger;
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
     }
 
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
