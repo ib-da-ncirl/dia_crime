@@ -24,5 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop.merge;
 
 public enum MergeCountersEnum {
-    REDUCER_COUNT
+    REDUCER_COUNT,
+    REDUCER_GROUP_IN_COUNT,
+    REDUCER_GROUP_OUT_COUNT
 }

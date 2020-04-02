@@ -25,6 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop;
 
 import ie.ibuttimer.dia_crime.misc.Constants;
 import ie.ibuttimer.dia_crime.misc.DateFilter;
+import ie.ibuttimer.dia_crime.misc.Utils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -38,7 +39,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.*;
-import java.util.function.Consumer;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -49,7 +49,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * @param <K>   output key type
  * @param <V>   output value type
  */
-public abstract class AbstractCsvEntryMapper<K, V> extends AbstractMapper<LongWritable, Text, K, V> {
+public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritable, Text, K, V> {
 
     public static final String DEFAULT_SEPARATOR = ",";
     public static final boolean DEFAULT_HAS_HEADER = false;
@@ -171,18 +171,28 @@ public abstract class AbstractCsvEntryMapper<K, V> extends AbstractMapper<LongWr
     }
 
     /**
-     * Get the date and time
+     * Get the zoned date and time
+     * @param dateTime  String of the date and time
+     * @param formatter Formatter to use
+     * @return  Converted date and time
+     */
+    public ZonedDateTime getZonedDateTime(String dateTime, DateTimeFormatter formatter) {
+        ZonedDateTime zdt = ZonedDateTime.of(LocalDateTime.MIN, ZoneId.systemDefault());
+        try {
+            zdt = ZonedDateTime.parse(dateTime, formatter);
+        } catch (DateTimeParseException dpte) {
+            getLogger().error("Cannot parse '" + dateTime + "' using format " + formatter.toString(), dpte);
+        }
+        return zdt;
+    }
+
+    /**
+     * Get the zoned date and time
      * @param dateTime  String of the date and time
      * @return  Converted date and time
      */
     public ZonedDateTime getZonedDateTime(String dateTime) {
-        ZonedDateTime zdt = ZonedDateTime.of(LocalDateTime.MIN, ZoneId.systemDefault());
-        try {
-            zdt = ZonedDateTime.parse(dateTime, getDateTimeFormatter());
-        } catch (DateTimeParseException dpte) {
-            getLogger().error("Cannot parse '" + dateTime + "' using format " + dateTimeFormatter.toString(), dpte);
-        }
-        return zdt;
+        return Utils.getZonedDateTime(dateTime, getDateTimeFormatter(), getLogger());
     }
 
     /**
@@ -191,28 +201,16 @@ public abstract class AbstractCsvEntryMapper<K, V> extends AbstractMapper<LongWr
      * @return  Converted date and time
      */
     public LocalDateTime getDateTime(String dateTime) {
-        LocalDateTime ldt = LocalDateTime.MIN;
-        try {
-            ldt = LocalDateTime.parse(dateTime, getDateTimeFormatter());
-        } catch (DateTimeParseException dpte) {
-            getLogger().error("Cannot parse '" + dateTime + "' using format " + dateTimeFormatter.toString(), dpte);
-        }
-        return ldt;
+        return Utils.getDateTime(dateTime, getDateTimeFormatter(), getLogger());
     }
 
     /**
      * Get the date
-     * @param date  String of the date and time
-     * @return  Converted date and time
+     * @param date  String of the date
+     * @return  Converted date
      */
     public LocalDate getDate(String date) {
-        LocalDate ld = LocalDate.MIN;
-        try {
-            ld = LocalDate.parse(date, getDateTimeFormatter());
-        } catch (DateTimeParseException dpte) {
-            getLogger().error("Cannot parse '" + date + "' using format " + dateTimeFormatter.toString(), dpte);
-        }
-        return ld;
+        return Utils.getDate(date, getDateTimeFormatter(), getLogger());
     }
 
     /**
@@ -245,13 +243,6 @@ public abstract class AbstractCsvEntryMapper<K, V> extends AbstractMapper<LongWr
         return Pair.of(dateFilter.filter(ld), ld);
     }
 
-    /**
-     * Get the logger for the class
-     * @return  Logger object
-     */
-    protected abstract Logger getLogger();
-
-
     protected boolean show(DebugLevel level) {
         return level.showMe(debugLevel);
     }
@@ -261,22 +252,16 @@ public abstract class AbstractCsvEntryMapper<K, V> extends AbstractMapper<LongWr
         public HashMap<String, String> getPropertyDefaults() {
             // create map of possible keys and default values
             HashMap<String, String> propDefault = new HashMap<>();
-            for (String key : ALL_PATH_PROP_LIST) {
-                propDefault.put(key, "");
-            }
+
             propDefault.put(DEBUG_PROP, DebugLevel.OFF.name());
-            propDefault.put(STOCK_TAG_PROP, "");
             propDefault.put(SEPARATOR_PROP, DEFAULT_SEPARATOR);
             propDefault.put(HAS_HEADER_PROP, Boolean.toString(DEFAULT_HAS_HEADER));
             propDefault.put(DATE_FORMAT_PROP, DEFAULT_DATE_TIME_FMT);
             propDefault.put(NUM_INDICES_PROP, "0");
-            for (String key : DATE_FILTER_PROPS) {
-                propDefault.put(key, "");
-            }
-
-            for (String key : getPropertyIndices()) {
-                propDefault.put(key, "-1");
-            }
+            DATE_FILTER_PROPS.forEach((p -> propDefault.put(p, "")));
+            getPropertyIndices().forEach(p -> propDefault.put(p, "-1"));
+            getRequiredProps().forEach(p -> propDefault.put(p.name, p.defaultValue));
+            getAdditionalProps().forEach(p -> propDefault.put(p.name, p.defaultValue));
 
             return propDefault;
         }
@@ -286,15 +271,10 @@ public abstract class AbstractCsvEntryMapper<K, V> extends AbstractMapper<LongWr
             int resultCode = ECODE_SUCCESS;
             List<String> errors = new ArrayList<>();
 
-            // check for tag & input/output path config
-            List<Pair<String, String>> props = new ArrayList<>(getRequiredProps());
-            props.add(Pair.of(IN_PATH_PROP, "input path"));
-            props.add(Pair.of(OUT_PATH_PROP, "output path"));
-
-            for (Pair<String, String> pair : props) {
-                String prop = pair.getLeft();
-                if (TextUtils.isEmpty(conf.get(getPropertyPath(prop)))) {
-                    errors.add("Error: No " + pair.getRight() + " specified, set '" + prop + "'.");
+            // check required properties in config
+            for (Property prop : getRequiredProps()) {
+                if (TextUtils.isEmpty(conf.get(getPropertyPath(prop.name)))) {
+                    errors.add("Error: No " + prop.description + " specified, set '" + prop.name + "'.");
                     resultCode = ECODE_CONFIG_ERROR;
                 }
             }
@@ -340,15 +320,11 @@ public abstract class AbstractCsvEntryMapper<K, V> extends AbstractMapper<LongWr
         }
 
         public void dumpConfiguration(Logger logger, String section, Configuration conf) {
-
             // use info as its the default level
-            Consumer<String> consumer = s -> logger.info(
-                String.format("%s - %s [%s]", section, s, conf.get(getPropertyPath(s), "")));
-            ALL_PATH_PROP_LIST.forEach(consumer);
-            List.of(STOCK_TAG_PROP, SEPARATOR_PROP, HAS_HEADER_PROP, DATE_FORMAT_PROP, NUM_INDICES_PROP)
-                .forEach(consumer);
-            DATE_FILTER_PROPS.forEach(consumer);
-            getPropertyIndices().forEach(consumer);
+            getPropertyDefaults().forEach((p, d) -> {
+                logger.info(
+                    String.format("%s - %s [%s]", section, p, conf.get(getPropertyPath(p), "")));
+            });
         }
 
     }

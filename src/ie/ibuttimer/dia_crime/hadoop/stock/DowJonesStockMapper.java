@@ -25,7 +25,8 @@ package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import org.apache.hadoop.io.MapWritable;
-import org.apache.log4j.Logger;
+
+import java.io.IOException;
 
 /**
  * Mapper for a Dow Jones Industrial Average stock entry:
@@ -36,16 +37,14 @@ import org.apache.log4j.Logger;
  */
 public class DowJonesStockMapper extends AbstractDowJonesStockBaseMapper<MapWritable> {
 
-    private static final Logger logger = Logger.getLogger(DowJonesStockMapper.class);
-
-
     public DowJonesStockMapper() {
         super();
     }
 
     @Override
-    protected Logger getLogger() {
-        return logger;
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
     }
 
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {

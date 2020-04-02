@@ -24,7 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
-import ie.ibuttimer.dia_crime.hadoop.AbstractCsvEntryMapper;
+import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
@@ -47,7 +47,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output value : MapWritable<date/id, StockWritable>
  */
 public abstract class AbstractStockMapper<VO>
-        extends AbstractCsvEntryMapper<Text, VO>
+        extends AbstractCsvMapper<Text, VO>
         implements IAbstractStockMapper.IStockEntryKeyGenerator {
 
     public enum StockMapperKey { DATE, STOCK_ID };
@@ -114,7 +114,7 @@ public abstract class AbstractStockMapper<VO>
 
                     AbstractBaseWritable<?> entry = mapperHelper.generateEntry(date, splits, indices);
 
-                    counter.incrementValue(1);
+                    counter.increment();
 
                     writeOutput(context, entry, keyOut, id, keyOutType);
                 }
@@ -158,9 +158,19 @@ public abstract class AbstractStockMapper<VO>
 
     public static abstract class AbstractStockEntryMapperCfg extends AbstractCsvEntryMapperCfg {
 
+        private static Property tagProp = Property.of(STOCK_TAG_PROP, "stock tag", "");
+
         @Override
-        public List<Pair<String, String>> getRequiredProps() {
-            return List.of(Pair.of(STOCK_TAG_PROP, "stock tag"));
+        public List<Property> getAdditionalProps() {
+            return List.of(tagProp,
+                Property.of(STATS_PATH_PROP, "path for stats output", ""));
+        }
+
+        @Override
+        public List<Property> getRequiredProps() {
+            List<Property> list = super.getRequiredProps();
+            list.add(tagProp);
+            return list;
         }
 
         @Override

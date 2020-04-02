@@ -26,7 +26,8 @@ package ie.ibuttimer.dia_crime.hadoop.stock;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
 import org.apache.hadoop.io.MapWritable;
-import org.apache.log4j.Logger;
+
+import java.io.IOException;
 
 /**
  * Mapper to calculate average values for Dow Jones Industrial Average stock entries:
@@ -38,8 +39,6 @@ import org.apache.log4j.Logger;
 public class DowJonesStockStatsMapper extends AbstractDowJonesStockMapper<BigStockWritable, MapWritable>
                     implements IStats {
 
-    private static final Logger logger = Logger.getLogger(DowJonesStockStatsMapper.class);
-
     public DowJonesStockStatsMapper() {
         // use stock id as the key
         super(StockMapperKey.STOCK_ID);
@@ -48,8 +47,9 @@ public class DowJonesStockStatsMapper extends AbstractDowJonesStockMapper<BigSto
     }
 
     @Override
-    protected Logger getLogger() {
-        return logger;
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
     }
 
     @Override

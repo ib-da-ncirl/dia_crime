@@ -28,6 +28,8 @@ import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
+
 /**
  * Mapper to calculate average values for S&P 500 Composite stock entries:
  * - input key : csv file line number
@@ -38,8 +40,6 @@ import org.apache.log4j.Logger;
 public class SP500StockStatsMapper extends AbstractSP500StockMapper<BigStockWritable, MapWritable>
                     implements IStats {
 
-    private static final Logger logger = Logger.getLogger(SP500StockStatsMapper.class);
-
     public SP500StockStatsMapper() {
         // use stock id as the key
         super(StockMapperKey.STOCK_ID);
@@ -48,8 +48,9 @@ public class SP500StockStatsMapper extends AbstractSP500StockMapper<BigStockWrit
     }
 
     @Override
-    protected Logger getLogger() {
-        return logger;
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
     }
 
     @Override

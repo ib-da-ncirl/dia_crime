@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static ie.ibuttimer.dia_crime.StockDriver.addStockSpecificsToConfig;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 
@@ -77,6 +78,8 @@ public class MergeDriver extends AbstractDriver {
 
         if (resultCode.get() == ECODE_SUCCESS) {
             Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
+
+            addStockSpecificsToConfig(conf);
 
             sections.put(NASDAQ_PROP_SECTION, NasdaqStockWrapMapper.class);
             sections.put(DOWJONES_PROP_SECTION, DowJonesStockWrapMapper.class);

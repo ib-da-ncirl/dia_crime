@@ -21,39 +21,24 @@
  *  SOFTWARE.
  */
 
-package ie.ibuttimer.dia_crime.hadoop.stock;
+package ie.ibuttimer.dia_crime.hadoop.regression;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
-import org.apache.log4j.Logger;
+import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
+import ie.ibuttimer.dia_crime.hadoop.merge.IValueDecorator;
+import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
 
-import java.io.IOException;
+public class AbstractRegressionReducer<KI, VI, KO, VO> extends AbstractReducer<KI, VI, KO, VO> {
 
-/**
- * Mapper for a Dow Jones Industrial Average stock entry:
- * - input key : csv file line number
- * - input value : csv file line text
- * - output key : date
- * - output value : CSWWrapperWritable
- */
-public class DowJonesStockWrapMapper extends AbstractDowJonesStockBaseMapper<CSWWrapperWritable> {
-
-    public DowJonesStockWrapMapper() {
+    public AbstractRegressionReducer() {
         super();
-        setMapperHelper(new StockWrapMapperHelper(
-            getId().toString(), StockWritable.StockEntryWritableBuilder.getInstance()));
     }
 
-    @Override
-    protected void setup(Context context) throws IOException, InterruptedException {
-        super.setup(context);
-        setLogger(getClass());
+    public AbstractRegressionReducer(IValueDecorator<VO> decorator) {
+        super(decorator);
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
-        return AbstractDowJonesStockBaseMapper.getCsvEntryMapperCfg();
+    protected CounterEnums.ReducerCounter getCounter(Context context, RegressionCountersEnum countersEnum) {
+        return new CounterEnums.ReducerCounter(context, countersEnum.getClass().getName(), countersEnum.toString());
     }
+
 }
-
-
-

@@ -27,6 +27,8 @@ import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
+
 /**
  * Mapper for a NASDAQ Composite stock entry:
  * - input key : csv file line number
@@ -36,8 +38,6 @@ import org.apache.log4j.Logger;
  */
 public class NasdaqStockWrapMapper extends AbstractNasdaqStockBaseMapper<CSWWrapperWritable> {
 
-    private static final Logger logger = Logger.getLogger(NasdaqStockWrapMapper.class);
-
     public NasdaqStockWrapMapper() {
         super();
         setMapperHelper(new StockWrapMapperHelper(
@@ -45,8 +45,9 @@ public class NasdaqStockWrapMapper extends AbstractNasdaqStockBaseMapper<CSWWrap
     }
 
     @Override
-    protected Logger getLogger() {
-        return logger;
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
     }
 
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {

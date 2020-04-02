@@ -25,13 +25,18 @@ package ie.ibuttimer.dia_crime.hadoop;
 
 import ie.ibuttimer.dia_crime.hadoop.merge.IValueDecorator;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.http.util.TextUtils;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 
 public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, VO> {
 
     public static final String CLASS_VAL_SEPARATOR = ":-";
+
+    private static Logger logger = null;
 
     private IValueDecorator<VO> decorator;
 
@@ -44,6 +49,21 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
     public AbstractMapper(IValueDecorator<VO> decorator, String propertyRoot) {
         this.decorator = decorator;
         setPropertyRoot(propertyRoot);
+    }
+
+    public static Logger getLogger() {
+        if (logger == null) {
+            setLogger(AbstractMapper.class);
+        }
+        return logger;
+    }
+
+    public static void setLogger(Class<?> cls) {
+        setLogger(Logger.getLogger(cls));
+    }
+
+    public static void setLogger(Logger logger) {
+        AbstractMapper.logger = logger;
     }
 
     public void setDecorator(IValueDecorator<VO> decorator) {
@@ -83,6 +103,17 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
         // set the property root path
         setPropertyRoot(getEntryMapperCfg().getPropertyRoot());
     }
+
+
+    protected String getConfigProperty(Configuration conf, String name) {
+        boolean required = getEntryMapperCfg().getRequiredProps().stream().anyMatch(p -> p.name.equals(name));
+        String value = conf.get(getPropertyPath(name), "");
+        if (required && TextUtils.isEmpty(value)) {
+            throw new  IllegalStateException("Missing required configuration parameter: " + name);
+        }
+        return value;
+    }
+
 
     protected abstract ICsvEntryMapperCfg getEntryMapperCfg();
 

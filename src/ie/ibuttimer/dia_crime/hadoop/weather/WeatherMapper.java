@@ -40,8 +40,6 @@ import java.util.List;
  */
 public class WeatherMapper extends AbstractWeatherMapper<MapWritable> {
 
-    private static final Logger logger = Logger.getLogger(WeatherMapper.class);
-
     public static final List<String> WEATHER_PROPERTY_INDICES = WeatherWritable.FIELDS;
 
     private MapWritable mapOut = new MapWritable();
@@ -56,8 +54,9 @@ public class WeatherMapper extends AbstractWeatherMapper<MapWritable> {
     }
 
     @Override
-    protected Logger getLogger() {
-        return logger;
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
     }
 
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {

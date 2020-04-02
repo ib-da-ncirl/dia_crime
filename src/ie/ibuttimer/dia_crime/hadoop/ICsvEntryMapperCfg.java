@@ -27,9 +27,12 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import static ie.ibuttimer.dia_crime.misc.Constants.IN_PATH_PROP;
+import static ie.ibuttimer.dia_crime.misc.Constants.OUT_PATH_PROP;
 
 public interface ICsvEntryMapperCfg {
 
@@ -47,8 +50,23 @@ public interface ICsvEntryMapperCfg {
      */
     Pair<Integer, List<String>> checkConfiguration(Configuration conf);
 
-    default List<Pair<String, String>> getRequiredProps() {
+    /**
+     * Get additional properties
+     * @return List of Pairs with left of property name and right of default value
+     */
+    default List<Property> getAdditionalProps() {
         return List.of();
+    }
+
+    /**
+     * Get required properties
+     * @return List of Pairs with left of property name and right of description
+     */
+    default List<Property> getRequiredProps() {
+        List<Property> props = new ArrayList<>();
+        props.add(Property.of(IN_PATH_PROP, "input path", ""));
+        props.add(Property.of(OUT_PATH_PROP, "output path", ""));
+        return props;
     }
 
     /**
@@ -62,4 +80,21 @@ public interface ICsvEntryMapperCfg {
     String getPropertyPath(String propertyName);
 
     void dumpConfiguration(Logger logger, String section, Configuration conf);
+
+
+    class Property {
+        String name;
+        String description;
+        String defaultValue;
+
+        public Property(String name, String description, String defaultValue) {
+            this.name = name;
+            this.description = description;
+            this.defaultValue = defaultValue;
+        }
+
+        public static Property of(String name, String description, String defaultValue) {
+            return new Property(name, description, defaultValue);
+        }
+    }
 }

@@ -45,6 +45,12 @@ public class CrimeWrapMapper extends AbstractCrimeMapper<CSWWrapperWritable> {
     private CSWWrapperWritable wrapOut = new CSWWrapperWritable();
 
     @Override
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
+    }
+
+    @Override
     protected void writeOutput(Context context, Text key, CrimeWritable value) throws IOException, InterruptedException {
         wrapOut.setCrime(value);
 
@@ -55,11 +61,6 @@ public class CrimeWrapMapper extends AbstractCrimeMapper<CSWWrapperWritable> {
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
-    }
-
-    @Override
-    protected Logger getLogger() {
-        return logger;
     }
 
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {

@@ -41,6 +41,7 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -51,6 +52,8 @@ public class StockDriver extends AbstractDriver {
 
     public static List<String> STOCK_SECTIONS =
         Arrays.asList(NASDAQ_PROP_SECTION, DOWJONES_PROP_SECTION, SP500_PROP_SECTION);
+    public static List<String> STOCK_IDS =
+        Arrays.asList(NASDAQ_ID, DOWJONES_ID, SP500_ID);
 
     public StockDriver(DiaCrimeMain app) {
         super(app);
@@ -65,6 +68,14 @@ public class StockDriver extends AbstractDriver {
         return Pair.of(STOCK_SECTIONS, Collections.singletonList(STOCK_PROP_SECTION));
     }
 
+    public static void addStockSpecificsToConfig(Configuration conf) {
+        StringBuilder sb = new StringBuilder();
+        STOCK_IDS.stream()
+            .map(s -> s + ",")
+            .forEach(sb::append);
+        conf.set(generatePropertyName(STOCK_PROP_SECTION, ID_LIST_PROP), sb.toString());
+    }
+
     public Job getStockJob(Properties properties) throws Exception {
 
         Pair<List<String>, List<String>> sectionLists = getSectionLists();
@@ -75,6 +86,8 @@ public class StockDriver extends AbstractDriver {
 
         if (resultCode == Constants.ECODE_SUCCESS) {
             Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
+
+            addStockSpecificsToConfig(conf);
 
             sections.put(NASDAQ_PROP_SECTION, NasdaqStockMapper.class);
             sections.put(DOWJONES_PROP_SECTION, DowJonesStockMapper.class);

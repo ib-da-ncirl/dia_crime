@@ -21,49 +21,36 @@
  *  SOFTWARE.
  */
 
-package ie.ibuttimer.dia_crime.hadoop.stock;
+package ie.ibuttimer.dia_crime.hadoop.regression;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
-import org.apache.hadoop.io.MapWritable;
-import org.apache.log4j.Logger;
+import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.TaskCounter;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
-/**
- * Mapper to calculate average values for NASDAQ Composite stock entries:
- * - input key : csv file line number
- * - input value : csv file line text
- * - output key : stock id
- * - output value : MapWritable<id, StockWritable>
- */
-public class NasdaqStockStatsMapper extends AbstractNasdaqStockMapper<BigStockWritable, MapWritable>
-                    implements IStats {
+public class RegressionReducer extends AbstractRegressionReducer<Text, RegressionWritable<?, ?>, Text, Text> {
 
-    public NasdaqStockStatsMapper() {
-        // use stock id as the key
-        super(StockMapperKey.STOCK_ID);
-
-        BigStockWritable.BigStockEntryWritableBuilder builder = BigStockWritable.BigStockEntryWritableBuilder.getInstance();
-
-        setMapperHelper(new StatsMapperHelper(builder));
-    }
+    private CounterEnums.ReducerCounter counter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        setLogger(getClass());
+
+        counter = getCounter(context, RegressionCountersEnum.REDUCER_COUNT);
+
+        long x = context.getCounter(TaskCounter.MAP_INPUT_RECORDS).getValue();
+        ++x;
     }
 
     @Override
-    protected ICsvEntryMapperCfg getEntryMapperCfg() {
-        return NasdaqStockStatsMapper.getCsvEntryMapperCfg();
-    }
+    protected void reduce(Text key, Iterable<RegressionWritable<?, ?>> values, Context context) throws IOException, InterruptedException {
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
-        return AbstractNasdaqStockBaseMapper.getCsvEntryMapperCfg();
+        Map<String, RegressionWritable<String, Object>> map = new HashMap<>();
+        values.forEach(v -> {
+            map.put(key.toString(), (RegressionWritable<String, Object>) v);
+        });
     }
 }
-
-
-

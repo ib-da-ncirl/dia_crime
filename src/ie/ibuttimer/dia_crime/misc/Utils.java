@@ -23,6 +23,14 @@
 
 package ie.ibuttimer.dia_crime.misc;
 
+import org.apache.log4j.Logger;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -31,8 +39,14 @@ import java.util.stream.StreamSupport;
 
 public class Utils {
 
+    private static final Logger logger = Logger.getLogger(Utils.class);
+
     private Utils() {
         // class can't be externally instantiated
+    }
+
+    public static Logger getLogger() {
+        return logger;
     }
 
     public static int getJREVersion() {
@@ -72,4 +86,84 @@ public class Utils {
             .map(cls::cast)
             .collect(Collectors.toList());
     }
+
+
+    /**
+     * Get the zoned date and time
+     * @param dateTime  String of the date and time
+     * @param formatter Formatter to use
+     * @return  Converted date and time
+     */
+    public static ZonedDateTime getZonedDateTime(String dateTime, DateTimeFormatter formatter, Logger logger) {
+        ZonedDateTime zdt = ZonedDateTime.of(LocalDateTime.MIN, ZoneId.systemDefault());
+        try {
+            zdt = ZonedDateTime.parse(dateTime, formatter);
+        } catch (DateTimeParseException dpte) {
+            logger.error("Cannot parse '" + dateTime + "' using format " + formatter.toString(), dpte);
+        }
+        return zdt;
+    }
+
+    /**
+     * Get the zoned date and time
+     * @param dateTime  String of the date and time
+     * @param formatter Formatter to use
+     * @return  Converted date and time
+     */
+    public static ZonedDateTime getZonedDateTime(String dateTime, DateTimeFormatter formatter) {
+        return getZonedDateTime(dateTime, formatter, logger);
+    }
+
+    /**
+     * Get the date and time
+     * @param dateTime  String of the date and time
+     * @param formatter Formatter to use
+     * @return  Converted date and time
+     */
+    public static LocalDateTime getDateTime(String dateTime, DateTimeFormatter formatter, Logger logger) {
+        LocalDateTime ldt = LocalDateTime.MIN;
+        try {
+            ldt = LocalDateTime.parse(dateTime, formatter);
+        } catch (DateTimeParseException dpte) {
+            logger.error("Cannot parse '" + dateTime + "' using format " + formatter.toString(), dpte);
+        }
+        return ldt;
+    }
+
+    /**
+     * Get the date and time
+     * @param dateTime  String of the date and time
+     * @param formatter Formatter to use
+     * @return  Converted date and time
+     */
+    public static LocalDateTime getDateTime(String dateTime, DateTimeFormatter formatter) {
+        return getDateTime(dateTime, formatter, logger);
+    }
+
+    /**
+     * Get the date
+     * @param date      String of the date
+     * @param formatter Formatter to use
+     * @return  Converted date
+     */
+    public static LocalDate getDate(String date, DateTimeFormatter formatter, Logger logger) {
+        LocalDate ld = LocalDate.MIN;
+        try {
+            ld = LocalDate.parse(date, formatter);
+        } catch (DateTimeParseException dpte) {
+            logger.error("Cannot parse '" + date + "' using format " + formatter.toString(), dpte);
+        }
+        return ld;
+    }
+
+    /**
+     * Get the date
+     * @param date      String of the date
+     * @param formatter Formatter to use
+     * @return  Converted date
+     */
+    public static LocalDate getDate(String date, DateTimeFormatter formatter) {
+        return getDate(date, formatter, logger);
+    }
+
 }

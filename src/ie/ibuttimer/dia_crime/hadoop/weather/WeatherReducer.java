@@ -81,7 +81,7 @@ public class WeatherReducer extends AbstractWeatherReducer<Text, MapWritable, Te
             avgCalc.add(weather);
 
             total.incrementAndGet();
-            counter.incrementValue(1);
+            counter.increment();
         });
         avgCalc.divide(total.get());
 

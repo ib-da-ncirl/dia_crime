@@ -39,9 +39,13 @@ import java.io.IOException;
  */
 public class CrimeMapper extends AbstractCrimeMapper<MapWritable> {
 
-    private static final Logger logger = Logger.getLogger(CrimeMapper.class);
-
     private MapWritable mapOut = new MapWritable();
+
+    @Override
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
+    }
 
     @Override
     protected void writeOutput(Context context, Text key, CrimeWritable value) throws IOException, InterruptedException {
@@ -50,11 +54,6 @@ public class CrimeMapper extends AbstractCrimeMapper<MapWritable> {
 
         // return the day as the key and the crime entry as the value
         write(context, key, mapOut);
-    }
-
-    @Override
-    protected Logger getLogger() {
-        return logger;
     }
 
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {

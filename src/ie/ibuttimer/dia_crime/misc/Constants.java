@@ -53,6 +53,7 @@ public class Constants {
     public static final String DOWJONES_PROP_SECTION = "dowjones";
     public static final String SP500_PROP_SECTION = "sp500";
     public static final String WEATHER_PROP_SECTION = "weather";
+    public static final String REGRESSION_PROP_SECTION = "regression";
 
     // common properties
     public static final String DEBUG_PROP = "debug";
@@ -71,17 +72,6 @@ public class Constants {
 
     public static final String STATS_PATH_PROP = "stats_path";  // path for stats output file
 
-    // required path properties
-    public static final List<String> PATH_PROP_LIST = Arrays.asList(
-        IN_PATH_PROP, OUT_PATH_PROP
-    );
-    public static final List<String> ALL_PATH_PROP_LIST;
-    static {
-        ALL_PATH_PROP_LIST = Stream.of(PATH_PROP_LIST, Collections.singletonList(STATS_PATH_PROP))
-                .flatMap(Collection::stream)
-                .collect(Collectors.toList());
-    }
-
     // crime specific properties
     public static final String PRIMARYTYPE_PROP = "primarytype";
     public static final String DESCRIPTION_PROP = "description";
@@ -90,7 +80,7 @@ public class Constants {
     public static final String FBICODE_PROP = "fbicode";
     public static final String TOTAL_PROP = "total";    // total count, generated from data
 
-    public static final String CATEGORIES_PATH_PROP = "categories_path";  // path for categories output file
+    public static final String OUTPUTTYPES_PATH_PROP = "outputtypes_path";  // path for output types file
 
     // stock specific properties
     public static final String OPEN_PROP = "open";
@@ -101,6 +91,7 @@ public class Constants {
     public static final String VOLUME_PROP = "volume";
     public static final String ID_PROP = "id";
 
+    public static final String ID_LIST_PROP = "id_list";
     public static final String COUNT_PROP = "count";
 
     // weather specific properties
@@ -120,6 +111,10 @@ public class Constants {
     public static final String WEATHER_ID_PROP = "weather_id";
     public static final String WEATHER_MAIN_PROP = "weather_main";
     public static final String WEATHER_DESC_PROP = "weather_description";
+
+    // regression specific properties
+    public static final String INDEPENDENTS_PROP = "independents";
+    public static final String DEPENDENT_PROP = "dependent";
 
     public static final int ECODE_CONFIG_ERROR = -1;
     public static final int ECODE_SUCCESS = 0;
@@ -144,6 +139,12 @@ public class Constants {
             DebugLevel setting = getSetting(conf, sCfgChk);
             return show(setting, level);
         }
+    }
+
+    private static MapStringifier.ElementStringify propertyNamer = new MapStringifier.ElementStringify(PROPERTY_SEPARATOR);
+
+    public static String generatePropertyName(String section, String property) {
+        return propertyNamer.stringifyElement(section, property);
     }
 
     /**

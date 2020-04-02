@@ -76,7 +76,7 @@ public class CrimeReducer extends AbstractCrimeReducer<Text, MapWritable, Text, 
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
-        outputCategories(context,this, getLogger());
+        saveOutputTypes(context,this, getLogger());
     }
 
     public static Map<String, Integer> reduceToTotalsPerCategory(
@@ -91,12 +91,13 @@ public class CrimeReducer extends AbstractCrimeReducer<Text, MapWritable, Text, 
             if (!counts.containsKey(category)) {
                 counts.put(category, 0);
 
-                reducer.addCategory(category);
+                // add category to output name/type info
+                reducer.putOutputType(category, Integer.class);
             }
             counts.put(category, counts.get(category) + 1);
 
             if (counter != null) {
-                counter.incrementValue(1);
+                counter.increment();
             }
         });
 
@@ -110,25 +111,29 @@ public class CrimeReducer extends AbstractCrimeReducer<Text, MapWritable, Text, 
         }
         map.put(TOTAL_PROP, total);
 
+        // add total to output name/type info
+        reducer.putOutputType(TOTAL_PROP, Integer.class);
+
         return map;
     }
 
 
-    public static void outputCategories(Reducer<?,?,?,?>.Context context, ICrimeReducer reducer, Logger logger) {
+    public static void saveOutputTypes(Reducer<?,?,?,?>.Context context, ICrimeReducer reducer, Logger logger) {
         // TODO check this in case of multiple reducers
         if (context.getProgress() == 1.0) {
             Configuration conf = context.getConfiguration();
+            String ls = System.getProperty("line.separator");
             PropertyWrangler propertyWrangler = new PropertyWrangler(CRIME_PROP_SECTION);
-            Set<String> categorySet = reducer.getCategorySet();
+            Map<String,Class<?>> outputTypes = reducer.getOutputTypeMap();
 
             Path outDir = new Path(conf.get(propertyWrangler.getPropertyPath(OUT_PATH_PROP)));
-            String outPath = conf.get(CATEGORIES_PATH_PROP, "categories.txt");
+            String outPath = conf.get(OUTPUTTYPES_PATH_PROP, "output_types.txt");
             FileUtil fileUtil = new FileUtil(outDir, conf);
 
             try (FSDataOutputStream stream = fileUtil.fileWriteOpen(outPath, true)) {
-                StringBuffer sb = new StringBuffer();
-                categorySet.stream()
-                    .map(s -> s + ", ")
+                StringBuilder sb = new StringBuilder();
+                outputTypes.entrySet().stream()
+                    .map(e -> e.getKey() + "," + e.getValue().getSimpleName() + ls)
                     .forEach(sb::append);
                 fileUtil.write(stream, sb.toString());
             } catch (IOException ioe) {
@@ -141,7 +146,7 @@ public class CrimeReducer extends AbstractCrimeReducer<Text, MapWritable, Text, 
                 }
             }
         } else {
-            logger.info("Skipping output of categories file, job incomplete: " + context.getProgress());
+            logger.info("Skipping generation of output types file, job incomplete: " + context.getProgress());
         }
     }
 }

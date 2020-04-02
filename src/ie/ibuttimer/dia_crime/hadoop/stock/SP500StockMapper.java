@@ -27,6 +27,8 @@ import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
+
 /**
  * Mapper for a S&P 500 stock entry:
  * - input key : csv file line number
@@ -36,16 +38,14 @@ import org.apache.log4j.Logger;
  */
 public class SP500StockMapper extends AbstractSP500StockBaseMapper<MapWritable> {
 
-    private static final Logger logger = Logger.getLogger(SP500StockMapper.class);
-
-
     public SP500StockMapper() {
         super();
     }
 
     @Override
-    protected Logger getLogger() {
-        return logger;
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
     }
 
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {

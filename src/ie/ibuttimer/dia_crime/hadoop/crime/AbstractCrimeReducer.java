@@ -28,13 +28,12 @@ import ie.ibuttimer.dia_crime.hadoop.merge.IValueDecorator;
 import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
 import org.apache.hadoop.mapreduce.Reducer;
 
-import java.util.Set;
-import java.util.TreeSet;
+import java.io.IOException;
+import java.util.Map;
 
-public class AbstractCrimeReducer<KI, VI, KO, VO> extends AbstractReducer<KI, VI, KO, VO>
-    implements ICrimeReducer {
+public class AbstractCrimeReducer<KI, VI, KO, VO> extends AbstractReducer<KI, VI, KO, VO> implements ICrimeReducer {
 
-    private static Set<String> categorySet = new TreeSet<>();
+    private Map<String, Class<?>> outputTypes;
 
     public AbstractCrimeReducer() {
         super();
@@ -45,8 +44,14 @@ public class AbstractCrimeReducer<KI, VI, KO, VO> extends AbstractReducer<KI, VI
     }
 
     @Override
-    public Set<String> getCategorySet() {
-        return categorySet;
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        outputTypes = newOutputTypeMap();
+    }
+
+    @Override
+    public Map<String, Class<?>> getOutputTypeMap() {
+        return outputTypes;
     }
 
     protected CounterEnums.ReducerCounter getCounter(Reducer<?,?,?,?>.Context context, CrimeCountersEnum countersEnum) {

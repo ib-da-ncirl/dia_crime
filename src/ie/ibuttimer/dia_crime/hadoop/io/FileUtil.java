@@ -77,6 +77,16 @@ public class FileUtil {
         return stream;
     }
 
+    public FSDataInputStream fileReadOpen() throws IOException {
+        FSDataInputStream stream = null;
+        if (fileExists(path)) {
+            stream = fileSystem.open(path);
+        } else {
+            throw new FileNotFoundException("File not found: " + path);
+        }
+        return stream;
+    }
+
     public FSDataOutputStream fileWriteOpen(Path filePath, boolean overwrite) throws IOException {
         FSDataOutputStream stream = null;
         if (fileExists(filePath) && !overwrite) {

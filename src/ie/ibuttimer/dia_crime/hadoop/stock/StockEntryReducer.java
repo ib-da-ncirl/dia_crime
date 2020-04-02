@@ -89,7 +89,7 @@ public class StockEntryReducer extends AbstractStockReducer<Text, MapWritable, T
                             idValStringifier.stringifyElement(stockKey.toString(), MapStringifier.stringify(map))
                         ));
 
-                        counter.incrementValue(1);
+                        counter.increment();
                     } catch (IOException | InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -114,7 +114,7 @@ public class StockEntryReducer extends AbstractStockReducer<Text, MapWritable, T
                 // convert the StockWritable object map to a string map
                 stockEntry.toMap().forEach((k, v) -> map.put(stockKey + "_" + k, v.toString()));
 
-                counter.incrementValue(1);
+                counter.increment();
             });
         });
 

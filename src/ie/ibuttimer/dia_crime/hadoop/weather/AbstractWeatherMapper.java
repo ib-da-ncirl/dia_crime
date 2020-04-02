@@ -23,7 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop.weather;
 
-import ie.ibuttimer.dia_crime.hadoop.AbstractCsvEntryMapper;
+import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
@@ -45,7 +45,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : date
  * @param <VO>  output value
  */
-public abstract class AbstractWeatherMapper<VO> extends AbstractCsvEntryMapper<Text, VO> {
+public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, VO> {
 
     private WeatherWritable.WeatherWritableBuilder builder;
 
@@ -97,7 +97,6 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvEntryMapper<T
             // if the line ends with separators, they are ignored and consequently the num of splits doesn't match
             // num of columns in csv file
             if (splits.length > maxIndex) {
-                int dateIdx = indices.get(DATE_PROP);
                 Pair<Boolean, LocalDateTime> filterRes = getZonedDateTimeAndFilter(splits[indices.get(DATE_PROP)]);
 
                 if (filterRes.getLeft()) {
@@ -123,7 +122,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvEntryMapper<T
                         .setWeatherDescription(splits[indices.get(WEATHER_DESC_PROP)])
                         .build();
 
-                    counter.incrementValue(1);
+                    counter.increment();
 
                     // file contains hourly entries, but just use date as the key
                     keyOut.set(dateTime.toLocalDate().toString());

@@ -27,6 +27,8 @@ import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
+
 /**
  * Mapper for a S&P 500 stock entry:
  * - input key : csv file line number
@@ -36,9 +38,6 @@ import org.apache.log4j.Logger;
  */
 public class SP500StockWrapMapper extends AbstractSP500StockBaseMapper<CSWWrapperWritable> {
 
-    private static final Logger logger = Logger.getLogger(SP500StockWrapMapper.class);
-
-
     public SP500StockWrapMapper() {
         super();
         setMapperHelper(new StockWrapMapperHelper(
@@ -46,8 +45,9 @@ public class SP500StockWrapMapper extends AbstractSP500StockBaseMapper<CSWWrappe
     }
 
     @Override
-    protected Logger getLogger() {
-        return logger;
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
     }
 
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {

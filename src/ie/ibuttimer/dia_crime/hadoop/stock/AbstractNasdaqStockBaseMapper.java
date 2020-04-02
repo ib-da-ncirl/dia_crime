@@ -25,8 +25,11 @@ package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
+import org.apache.commons.lang3.tuple.Pair;
 
-import static ie.ibuttimer.dia_crime.misc.Constants.NASDAQ_PROP_SECTION;
+import java.util.List;
+
+import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 /**
  * Mapper for a NASDAQ Composite stock entry:

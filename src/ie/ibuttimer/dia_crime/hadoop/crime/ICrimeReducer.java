@@ -23,13 +23,23 @@
 
 package ie.ibuttimer.dia_crime.hadoop.crime;
 
-import java.util.Set;
+import java.util.Map;
+import java.util.TreeMap;
 
 public interface ICrimeReducer {
 
-    Set<String> getCategorySet();
+    Map<String,Class<?>> getOutputTypeMap();
 
-    default boolean addCategory(String category) {
-        return getCategorySet().add(category);
+    default Map<String,Class<?>> newOutputTypeMap() {
+        return new TreeMap<>();
+    }
+
+    default void putOutputType(String name, Class<?> cls) {
+        getOutputTypeMap().put(name, cls);
+    }
+
+    default void putOutputTypes(Map<? extends String, Object> collection) {
+        Map<String,Class<?>> outputTypes = getOutputTypeMap();
+        collection.forEach((key, value) -> outputTypes.put(key, value.getClass()));
     }
 }

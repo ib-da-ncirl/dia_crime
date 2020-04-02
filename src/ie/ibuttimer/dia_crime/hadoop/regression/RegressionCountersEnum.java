@@ -21,39 +21,9 @@
  *  SOFTWARE.
  */
 
-package ie.ibuttimer.dia_crime.hadoop.stock;
+package ie.ibuttimer.dia_crime.hadoop.regression;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
-import org.apache.log4j.Logger;
-
-import java.io.IOException;
-
-/**
- * Mapper for a Dow Jones Industrial Average stock entry:
- * - input key : csv file line number
- * - input value : csv file line text
- * - output key : date
- * - output value : CSWWrapperWritable
- */
-public class DowJonesStockWrapMapper extends AbstractDowJonesStockBaseMapper<CSWWrapperWritable> {
-
-    public DowJonesStockWrapMapper() {
-        super();
-        setMapperHelper(new StockWrapMapperHelper(
-            getId().toString(), StockWritable.StockEntryWritableBuilder.getInstance()));
-    }
-
-    @Override
-    protected void setup(Context context) throws IOException, InterruptedException {
-        super.setup(context);
-        setLogger(getClass());
-    }
-
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
-        return AbstractDowJonesStockBaseMapper.getCsvEntryMapperCfg();
-    }
+public enum RegressionCountersEnum {
+    MAPPER_COUNT,
+    REDUCER_COUNT
 }
-
-
-

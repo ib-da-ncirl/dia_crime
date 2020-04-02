@@ -23,7 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop.crime;
 
-import ie.ibuttimer.dia_crime.hadoop.AbstractCsvEntryMapper;
+import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
@@ -47,7 +47,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : date
  * @param <VO>  output value
  */
-public abstract class AbstractCrimeMapper<VO> extends AbstractCsvEntryMapper<Text, VO> {
+public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO> {
 
     private CrimeWritable.CrimeEntryWritableBuilder builder;
 
@@ -114,7 +114,7 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvEntryMapper<Tex
                             .setFbiCode(splits[indices.get(FBICODE_PROP)])
                             .build();
 
-                    counter.incrementValue(1);
+                    counter.increment();
 
                     keyOut.set(dateTime.toLocalDate().toString());
 

@@ -36,6 +36,10 @@ public class MapStringifier<K, V> {
 
     private Map<K, V> map;
 
+    public MapStringifier() {
+        this(new HashMap<>());
+    }
+
     public MapStringifier(Map<K, V> map) {
         this.map = map;
     }
