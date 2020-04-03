@@ -23,7 +23,9 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
-import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
+import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.commons.lang3.tuple.Pair;
@@ -31,13 +33,12 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.Value.*;
 
 /**
  * Reducer to calculate standard deviation for NASDAQ Composite stock entries:
@@ -46,20 +47,15 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : stock id
  * - input value : text with
  */
-public class StockEntryStatsReducer extends AbstractStockReducer<Text, MapWritable, Text, Text> implements IStats {
+public class StockStatsReducer extends AbstractReducer<Text, MapWritable, Text, Text> implements IStats {
 
-    static BigDecimal MAX_DECIMAL = new BigDecimal(Double.MAX_VALUE);
-    static BigDecimal MIN_DECIMAL = new BigDecimal(Double.MIN_VALUE);
-    static BigInteger MAX_INTEGER = BigInteger.valueOf(Long.MAX_VALUE);
-    static BigInteger MIN_INTEGER = BigInteger.valueOf(Long.MIN_VALUE);
-
-    private CounterEnums.ReducerCounter counter;
+    private Counters.ReducerCounter counter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
 
-        counter = getCounter(context, StockCountersEnum.REDUCER_COUNT);
+        counter = getCounter(context, CountersEnum.STATS_REDUCER_COUNT);
     }
 
     /**
@@ -75,9 +71,9 @@ public class StockEntryStatsReducer extends AbstractStockReducer<Text, MapWritab
 
         BigStockWritable summer = new BigStockWritable();
         BigStockWritable minimiser = new BigStockWritable(
-                MAX_DECIMAL, MAX_DECIMAL, MAX_DECIMAL, MAX_DECIMAL, MAX_DECIMAL, MAX_INTEGER, "");
+                MAX_BIG_DECIMAL, MAX_BIG_DECIMAL, MAX_BIG_DECIMAL, MAX_BIG_DECIMAL, MAX_BIG_DECIMAL, MAX_BIG_INTEGER, "");
         BigStockWritable maximiser = new BigStockWritable(
-                MIN_DECIMAL, MIN_DECIMAL, MIN_DECIMAL, MIN_DECIMAL, MIN_DECIMAL, MIN_INTEGER, "");
+                MIN_BIG_DECIMAL, MIN_BIG_DECIMAL, MIN_BIG_DECIMAL, MIN_BIG_DECIMAL, MIN_BIG_DECIMAL, MIN_BIG_INTEGER, "");
 
         if (isStandardKey(key.toString())) {
             values.forEach(stock -> {

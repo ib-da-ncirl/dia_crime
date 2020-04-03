@@ -25,7 +25,7 @@ package ie.ibuttimer.dia_crime;
 
 import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
 import ie.ibuttimer.dia_crime.hadoop.stats.Result;
-import ie.ibuttimer.dia_crime.hadoop.stats.StatsCalc;
+import ie.ibuttimer.dia_crime.hadoop.stats.StockStatsCalc;
 import ie.ibuttimer.dia_crime.hadoop.stock.*;
 import ie.ibuttimer.dia_crime.misc.Constants;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
@@ -41,7 +41,6 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -95,7 +94,7 @@ public class StockDriver extends AbstractDriver {
 
             job = initJob("Stocks", conf, sections);
 
-            job.setReducerClass(StockEntryReducer.class);
+            job.setReducerClass(StockReducer.class);
 
             job.setMapOutputKeyClass(Text.class);
             job.setMapOutputValueClass(MapWritable.class);
@@ -144,7 +143,7 @@ public class StockDriver extends AbstractDriver {
 
             job = initJob("Stocks", conf, sections);
 
-            job.setReducerClass(StockEntryStatsReducer.class);
+            job.setReducerClass(StockStatsReducer.class);
 
             job.setMapOutputKeyClass(Text.class);
             job.setMapOutputValueClass(MapWritable.class);
@@ -166,13 +165,13 @@ public class StockDriver extends AbstractDriver {
                 sections.forEach((section, value) -> {
                     propertyWrangler.setRoot(section);
                     Path outDir = new Path(conf.get(propertyWrangler.getPropertyPath(OUT_PATH_PROP)));
-                    StatsCalc statsCalc = new StatsCalc(outDir, conf, "part-r-00000");
-                    String outPath = conf.get(STATS_PATH_PROP, section + "_stats.txt");
+                    StockStatsCalc stockStatsCalc = new StockStatsCalc(outDir, conf, "part-r-00000");
+                    String outPath = conf.get(propertyWrangler.getPropertyPath(STATS_PATH_PROP), section + "_stats.txt");
                     FileUtil fileUtil = new FileUtil(outDir, conf);
 
                     Result.Set results = null;
                     try {
-                        results = statsCalc.calcAll(tags.get(section), BigStockWritable.NUMERIC_FIELDS);
+                        results = stockStatsCalc.calcAll(tags.get(section), BigStockWritable.NUMERIC_FIELDS);
                         try (FSDataOutputStream stream = fileUtil.fileWriteOpen(outPath, true)) {
 
                             List<String> outputText = new ArrayList<>();
@@ -184,7 +183,7 @@ public class StockDriver extends AbstractDriver {
 
                                     outputText.add(f);
 
-                                    Arrays.asList(StatsCalc.Stat.values()).forEach(stat -> {
+                                    Arrays.asList(StockStatsCalc.Stat.values()).forEach(stat -> {
                                         switch (stat) {
                                             case STDDEV:
                                                 result.getStddev().ifPresent(st -> outputText.add("Standard deviation: " + st));

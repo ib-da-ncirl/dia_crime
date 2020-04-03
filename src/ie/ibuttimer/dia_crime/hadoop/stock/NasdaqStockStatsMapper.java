@@ -56,7 +56,7 @@ public class NasdaqStockStatsMapper extends AbstractNasdaqStockMapper<BigStockWr
     }
 
     @Override
-    protected ICsvEntryMapperCfg getEntryMapperCfg() {
+    public ICsvEntryMapperCfg getEntryMapperCfg() {
         return NasdaqStockStatsMapper.getCsvEntryMapperCfg();
     }
 

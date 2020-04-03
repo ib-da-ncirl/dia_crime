@@ -33,7 +33,7 @@ public class Result {
     private double min;
     private double max;
 
-    private boolean[] set = new boolean[StatsCalc.Stat.values().length];
+    private boolean[] set = new boolean[StockStatsCalc.Stat.values().length];
 
     Result() {
         this.success = false;
@@ -54,16 +54,16 @@ public class Result {
         this.success = success;
     }
 
-    private boolean isSet(StatsCalc.Stat stat) {
+    private boolean isSet(StockStatsCalc.Stat stat) {
         return set[stat.ordinal()];
     }
 
-    private void set(StatsCalc.Stat stat) {
+    private void set(StockStatsCalc.Stat stat) {
         set[stat.ordinal()] = true;
         success = true;
     }
 
-    private Optional<Double> getStat(StatsCalc.Stat stat) {
+    private Optional<Double> getStat(StockStatsCalc.Stat stat) {
         if (isSet(stat)) {
             double value;
             switch (stat) {
@@ -81,48 +81,48 @@ public class Result {
     }
 
     public Optional<Double> getStddev() {
-        return getStat(StatsCalc.Stat.STDDEV);
+        return getStat(StockStatsCalc.Stat.STDDEV);
     }
 
     public void setStddev(double stddev) {
         this.stddev = stddev;
-        set(StatsCalc.Stat.STDDEV);
+        set(StockStatsCalc.Stat.STDDEV);
     }
 
     public Optional<Double> getVariance() {
-        return getStat(StatsCalc.Stat.VARIANCE);
+        return getStat(StockStatsCalc.Stat.VARIANCE);
     }
 
     public void setVariance(double variance) {
         this.variance = variance;
-        set(StatsCalc.Stat.VARIANCE);
+        set(StockStatsCalc.Stat.VARIANCE);
     }
 
     public Optional<Double> getMean() {
-        return getStat(StatsCalc.Stat.MEAN);
+        return getStat(StockStatsCalc.Stat.MEAN);
     }
 
     public void setMean(double mean) {
         this.mean = mean;
-        set(StatsCalc.Stat.MEAN);
+        set(StockStatsCalc.Stat.MEAN);
     }
 
     public Optional<Double> getMin() {
-        return getStat(StatsCalc.Stat.MIN);
+        return getStat(StockStatsCalc.Stat.MIN);
     }
 
     public void setMin(double min) {
         this.min = min;
-        set(StatsCalc.Stat.MIN);
+        set(StockStatsCalc.Stat.MIN);
     }
 
     public Optional<Double> getMax() {
-        return getStat(StatsCalc.Stat.MAX);
+        return getStat(StockStatsCalc.Stat.MAX);
     }
 
     public void setMax(double max) {
         this.max = max;
-        set(StatsCalc.Stat.MAX);
+        set(StockStatsCalc.Stat.MAX);
     }
 
 

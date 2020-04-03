@@ -23,7 +23,9 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
-import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
+import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -42,21 +44,21 @@ import java.util.TreeMap;
  * - output key : date
  * - output value : MapWritable<StockWritable>
  */
-public class StockEntryReducer extends AbstractStockReducer<Text, MapWritable, Text, Text> {
+public class StockReducer extends AbstractReducer<Text, MapWritable, Text, Text> {
 
-    private static final Log LOG = LogFactory.getLog(StockEntryReducer.class);
+    private static final Log LOG = LogFactory.getLog(StockReducer.class);
 
     public static final String STOCK_ID_SEPARATOR = ">";
 
     private MapStringifier.ElementStringify idValStringifier = MapStringifier.ElementStringify.of(STOCK_ID_SEPARATOR);
 
-    private CounterEnums.ReducerCounter counter;
+    private Counters.ReducerCounter counter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
 
-        counter = getCounter(context, StockCountersEnum.REDUCER_COUNT);
+        counter = getCounter(context, CountersEnum.STOCK_REDUCER_COUNT);
     }
 
     /**
@@ -104,7 +106,7 @@ public class StockEntryReducer extends AbstractStockReducer<Text, MapWritable, T
         });
     }
 
-    public static Map<String, String> reduce(List<Map<String, StockWritable>> values, CounterEnums.ReducerCounter counter) {
+    public static Map<String, String> reduce(List<Map<String, StockWritable>> values, Counters.ReducerCounter counter) {
 
         // sort based on stock
         Map<String, String> map = new TreeMap<>();

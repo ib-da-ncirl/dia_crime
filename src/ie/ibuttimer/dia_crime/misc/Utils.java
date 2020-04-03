@@ -25,6 +25,9 @@ package ie.ibuttimer.dia_crime.misc;
 
 import org.apache.log4j.Logger;
 
+import java.lang.reflect.InvocationTargetException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -63,6 +66,26 @@ public class Utils {
         }
         return Integer.parseInt(version);
     }
+
+    public static <T> Object getInstance(Class<T> cls) {
+        @SuppressWarnings("deprecation")
+        Object instance = null;
+        if (getJREVersion() <= 8) {
+            try {
+                instance = cls.newInstance();
+            } catch (InstantiationException | IllegalAccessException e) {
+                getLogger().warn("Unable to instantiate instance of " + cls.getName(), e);
+            }
+        } else {
+            try {
+                cls.getDeclaredConstructor().newInstance();
+            } catch (ReflectiveOperationException e) {
+                getLogger().warn("Unable to instantiate instance of " + cls.getName(), e);
+            }
+        }
+        return instance;
+    }
+
 
     public static <T> List<T> iterableToList(Iterable<T> values) {
         // TODO check this, not sure it adds everything to the list

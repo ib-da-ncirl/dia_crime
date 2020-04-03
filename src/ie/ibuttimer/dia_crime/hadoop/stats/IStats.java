@@ -23,38 +23,43 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stats;
 
+import ie.ibuttimer.dia_crime.misc.MapStringifier;
+import org.apache.commons.lang3.tuple.Pair;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
 public interface IStats {
 
-    String SUM_KEY_TAG = "_SUM";
-    String SQUARE_KEY_TAG = "_SQ";
-    String MIN_KEY_TAG = "_MIN";
-    String MAX_KEY_TAG = "_MAX";
-    String COUNT_KEY_TAG = "_CNT";
+    String SUM_KEY_TAG = "SUM";
+    String SQUARE_KEY_TAG = "SQ";
+    String MIN_KEY_TAG = "MIN";
+    String MAX_KEY_TAG = "MAX";
+    String COUNT_KEY_TAG = "CNT";
+
+    MapStringifier.ElementStringify TAG_WRANGLER = new MapStringifier.ElementStringify("-");
 
     List<String> KEY_TAGS = Arrays.asList(SUM_KEY_TAG, SQUARE_KEY_TAG, MIN_KEY_TAG, MAX_KEY_TAG, COUNT_KEY_TAG);
 
     default String getSumKeyTag(String key) {
-        return key + SUM_KEY_TAG;
+        return TAG_WRANGLER.stringifyElement(key, SUM_KEY_TAG);
     }
 
     default String getSquareKeyTag(String key) {
-        return key + SQUARE_KEY_TAG;
+        return TAG_WRANGLER.stringifyElement(key, SQUARE_KEY_TAG);
     }
 
     default String getMinKeyTag(String key) {
-        return key + MIN_KEY_TAG;
+        return TAG_WRANGLER.stringifyElement(key, MIN_KEY_TAG);
     }
 
     default String getMaxKeyTag(String key) {
-        return key + MAX_KEY_TAG;
+        return TAG_WRANGLER.stringifyElement(key, MAX_KEY_TAG);
     }
 
     default String getCountKeyTag(String key) {
-        return key + COUNT_KEY_TAG;
+        return TAG_WRANGLER.stringifyElement(key, COUNT_KEY_TAG);
     }
 
     default boolean isSumKey(String key) {
@@ -81,4 +86,7 @@ public interface IStats {
         return KEY_TAGS.stream().noneMatch(key::endsWith);
     }
 
+    default Pair<String, String> splitKeyTag(String key) {
+        return TAG_WRANGLER.destringifyElement(key);
+    }
 }

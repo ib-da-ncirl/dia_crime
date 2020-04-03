@@ -23,7 +23,9 @@
 
 package ie.ibuttimer.dia_crime.hadoop.weather;
 
-import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
+import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.Counter;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.commons.lang3.tuple.Triple;
@@ -39,7 +41,7 @@ import java.util.stream.Collectors;
 
 import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
 
-public class WeatherReducer extends AbstractWeatherReducer<Text, MapWritable, Text, Text> {
+public class WeatherReducer extends AbstractReducer<Text, MapWritable, Text, Text> {
 
     /**
      * Reduce the values for a key
@@ -52,7 +54,7 @@ public class WeatherReducer extends AbstractWeatherReducer<Text, MapWritable, Te
     @Override
     protected void reduce(Text key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
 
-        CounterEnums.ReducerCounter counter = getCounter(context, WeatherCountersEnum.REDUCER_COUNT);
+        Counters.ReducerCounter counter = getCounter(context, CountersEnum.WEATHER_REDUCER_COUNT);
 
         // flatten the maps in values and get a list of the CrimeEntryWritables
         List<WeatherWritable> weatherReadings = iterableOfMapsToList(values, WeatherWritable.class);
@@ -65,7 +67,7 @@ public class WeatherReducer extends AbstractWeatherReducer<Text, MapWritable, Te
         context.write(key, new Text(MapStringifier.stringify(map)));
     }
 
-    public static Map<String, Object> reduceToAverages(List<WeatherWritable> values, CounterEnums.ReducerCounter counter) {
+    public static Map<String, Object> reduceToAverages(List<WeatherWritable> values, Counters.ReducerCounter counter) {
 
         // get average for all daily measurements
         WeatherWritable avgCalc = new WeatherWritable();

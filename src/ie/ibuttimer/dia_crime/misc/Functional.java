@@ -49,7 +49,7 @@ public class Functional {
         };
     }
 
-    public static <T, E extends Exception> Consumer<T> exLoggingConsumer(
+    public static <T, E extends Exception> Consumer<T> exceptionLoggingConsumer(
         ThrowingConsumer<T, E> consumer, Class<E> exceptionClass, Logger logger) {
 
         return t -> {
@@ -67,11 +67,38 @@ public class Functional {
     }
 
     @FunctionalInterface
+    public interface BiThrowingConsumer<T, E extends Exception, F extends Exception> {
+        void accept(T t) throws E, F;
+    }
+
+    public static <T, E extends Exception, F extends Exception> Consumer<T> biExceptionLoggingConsumer(
+        BiThrowingConsumer<T, E, F> consumer, Class<E> exceptionClass1, Class<F> exceptionClass2, Logger logger) {
+
+        return t -> {
+            try {
+                consumer.accept(t);
+            } catch (Exception ex) {
+                try {
+                    E exCast = exceptionClass1.cast(ex);
+                    logger.warn("Exception: " + exCast.getMessage(), exCast);
+                } catch (ClassCastException ccEx1) {
+                    try {
+                        F exCast = exceptionClass2.cast(ex);
+                        logger.warn("Exception: " + exCast.getMessage(), exCast);
+                    } catch (ClassCastException ccEx2) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+            }
+        };
+    }
+
+    @FunctionalInterface
     public interface ThrowingBiConsumer<T, U, E extends Exception> {
         void accept(T t, U u) throws E;
     }
 
-    public static <T, U> BiConsumer<T, U> throwingConsumer(ThrowingBiConsumer<T, U, Exception> consumer) {
+    public static <T, U> BiConsumer<T, U> throwingBiConsumer(ThrowingBiConsumer<T, U, Exception> consumer) {
         return (t, u) -> {
             try {
                 consumer.accept(t, u);
@@ -81,7 +108,7 @@ public class Functional {
         };
     }
 
-    public static <T, U, E extends Exception> BiConsumer<T, U> exLoggingBiConsumer(
+    public static <T, U, E extends Exception> BiConsumer<T, U> exceptionLoggingBiConsumer(
         ThrowingBiConsumer<T, U, E> consumer, Class<E> exceptionClass, Logger logger) {
 
         return (t, u) -> {
@@ -98,4 +125,31 @@ public class Functional {
         };
     }
 
+
+    @FunctionalInterface
+    public interface BiThrowingBiConsumer<T, U, E extends Exception, F extends Exception> {
+        void accept(T t, U u) throws E, F;
+    }
+
+    public static <T, U, E extends Exception, F extends Exception> BiConsumer<T, U> biExceptionLoggingBiConsumer(
+        BiThrowingBiConsumer<T, U, E, F> consumer, Class<E> exceptionClass1, Class<F> exceptionClass2, Logger logger) {
+
+        return (t, u) -> {
+            try {
+                consumer.accept(t, u);
+            } catch (Exception ex) {
+                try {
+                    E exCast = exceptionClass1.cast(ex);
+                    logger.warn("Exception: " + exCast.getMessage(), exCast);
+                } catch (ClassCastException ccEx1) {
+                    try {
+                        F exCast = exceptionClass2.cast(ex);
+                        logger.warn("Exception: " + exCast.getMessage(), exCast);
+                    } catch (ClassCastException ccEx2) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+            }
+        };
+    }
 }

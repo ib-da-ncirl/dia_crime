@@ -36,10 +36,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static ie.ibuttimer.dia_crime.misc.Functional.exLoggingBiConsumer;
+import static ie.ibuttimer.dia_crime.misc.Functional.exceptionLoggingBiConsumer;
 import static ie.ibuttimer.dia_crime.misc.Utils.getLogger;
 
-public class RegressionWritable<K, V> extends AbstractBaseWritable<RegressionWritable<K, V>> implements Writable, Map<K, V> {
+public class RegressionWritable<K, V extends Writable> extends AbstractBaseWritable<RegressionWritable<K, V>> implements Writable, Map<K, V> {
 
     private Map<K, V> properties;
 
@@ -53,10 +53,9 @@ public class RegressionWritable<K, V> extends AbstractBaseWritable<RegressionWri
         super.write(dataOutput);
 
         dataOutput.writeInt(properties.size());
-        properties.forEach(exLoggingBiConsumer((key, value) -> {
+        properties.forEach(exceptionLoggingBiConsumer((key, value) -> {
             Text.writeString(dataOutput, key.toString());
-            Text.writeString(dataOutput, value.getClass().getSimpleName());
-            Value.of(value).write(dataOutput);
+            value.write(dataOutput);
         }, IOException.class, getLogger()));
     }
 
@@ -67,10 +66,10 @@ public class RegressionWritable<K, V> extends AbstractBaseWritable<RegressionWri
         for (int size = dataInput.readInt(); size > 0; --size) {
             // TODO sort out generics, atm keys can only be String
             String key = Text.readString(dataInput);
-            String className = Text.readString(dataInput);
+
             Value value = Value.of();
-            value.read(dataInput, className);
-            value.ifPresent(v -> properties.put((K)key, (V)v));
+            value.readFields(dataInput);
+            properties.put((K)key, (V)value);
 
         }
     }

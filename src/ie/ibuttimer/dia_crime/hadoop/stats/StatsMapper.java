@@ -21,17 +21,14 @@
  *  SOFTWARE.
  */
 
-package ie.ibuttimer.dia_crime.hadoop.regression;
+package ie.ibuttimer.dia_crime.hadoop.stats;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
-import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
-import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
-import ie.ibuttimer.dia_crime.misc.ConfigReader;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
-import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
-import ie.ibuttimer.dia_crime.misc.Value;
+import ie.ibuttimer.dia_crime.hadoop.regression.RegressionWritable;
+import ie.ibuttimer.dia_crime.misc.*;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -44,33 +41,34 @@ import java.util.Map;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
-public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable<?, ?>> {
+public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStats {
 
     private Counters.MapperCounter counter;
 
     private MapStringifier.ElementStringify hadoopKeyVal = new MapStringifier.ElementStringify("\t");
-    private MapStringifier.ElementStringify commaStringify = new MapStringifier.ElementStringify(",");
 
     private Map<String, Class<?>> outputTypes;
 
-    private List<String> independents;
-    private String dependent;
+    private List<String> variables;
+
+    private RegressionWritable<String, Value> valuesOut = new RegressionWritable<>();
+    private RegressionWritable<String, Value> sqValuesOut = new RegressionWritable<>();
+
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
         super.setup(context, sCfgChk.getPropertyIndices());
 
-        counter = getCounter(context, CountersEnum.REGRESSION_MAPPER_COUNT);
+        counter = getCounter(context, CountersEnum.STATS_MAPPER_COUNT);
 
         setLogger(getClass());
 
         Configuration conf = context.getConfiguration();
         StatsConfigReader cfgReader = new StatsConfigReader(getEntryMapperCfg());
 
+        variables = cfgReader.readVariables(conf);
         outputTypes = cfgReader.readOutputTypes(conf);
-        independents = cfgReader.readCommaSeparatedProperty(conf, INDEPENDENTS_PROP);
-        dependent = getConfigProperty(conf, DEPENDENT_PROP);
     }
 
     /**
@@ -102,55 +100,61 @@ public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable
             if (filterRes.getLeft()) {
                 Map<String, String> map = MapStringifier.mapify(hKeyVal.getRight());
 
-                throw new UnsupportedOperationException("fix regression");
-//                RegressionWritable<String, Object> entry = new RegressionWritable<>();
-//
-//                outputTypes.forEach((name, cls) -> {
-//
-//                    boolean required = independents.stream().anyMatch(name::equals);
-//                    if (required) {
-//                        String readValue = map.getOrDefault(name, "");
-//
-//                        Value wrapped = Value.of(readValue, cls, getDateTimeFormatter());
-//
-//                        wrapped.addTo(entry, name);
-//                    }
-//                });
-//
-//                counter.increment();
-//
-//                write(context, new Text(key.toString()), entry);
+                outputTypes.forEach((name, cls) -> {
+                    String readValue = map.getOrDefault(name, "");
+
+                    Value wrapped = Value.of(readValue, cls, getDateTimeFormatter());
+                    Value squared = wrapped.copyOf();
+                    squared.pow(2);
+
+                    valuesOut.put(name, wrapped);
+                    sqValuesOut.put(name, squared);
+                });
+
+                counter.increment();
+
+                valuesOut.forEach((name, val) -> {
+                    try {
+                        write(context, new Text(name), val);
+                    } catch (IOException | InterruptedException e) {
+                        getLogger().warn("Exception writing mapper output", e);
+                    }
+                });
+                sqValuesOut.forEach((name, val) -> {
+                    try {
+                        write(context, new Text(getSquareKeyTag(name)), val);
+                    } catch (IOException | InterruptedException e) {
+                        getLogger().warn("Exception writing mapper output", e);
+                    }
+                });
             }
         }
     }
 
-
-
     private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg() {
 
-        private PropertyWrangler propertyWrangler = new PropertyWrangler(REGRESSION_PROP_SECTION);
+        private PropertyWrangler propertyWrangler = new PropertyWrangler(STATS_PROP_SECTION);
 
         private Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
-        private Property indoProp = Property.of(INDEPENDENTS_PROP, "list of independent variables to use", "");
-        private Property depProp = Property.of(DEPENDENT_PROP, "dependent variable to use", "");
+        private Property varsProp = Property.of(VARIABLES_PROP, "list of variables to use", "");
 
         @Override
         public List<Property> getAdditionalProps() {
-            return List.of(typesPathProp, indoProp, depProp);
+            return List.of(typesPathProp, varsProp,
+                Property.of(STATS_PATH_PROP, "path for stats output", ""));
         }
 
         @Override
         public List<Property> getRequiredProps() {
             List<Property> list = super.getRequiredProps();
             list.add(typesPathProp);
-            list.add(indoProp);
-            list.add(depProp);
+            list.add(varsProp);
             return list;
         }
 
         @Override
         public String getPropertyRoot() {
-            return REGRESSION_PROP_SECTION;
+            return STATS_PROP_SECTION;
         }
 
         @Override

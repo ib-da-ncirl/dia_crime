@@ -29,9 +29,9 @@ import org.apache.hadoop.mapreduce.Reducer;
 
 import java.util.Optional;
 
-public class CounterEnums {
+public class Counters {
 
-    private CounterEnums() {
+    private Counters() {
     }
 
     public interface ICounter {

@@ -24,7 +24,8 @@
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
-import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.DOWJONES_ID;
 
@@ -43,9 +44,8 @@ public abstract class AbstractDowJonesStockMapper<W extends AbstractBaseWritable
     }
 
     @Override
-    protected CounterEnums.MapperCounter getCounter(Context context) {
-        return new CounterEnums.MapperCounter(context, DowJonesCountersEnum.class.getName(),
-                DowJonesCountersEnum.MAPPER_COUNT.toString());
+    protected Counters.MapperCounter getCounter(Context context) {
+        return getCounter(context, CountersEnum.DOWJONES_STOCK_MAPPER_COUNT);
     }
 }
 

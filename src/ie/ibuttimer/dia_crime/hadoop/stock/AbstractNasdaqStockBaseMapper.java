@@ -62,7 +62,7 @@ public abstract class AbstractNasdaqStockBaseMapper<VO> extends AbstractNasdaqSt
     };
 
     @Override
-    protected ICsvEntryMapperCfg getEntryMapperCfg() {
+    public ICsvEntryMapperCfg getEntryMapperCfg() {
         return AbstractNasdaqStockBaseMapper.getCsvEntryMapperCfg();
     }
 

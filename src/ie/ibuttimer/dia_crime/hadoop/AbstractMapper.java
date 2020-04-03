@@ -24,6 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop;
 
 import ie.ibuttimer.dia_crime.hadoop.merge.IValueDecorator;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -33,8 +34,6 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 
 public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, VO> {
-
-    public static final String CLASS_VAL_SEPARATOR = ":-";
 
     private static Logger logger = null;
 
@@ -80,6 +79,14 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
         return decorated;
     }
 
+    protected Counters.MapperCounter getCounter(Mapper<?,?,?,?>.Context context, String group, String name) {
+        return new Counters.MapperCounter(context, group, name);
+    }
+
+    protected Counters.MapperCounter getCounter(Mapper<?,?,?,?>.Context context, CountersEnum countersEnum) {
+        return getCounter(context, countersEnum.getClass().getName(), countersEnum.toString());
+    }
+
     public void setPropertyRoot(String propertyRoot) {
         this.propertyWrangler = new PropertyWrangler(propertyRoot);
     }
@@ -88,7 +95,7 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
         context.write(key, decorate(value));
     }
 
-    protected String getPropertyPath(String propertyName) {
+    public String getPropertyPath(String propertyName) {
         return propertyWrangler.getPropertyPath(propertyName);
     }
 
@@ -115,6 +122,6 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
     }
 
 
-    protected abstract ICsvEntryMapperCfg getEntryMapperCfg();
+    public abstract ICsvEntryMapperCfg getEntryMapperCfg();
 
 }

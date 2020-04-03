@@ -21,9 +21,35 @@
  *  SOFTWARE.
  */
 
-package ie.ibuttimer.dia_crime.hadoop.crime;
+package ie.ibuttimer.dia_crime.hadoop;
 
-public enum CrimeCountersEnum {
-    MAPPER_COUNT,
-    REDUCER_COUNT
+public enum CountersEnum {
+
+    // Stock
+    STOCK_MAPPER_COUNT,
+    SP500_STOCK_MAPPER_COUNT,
+    NASDAQ_STOCK_MAPPER_COUNT,
+    DOWJONES_STOCK_MAPPER_COUNT,
+    STOCK_REDUCER_COUNT,
+
+    // Crime
+    CRIME_MAPPER_COUNT,
+    CRIME_REDUCER_COUNT,
+
+    // Merge
+    MERGE_REDUCER_COUNT,
+    MERGE_REDUCER_GROUP_IN_COUNT,
+    MERGE_REDUCER_GROUP_OUT_COUNT,
+
+    // Regression
+    WEATHER_MAPPER_COUNT,
+    WEATHER_REDUCER_COUNT,
+
+    // Regression
+    REGRESSION_MAPPER_COUNT,
+    REGRESSION_REDUCER_COUNT,
+
+    // Stats
+    STATS_MAPPER_COUNT,
+    STATS_REDUCER_COUNT
 }

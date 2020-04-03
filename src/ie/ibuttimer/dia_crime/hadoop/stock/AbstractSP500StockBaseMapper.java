@@ -59,7 +59,7 @@ public abstract class AbstractSP500StockBaseMapper<VO> extends AbstractSP500Stoc
     };
 
     @Override
-    protected ICsvEntryMapperCfg getEntryMapperCfg() {
+    public ICsvEntryMapperCfg getEntryMapperCfg() {
         return AbstractSP500StockBaseMapper.getCsvEntryMapperCfg();
     }
 

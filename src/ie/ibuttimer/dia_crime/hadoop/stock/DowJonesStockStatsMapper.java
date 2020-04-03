@@ -53,7 +53,7 @@ public class DowJonesStockStatsMapper extends AbstractDowJonesStockMapper<BigSto
     }
 
     @Override
-    protected ICsvEntryMapperCfg getEntryMapperCfg() {
+    public ICsvEntryMapperCfg getEntryMapperCfg() {
         return DowJonesStockStatsMapper.getCsvEntryMapperCfg();
     }
 

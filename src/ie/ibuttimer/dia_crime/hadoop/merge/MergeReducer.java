@@ -23,10 +23,12 @@
 
 package ie.ibuttimer.dia_crime.hadoop.merge;
 
+import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
+import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeWritable;
 import ie.ibuttimer.dia_crime.hadoop.crime.ICrimeReducer;
-import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.stock.StockWritable;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherReducer;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherWritable;
@@ -45,7 +47,7 @@ import java.util.*;
 import static ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer.saveOutputTypes;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
-public class MergeReducer extends AbstractMergeReducer<Text, CSWWrapperWritable, Text, Text> implements ICrimeReducer {
+public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text, Text> implements ICrimeReducer {
 
     private Map<String, Class<?>> categorySet;
 
@@ -68,9 +70,9 @@ public class MergeReducer extends AbstractMergeReducer<Text, CSWWrapperWritable,
         k -> k + 1      // next epoch day
     );
 
-    private CounterEnums.ReducerCounter counter;
-    private CounterEnums.ReducerCounter dayInCounter;
-    private CounterEnums.ReducerCounter dayOutCounter;
+    private Counters.ReducerCounter counter;
+    private Counters.ReducerCounter dayInCounter;
+    private Counters.ReducerCounter dayOutCounter;
 
 
     public MergeReducer() {
@@ -100,9 +102,9 @@ public class MergeReducer extends AbstractMergeReducer<Text, CSWWrapperWritable,
                 });
         });
 
-        counter = getCounter(context, MergeCountersEnum.REDUCER_COUNT);
-        dayInCounter = getCounter(context, MergeCountersEnum.REDUCER_GROUP_IN_COUNT);
-        dayOutCounter = getCounter(context, MergeCountersEnum.REDUCER_GROUP_OUT_COUNT);
+        counter = getCounter(context, CountersEnum.MERGE_REDUCER_COUNT);
+        dayInCounter = getCounter(context, CountersEnum.MERGE_REDUCER_GROUP_IN_COUNT);
+        dayOutCounter = getCounter(context, CountersEnum.MERGE_REDUCER_GROUP_OUT_COUNT);
     }
 
     private String genStockOutputKey(String id, String property) {

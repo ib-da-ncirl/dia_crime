@@ -24,8 +24,9 @@
 package ie.ibuttimer.dia_crime.hadoop.crime;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
+import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
@@ -60,7 +61,7 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
 
     private Text keyOut = new Text();
 
-    private CounterEnums.MapperCounter counter;
+    private Counters.MapperCounter counter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -72,12 +73,7 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
 
         builder = CrimeWritable.getBuilder();
 
-        counter = getCounter(context);
-    }
-
-    protected CounterEnums.MapperCounter getCounter(Context context) {
-        return new CounterEnums.MapperCounter(context, CrimeCountersEnum.class.getName(),
-            CrimeCountersEnum.MAPPER_COUNT.toString());
+        counter = getCounter(context, CountersEnum.CRIME_MAPPER_COUNT);
     }
 
     /**
@@ -150,7 +146,7 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
     };
 
     @Override
-    protected ICsvEntryMapperCfg getEntryMapperCfg() {
+    public ICsvEntryMapperCfg getEntryMapperCfg() {
         return AbstractCrimeMapper.getCsvEntryMapperCfg();
     }
 

@@ -25,7 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
-import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -59,7 +59,7 @@ public abstract class AbstractStockMapper<VO>
         DATE_PROP, OPEN_PROP, HIGH_PROP, LOW_PROP, CLOSE_PROP, ADJCLOSE_PROP, VOLUME_PROP
     );
 
-    private CounterEnums.MapperCounter counter;
+    private Counters.MapperCounter counter;
 
     private IAbstractStockMapper mapperHelper;
 
@@ -154,7 +154,7 @@ public abstract class AbstractStockMapper<VO>
         this.id = id;
     }
 
-    protected abstract CounterEnums.MapperCounter getCounter(Context context);
+    protected abstract Counters.MapperCounter getCounter(Context context);
 
     public static abstract class AbstractStockEntryMapperCfg extends AbstractCsvEntryMapperCfg {
 

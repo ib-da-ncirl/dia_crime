@@ -54,6 +54,7 @@ public class Constants {
     public static final String SP500_PROP_SECTION = "sp500";
     public static final String WEATHER_PROP_SECTION = "weather";
     public static final String REGRESSION_PROP_SECTION = "regression";
+    public static final String STATS_PROP_SECTION = "stats";
 
     // common properties
     public static final String DEBUG_PROP = "debug";
@@ -115,6 +116,11 @@ public class Constants {
     // regression specific properties
     public static final String INDEPENDENTS_PROP = "independents";
     public static final String DEPENDENT_PROP = "dependent";
+
+    // stats specific properties
+    public static final String VARIABLES_PROP = "variables";
+
+    public static final String VARIABLES_NUMERIC = "numeric";
 
     public static final int ECODE_CONFIG_ERROR = -1;
     public static final int ECODE_SUCCESS = 0;

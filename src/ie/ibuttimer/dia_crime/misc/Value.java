@@ -24,13 +24,16 @@
 package ie.ibuttimer.dia_crime.misc;
 
 
+import ie.ibuttimer.dia_crime.hadoop.stats.IStatOps;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -39,16 +42,26 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import static ie.ibuttimer.dia_crime.misc.Functional.exLoggingConsumer;
+import static ie.ibuttimer.dia_crime.misc.Functional.exceptionLoggingConsumer;
 import static ie.ibuttimer.dia_crime.misc.Utils.getLogger;
 
-public class Value {
+public class Value implements IStatOps<Value>, Writable {
+
+    // not really but something to work with
+    public static final BigDecimal MAX_BIG_DECIMAL = new BigDecimal(Double.MAX_VALUE);
+    public static final BigDecimal MIN_BIG_DECIMAL = new BigDecimal(Double.MIN_VALUE);
+    public static final BigInteger MAX_BIG_INTEGER = BigInteger.valueOf(Long.MAX_VALUE);
+    public static final BigInteger MIN_BIG_INTEGER = BigInteger.valueOf(Long.MIN_VALUE);
 
     public static <Value> Optional<Value> empty() {
         return Optional.empty();
     }
 
     private Object value;
+
+    public Value() {
+        this.value = null;
+    }
 
     private Value(Object value) {
         this.value = value;
@@ -128,6 +141,14 @@ public class Value {
         return value instanceof Number;
     }
 
+    public static boolean isFloatingPoint(Object value) {
+        return (value instanceof Float) || (value instanceof Double) || (value instanceof BigDecimal);
+    }
+
+    public static boolean isIntegerNumber(Object value) {
+        return (value instanceof Integer) || (value instanceof Long) || (value instanceof BigInteger);
+    }
+
     public static boolean isBigNumber(Object value) {
         return isBigInteger(value) || isBigDecimal(value);
     }
@@ -180,14 +201,6 @@ public class Value {
         return (value instanceof LocalDate);
     }
 
-    public static boolean ifPresent(Object value, Consumer<? super Object> action) {
-        boolean result = (value != null);
-        if (result) {
-            action.accept(value);
-        }
-        return result;
-    }
-
     public static boolean ifNumber(Object value, Consumer<? super Number> action) {
         boolean result = isNumber(value);
         if (result) {
@@ -198,7 +211,7 @@ public class Value {
 
     public static boolean ifBigNumber(Object value, Consumer<? super Number> action) {
         boolean result = isBigNumber(value);
-        if (isBigNumber(value)) {
+        if (result) {
             action.accept((Number) value);
         }
         return result;
@@ -301,7 +314,11 @@ public class Value {
     }
 
     public boolean ifPresent(Consumer<? super Object> action) {
-        return ifPresent(value, action);
+        boolean result = (value != null);
+        if (result) {
+            action.accept(value);
+        }
+        return result;
     }
 
     public boolean ifNumber(Consumer<? super Number> action) {
@@ -358,6 +375,10 @@ public class Value {
 
     public boolean ifLocalDate(Consumer<? super LocalDate> action) {
         return ifLocalDate(value, action);
+    }
+
+    public boolean isPresent() {
+        return (value != null);
     }
 
     public boolean isNumber() {
@@ -438,30 +459,38 @@ public class Value {
         return ((Number) this.value).intValue();
     }
 
+    public static BigInteger bigIntegerValue(Number number) {
+        BigInteger result;
+        if (number instanceof BigInteger) {
+            result = (BigInteger)number;
+        } else if (number instanceof BigDecimal) {
+            result = ((BigDecimal)number).toBigInteger();
+        } else {
+            result = new BigInteger(String.valueOf(number.longValue()));
+        }
+        return result;
+    }
+
     public BigInteger bigIntegerValue() {
         numericCheck();
-        BigInteger result;
-        if (this.value instanceof BigInteger) {
-            result = (BigInteger) this.value;
-        } else if (this.value instanceof BigDecimal) {
-            result = ((BigDecimal) this.value).toBigInteger();
+        return bigIntegerValue((Number)this.value);
+    }
+
+    public static BigDecimal bigDecimalValue(Number number) {
+        BigDecimal result;
+        if (number instanceof BigInteger) {
+            result = new BigDecimal((BigInteger)number);
+        } else if (number instanceof BigDecimal) {
+            result = (BigDecimal)number;
         } else {
-            result = new BigInteger(String.valueOf(longValue()));
+            result = new BigDecimal(String.valueOf(number.doubleValue()));
         }
         return result;
     }
 
     public BigDecimal bigDecimalValue() {
         numericCheck();
-        BigDecimal result;
-        if (this.value instanceof BigInteger) {
-            result = new BigDecimal((BigInteger) this.value);
-        } else if (this.value instanceof BigDecimal) {
-            result = (BigDecimal) this.value;
-        } else {
-            result = new BigDecimal(String.valueOf(doubleValue()));
-        }
-        return result;
+        return bigDecimalValue((Number)this.value);
     }
 
     public boolean asDouble(Consumer<? super Double> action) {
@@ -501,44 +530,55 @@ public class Value {
         return true;
     }
 
-
     public <K, V> void addTo(Map<K, V> map, K key) {
         map.put(key, (V) value);
     }
 
-    public void write(DataOutput dataOutput) {
+    @Override
+    public void write(DataOutput dataOutput) throws IOException {
+        Text.writeString(dataOutput, value.getClass().getSimpleName());
+        writeRaw(dataOutput);
+    }
 
-        boolean written = ifInteger(exLoggingConsumer(dataOutput::writeInt, IOException.class, getLogger()));
+    @Override
+    public void readFields(DataInput dataInput) throws IOException {
+        String className = Text.readString(dataInput);
+        readRaw(dataInput, className);
+    }
+
+    public void writeRaw(DataOutput dataOutput) {
+
+        boolean written = ifInteger(exceptionLoggingConsumer(dataOutput::writeInt, IOException.class, getLogger()));
         if (!written) {
-            written = ifLong(exLoggingConsumer(dataOutput::writeLong, IOException.class, getLogger()));
+            written = ifLong(exceptionLoggingConsumer(dataOutput::writeLong, IOException.class, getLogger()));
         }
         if (!written) {
-            written = ifFloat(exLoggingConsumer(dataOutput::writeFloat, IOException.class, getLogger()));
+            written = ifFloat(exceptionLoggingConsumer(dataOutput::writeFloat, IOException.class, getLogger()));
         }
         if (!written) {
-            written = ifDouble(exLoggingConsumer(dataOutput::writeDouble, IOException.class, getLogger()));
+            written = ifDouble(exceptionLoggingConsumer(dataOutput::writeDouble, IOException.class, getLogger()));
         }
         if (!written) {
-            written = ifString(exLoggingConsumer(s -> Text.writeString(dataOutput, s), IOException.class, getLogger()));
+            written = ifString(exceptionLoggingConsumer(s -> Text.writeString(dataOutput, s), IOException.class, getLogger()));
         }
         if (!written) {
-            written = ifBigDecimal(exLoggingConsumer(d -> Text.writeString(dataOutput, d.toString()), IOException.class, getLogger()));
+            written = ifBigDecimal(exceptionLoggingConsumer(d -> Text.writeString(dataOutput, d.toString()), IOException.class, getLogger()));
         }
         if (!written) {
-            written = ifBigInteger(exLoggingConsumer(d -> Text.writeString(dataOutput, d.toString()), IOException.class, getLogger()));
+            written = ifBigInteger(exceptionLoggingConsumer(d -> Text.writeString(dataOutput, d.toString()), IOException.class, getLogger()));
         }
         if (!written) {
-            written = ifLocalDate(exLoggingConsumer(d -> dataOutput.writeLong(d.toEpochDay()), IOException.class, getLogger()));
+            written = ifLocalDate(exceptionLoggingConsumer(d -> dataOutput.writeLong(d.toEpochDay()), IOException.class, getLogger()));
         }
         if (!written) {
-            written = ifLocalDateTime(exLoggingConsumer(d -> dataOutput.writeLong(d.toEpochSecond(ZoneOffset.UTC)), IOException.class, getLogger()));
+            written = ifLocalDateTime(exceptionLoggingConsumer(d -> dataOutput.writeLong(d.toEpochSecond(ZoneOffset.UTC)), IOException.class, getLogger()));
         }
         if (!written) {
             throw new UnsupportedOperationException("Unsupported class: " + value.getClass());
         }
     }
 
-    public void read(DataInput dataInput, String className) throws IOException {
+    public void readRaw(DataInput dataInput, String className) throws IOException {
         if (className.equals(Integer.class.getSimpleName())) {
             value = dataInput.readInt();
         } else if (className.equals(Long.class.getSimpleName())) {
@@ -560,6 +600,123 @@ public class Value {
         } else {
             throw new UnsupportedOperationException("Unsupported class: " + value.getClass());
         }
+    }
+
+    private void areNumbers(Value other) {
+        if (!isNumber() || !other.isNumber()) {
+            throwNonNumMixedTypes(other.getValueClass());
+        }
+    }
+
+    private void throwNonNumMixedTypes(Class<?> otherClass) {
+        throw new IllegalArgumentException("Unable to perform numeric operations on mixed types:" +
+            getValueClass().getSimpleName() + " and " + otherClass.getSimpleName());
+    }
+
+    @Override
+    public void add(Value other) {
+        areNumbers(other);
+        boolean done = ifInteger(v -> value = v + other.intValue());
+        if (!done) { done = ifLong(v -> value = v + other.longValue()); }
+        if (!done) { ifFloat(v -> value = v + other.floatValue()); }
+        if (!done) { ifDouble(v -> value = v + other.doubleValue()); }
+        if (!done) { ifBigInteger(v -> value = v.add(other.bigIntegerValue())); }
+        if (!done) { ifBigDecimal(v -> value = v.add(other.bigDecimalValue())); }
+    }
+
+    @Override
+    public void subtract(Value other) {
+        areNumbers(other);
+        boolean done = ifInteger(v -> value = v - other.intValue());
+        if (!done) { done = ifLong(v -> value = v - other.longValue()); }
+        if (!done) { ifFloat(v -> value = v - other.floatValue()); }
+        if (!done) { ifDouble(v -> value = v - other.doubleValue()); }
+        if (!done) { ifBigInteger(v -> value = v.subtract(other.bigIntegerValue())); }
+        if (!done) { ifBigDecimal(v -> value = v.subtract(other.bigDecimalValue())); }
+    }
+
+    @Override
+    public void multiply(Value other) {
+        areNumbers(other);
+        boolean done = ifInteger(v -> value = v * other.intValue());
+        if (!done) { done = ifLong(v -> value = v * other.longValue()); }
+        if (!done) { ifFloat(v -> value = v * other.floatValue()); }
+        if (!done) { ifDouble(v -> value = v * other.doubleValue()); }
+        if (!done) { ifBigInteger(v -> value = v.multiply(other.bigIntegerValue())); }
+        if (!done) { ifBigDecimal(v -> value = v.multiply(other.bigDecimalValue())); }
+    }
+
+    @Override
+    public void divide(Value other) {
+        areNumbers(other);
+        boolean done = ifInteger(v -> value = v / other.intValue());
+        if (!done) { done = ifLong(v -> value = v / other.longValue()); }
+        if (!done) { ifFloat(v -> value = v / other.floatValue()); }
+        if (!done) { ifDouble(v -> value = v / other.doubleValue()); }
+        if (!done) { ifBigInteger(v -> value = v.divide(other.bigIntegerValue())); }
+        if (!done) { ifBigDecimal(v -> value = v.divide(other.bigDecimalValue(), RoundingMode.UP)); }
+    }
+
+    @Override
+    public void add(Number num) {
+        add(Value.of(num));
+    }
+
+    @Override
+    public void subtract(Number num) {
+        subtract(Value.of(num));
+    }
+
+    @Override
+    public void multiply(Number num) {
+        multiply(Value.of(num));
+    }
+
+    @Override
+    public void divide(Number num) {
+        divide(Value.of(num));
+    }
+
+    @Override
+    public void set(Value other) {
+        value = other.value;
+    }
+
+    @Override
+    public void min(Value other) {
+        areNumbers(other);
+        boolean done = ifInteger(v -> value = Math.min(v, other.intValue()));
+        if (!done) { done = ifLong(v -> value = Math.min(v, other.longValue())); }
+        if (!done) { ifFloat(v -> value = Math.min(v, other.floatValue())); }
+        if (!done) { ifDouble(v -> value = Math.min(v, other.doubleValue())); }
+        if (!done) { ifBigInteger(v -> value = v.min(other.bigIntegerValue())); }
+        if (!done) { ifBigDecimal(v -> value = v.min(other.bigDecimalValue())); }
+    }
+
+    @Override
+    public void max(Value other) {
+        areNumbers(other);
+        boolean done = ifInteger(v -> value = Math.max(v, other.intValue()));
+        if (!done) { done = ifLong(v -> value = Math.max(v, other.longValue())); }
+        if (!done) { ifFloat(v -> value = Math.max(v, other.floatValue())); }
+        if (!done) { ifDouble(v -> value = Math.max(v, other.doubleValue())); }
+        if (!done) { ifBigInteger(v -> value = v.max(other.bigIntegerValue())); }
+        if (!done) { ifBigDecimal(v -> value = v.max(other.bigDecimalValue())); }
+    }
+
+    @Override
+    public void pow(int exp) {
+        boolean done = ifInteger(v -> value = Double.valueOf(Math.pow(v, exp)).intValue());
+        if (!done) { done = ifLong(v -> value = Double.valueOf(Math.pow(v, exp)).longValue()); }
+        if (!done) { ifFloat(v -> value = Double.valueOf(Math.pow(v, exp)).floatValue()); }
+        if (!done) { ifDouble(v -> value = Math.pow(v, exp)); }
+        if (!done) { ifBigInteger(v -> value = v.pow(exp)); }
+        if (!done) { ifBigDecimal(v -> value = v.pow(exp)); }
+    }
+
+    @Override
+    public Value copyOf() {
+        return Value.of(value);
     }
 
     @Override

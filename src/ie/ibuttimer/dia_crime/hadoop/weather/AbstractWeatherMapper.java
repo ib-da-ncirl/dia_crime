@@ -24,8 +24,9 @@
 package ie.ibuttimer.dia_crime.hadoop.weather;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
+import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
@@ -56,7 +57,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
 
     private Text keyOut = new Text();
 
-    private CounterEnums.MapperCounter counter;
+    private Counters.MapperCounter counter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -68,11 +69,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
 
         builder = WeatherWritable.getBuilder();
 
-        counter = getCounter(context, WeatherCountersEnum.MAPPER_COUNT);
-    }
-
-    protected CounterEnums.MapperCounter getCounter(Context context, WeatherCountersEnum countersEnum) {
-        return new CounterEnums.MapperCounter(context, countersEnum.getClass().getName(), countersEnum.toString());
+        counter = getCounter(context, CountersEnum.WEATHER_MAPPER_COUNT);
     }
 
     /**
@@ -159,7 +156,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
     };
 
     @Override
-    protected ICsvEntryMapperCfg getEntryMapperCfg() {
+    public ICsvEntryMapperCfg getEntryMapperCfg() {
         return AbstractWeatherMapper.getCsvEntryMapperCfg();
     }
 

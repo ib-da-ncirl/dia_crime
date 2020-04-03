@@ -23,7 +23,9 @@
 
 package ie.ibuttimer.dia_crime.hadoop.regression;
 
-import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
+import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskCounter;
 
@@ -31,15 +33,15 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RegressionReducer extends AbstractRegressionReducer<Text, RegressionWritable<?, ?>, Text, Text> {
+public class RegressionReducer extends AbstractReducer<Text, RegressionWritable<?, ?>, Text, Text> {
 
-    private CounterEnums.ReducerCounter counter;
+    private Counters.ReducerCounter counter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
 
-        counter = getCounter(context, RegressionCountersEnum.REDUCER_COUNT);
+        counter = getCounter(context, CountersEnum.REGRESSION_REDUCER_COUNT);
 
         long x = context.getCounter(TaskCounter.MAP_INPUT_RECORDS).getValue();
         ++x;
@@ -48,9 +50,9 @@ public class RegressionReducer extends AbstractRegressionReducer<Text, Regressio
     @Override
     protected void reduce(Text key, Iterable<RegressionWritable<?, ?>> values, Context context) throws IOException, InterruptedException {
 
-        Map<String, RegressionWritable<String, Object>> map = new HashMap<>();
-        values.forEach(v -> {
-            map.put(key.toString(), (RegressionWritable<String, Object>) v);
-        });
+//        Map<String, RegressionWritable<String, Object>> map = new HashMap<>();
+//        values.forEach(v -> {
+//            map.put(key.toString(), (RegressionWritable<String, Object>) v);
+//        });
     }
 }

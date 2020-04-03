@@ -24,6 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop;
 
 import ie.ibuttimer.dia_crime.hadoop.merge.IValueDecorator;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.log4j.Logger;
 
@@ -72,6 +73,14 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
             decorated = value;
         }
         return decorated;
+    }
+
+    protected Counters.ReducerCounter getCounter(Context context, String group, String name) {
+        return new Counters.ReducerCounter(context, group, name);
+    }
+
+    protected Counters.ReducerCounter getCounter(Context context, CountersEnum countersEnum) {
+        return getCounter(context, countersEnum.getClass().getName(), countersEnum.toString());
     }
 
     public void write(Context context, KO key, VO value) throws IOException, InterruptedException {

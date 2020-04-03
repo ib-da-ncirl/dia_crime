@@ -96,5 +96,17 @@ public interface ICsvEntryMapperCfg {
         public static Property of(String name, String description, String defaultValue) {
             return new Property(name, description, defaultValue);
         }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public String getDefaultValue() {
+            return defaultValue;
+        }
     }
 }

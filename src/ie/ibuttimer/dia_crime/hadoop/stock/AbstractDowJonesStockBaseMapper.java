@@ -59,7 +59,7 @@ public abstract class AbstractDowJonesStockBaseMapper<VO> extends AbstractDowJon
     };
 
     @Override
-    protected ICsvEntryMapperCfg getEntryMapperCfg() {
+    public ICsvEntryMapperCfg getEntryMapperCfg() {
         return AbstractDowJonesStockBaseMapper.getCsvEntryMapperCfg();
     }
 

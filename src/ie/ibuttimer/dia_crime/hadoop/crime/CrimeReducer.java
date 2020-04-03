@@ -23,8 +23,10 @@
 
 package ie.ibuttimer.dia_crime.hadoop.crime;
 
+import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
+import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
-import ie.ibuttimer.dia_crime.hadoop.misc.CounterEnums;
+import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.hadoop.conf.Configuration;
@@ -41,12 +43,15 @@ import java.util.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
 
-public class CrimeReducer extends AbstractCrimeReducer<Text, MapWritable, Text, Text> {
+public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text> implements ICrimeReducer {
+
+    private Map<String, Class<?>> outputTypes;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
         setLogger(getClass());
+        outputTypes = newOutputTypeMap();
     }
 
     /**
@@ -60,7 +65,7 @@ public class CrimeReducer extends AbstractCrimeReducer<Text, MapWritable, Text, 
     @Override
     protected void reduce(Text key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
 
-        CounterEnums.ReducerCounter counter = getCounter(context, CrimeCountersEnum.REDUCER_COUNT);
+        Counters.ReducerCounter counter = getCounter(context, CountersEnum.CRIME_REDUCER_COUNT);
 
         // flatten the maps in values and get a list of the CrimeEntryWritables
         List<CrimeWritable> crimes = iterableOfMapsToList(values, CrimeWritable.class);
@@ -80,7 +85,7 @@ public class CrimeReducer extends AbstractCrimeReducer<Text, MapWritable, Text, 
     }
 
     public static Map<String, Integer> reduceToTotalsPerCategory(
-        List<CrimeWritable> values, CounterEnums.ReducerCounter counter, ICrimeReducer reducer) {
+        List<CrimeWritable> values, Counters.ReducerCounter counter, ICrimeReducer reducer) {
 
         Map<String, Integer> counts = new HashMap<>();
 
@@ -148,6 +153,11 @@ public class CrimeReducer extends AbstractCrimeReducer<Text, MapWritable, Text, 
         } else {
             logger.info("Skipping generation of output types file, job incomplete: " + context.getProgress());
         }
+    }
+
+    @Override
+    public Map<String, Class<?>> getOutputTypeMap() {
+        return outputTypes;
     }
 }
 

@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeMapper;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionMapper;
+import ie.ibuttimer.dia_crime.hadoop.stats.StatsMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.DowJonesStockMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.NasdaqStockMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.SP500StockMapper;
@@ -61,6 +62,7 @@ public class DiaCrimeMain {
         propDefaults.put(DOWJONES_PROP_SECTION, DowJonesStockMapper.getCsvEntryMapperCfg());
         propDefaults.put(SP500_PROP_SECTION, SP500StockMapper.getCsvEntryMapperCfg());
         propDefaults.put(WEATHER_PROP_SECTION, WeatherMapper.getCsvEntryMapperCfg());
+        propDefaults.put(STATS_PROP_SECTION, StatsMapper.getCsvEntryMapperCfg());
         propDefaults.put(REGRESSION_PROP_SECTION, RegressionMapper.getCsvEntryMapperCfg());
     }
 
@@ -78,6 +80,7 @@ public class DiaCrimeMain {
         -j crime
         -j stock_stats -c config.properties;stock_stats.properties
         -j merge
+        -j stats -c config.properties;stats.properties
         -j linear_regression -c config.properties;regression.properties
      */
 
@@ -86,6 +89,7 @@ public class DiaCrimeMain {
     private static final String JOB_STOCK_STATS = "stock_stats";
     private static final String JOB_CRIME = "crime";
     private static final String JOB_MERGE = "merge";
+    private static final String JOB_STATS = "stats";
     private static final String JOB_LINEAR_REGRESSION = "linear_regression";
     private static final List<Pair<String, String>> jobList;
     private static final String jobListFmt;
@@ -96,6 +100,7 @@ public class DiaCrimeMain {
         jobList.add(Pair.of(JOB_STOCK_STATS, "calculate stock statistics"));
         jobList.add(Pair.of(JOB_CRIME, "process the crime file"));
         jobList.add(Pair.of(JOB_MERGE, "merge crime, stocks & weather to a single file"));
+        jobList.add(Pair.of(JOB_STATS, "perform basic statistics analysis"));
         jobList.add(Pair.of(JOB_LINEAR_REGRESSION, "perform a linear regression on merged crime, stocks & weather data"));
 
         OptionalInt width = jobList.stream().map(Pair::getLeft).mapToInt(String::length).max();
@@ -163,6 +168,9 @@ public class DiaCrimeMain {
                                 break;
                             case JOB_MERGE:
                                 resultCode = MergeDriver.of(app).runMergeJob(properties);
+                                break;
+                            case JOB_STATS:
+                                resultCode = StatsDriver.of(app).runStatsJob(properties);
                                 break;
                             case JOB_LINEAR_REGRESSION:
                                 resultCode = LinearRegressionDriver.of(app).runLinearRegressionJob(properties);
