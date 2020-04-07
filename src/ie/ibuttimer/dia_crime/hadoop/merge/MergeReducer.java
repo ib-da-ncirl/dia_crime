@@ -36,6 +36,7 @@ import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Utils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
@@ -91,7 +92,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
         putOutputTypes(new WeatherWritable().toMap());
 
         // add stock fields for individual stocks to categories
-        String idList = context.getConfiguration().get(generatePropertyName(STOCK_PROP_SECTION, ID_LIST_PROP), "");
+        String idList = getConfigProperty(context, STOCK_PROP_SECTION, ID_LIST_PROP, "");
         Arrays.asList(idList.split(",")).forEach(s -> {
             StockWritable sw = new StockWritable();
             sw.setId(s);
@@ -121,6 +122,21 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
      */
     @Override
     protected void reduce(Text key, Iterable<CSWWrapperWritable> values, Context context) throws IOException, InterruptedException {
+
+        Optional<Long> inCount = dayInCounter.getCount();
+        inCount.ifPresent(count -> {
+            if (count == 0) {
+                Configuration conf = context.getConfiguration();
+                // get dates from crime/nasdaq/sp500/dowjones/weather section, they are all the same
+                getTagStrings(conf, DOWJONES_PROP_SECTION).forEach(tagLine -> {
+                    try {
+                        context.write(new Text(COMMENT_PREFIX), new Text(tagLine));
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
+        });
 
         dayInCounter.increment();
 

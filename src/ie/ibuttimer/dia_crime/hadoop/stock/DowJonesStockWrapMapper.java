@@ -25,7 +25,6 @@ package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 
@@ -40,14 +39,18 @@ public class DowJonesStockWrapMapper extends AbstractDowJonesStockBaseMapper<CSW
 
     public DowJonesStockWrapMapper() {
         super();
-        setMapperHelper(new StockWrapMapperHelper(
-            getId().toString(), StockWritable.StockEntryWritableBuilder.getInstance()));
     }
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
         setLogger(getClass());
+    }
+
+    protected IAbstractStockMapper getMapperHelper() {
+        return new StockWrapMapperHelper(
+            getId().toString(),
+            StockWritable.StockEntryWritableBuilder.getInstance(getFactors()));
     }
 
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {

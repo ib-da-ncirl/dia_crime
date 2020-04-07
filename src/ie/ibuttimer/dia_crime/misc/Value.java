@@ -27,6 +27,7 @@ package ie.ibuttimer.dia_crime.misc;
 import ie.ibuttimer.dia_crime.hadoop.stats.IStatOps;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.apache.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -38,6 +39,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -52,6 +54,22 @@ public class Value implements IStatOps<Value>, Writable {
     public static final BigDecimal MIN_BIG_DECIMAL = new BigDecimal(Double.MIN_VALUE);
     public static final BigInteger MAX_BIG_INTEGER = BigInteger.valueOf(Long.MAX_VALUE);
     public static final BigInteger MIN_BIG_INTEGER = BigInteger.valueOf(Long.MIN_VALUE);
+
+    private static Map<String, String> defaultValues;
+    static {
+        defaultValues = new HashMap<>();
+        defaultValues.putAll(Map.of(
+            Integer.class.getSimpleName(), "0",
+            Long.class.getSimpleName(), "0",
+            Float.class.getSimpleName(), "0",
+            Double.class.getSimpleName(), "0",
+            BigDecimal.class.getSimpleName(), "0",
+            BigInteger.class.getSimpleName(), "0",
+            String.class.getSimpleName(), "",
+            LocalDate.class.getSimpleName(), DateTimeFormatter.ISO_LOCAL_DATE.format(LocalDate.MIN),
+            LocalDateTime.class.getSimpleName(), DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(LocalDateTime.MIN)
+        ));
+    }
 
     public static <Value> Optional<Value> empty() {
         return Optional.empty();
@@ -80,53 +98,73 @@ public class Value implements IStatOps<Value>, Writable {
     }
 
     public static Value of(String value, Class<?> cls, DateTimeFormatter formatter) {
+        return of(value, cls, formatter, null);
+    }
+
+    private static void logException(String msg, Exception e, Logger logger) {
+        if (logger != null) {
+            logger.warn(msg, e);
+        }
+    }
+
+    private static void logNumberFormatException(NumberFormatException e, Logger logger) {
+        logException("Unable to read value", e, logger);
+    }
+
+    public static Value of(String value, Class<?> cls, DateTimeFormatter formatter, Logger logger) {
         Object converted;
         if (cls.equals(Integer.class)) {
             try {
                 converted = Integer.valueOf(value);
             } catch (NumberFormatException nfe) {
                 converted = 0;
+                logNumberFormatException(nfe, logger);
             }
         } else if (cls.equals(Long.class)) {
             try {
                 converted = Long.valueOf(value);
             } catch (NumberFormatException nfe) {
                 converted = 0;
+                logNumberFormatException(nfe, logger);
             }
         } else if (cls.equals(Float.class)) {
             try {
                 converted = Float.valueOf(value);
             } catch (NumberFormatException nfe) {
                 converted = 0;
+                logNumberFormatException(nfe, logger);
             }
         } else if (cls.equals(Double.class)) {
             try {
                 converted = Double.valueOf(value);
             } catch (NumberFormatException nfe) {
                 converted = 0;
+                logNumberFormatException(nfe, logger);
             }
         } else if (cls.equals(BigDecimal.class)) {
             try {
                 converted = new BigDecimal(value);
             } catch (NumberFormatException nfe) {
-                converted = 0;
+                converted = BigDecimal.ZERO;
+                logNumberFormatException(nfe, logger);
             }
         } else if (cls.equals(BigInteger.class)) {
             try {
                 converted = new BigInteger(value);
             } catch (NumberFormatException nfe) {
-                converted = 0;
+                converted = BigInteger.ZERO;
+                logNumberFormatException(nfe, logger);
             }
         } else if (cls.equals(String.class)) {
             converted = value;
         } else if (cls.equals(LocalDate.class)) {
-            converted = Utils.getDate(value, formatter);
+            converted = Utils.getDate(value, formatter, logger);
         } else if (cls.equals(LocalDateTime.class)) {
-            converted = Utils.getDateTime(value, formatter);
+            converted = Utils.getDateTime(value, formatter, logger);
         } else {
             throw new UnsupportedOperationException("Unsupported class: " + cls);
         }
-        return new Value(converted);
+        return Value.of(converted);
     }
 
     public static Optional<Value> ofOptional(Object value) {
@@ -727,5 +765,9 @@ public class Value implements IStatOps<Value>, Writable {
         ifPresent(v -> sb.append(" [class=").append(v.getClass().getSimpleName()).append("]"));
         sb.append('}');
         return sb.toString();
+    }
+
+    public static String getDefaultValueStr(Class<?> cls) {
+        return defaultValues.getOrDefault(cls.getSimpleName(), "");
     }
 }

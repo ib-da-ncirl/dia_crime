@@ -32,6 +32,7 @@ import ie.ibuttimer.dia_crime.hadoop.stock.NasdaqStockMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.SP500StockMapper;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherMapper;
 import ie.ibuttimer.dia_crime.misc.Constants;
+import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.cli.*;
 import org.apache.commons.lang3.tuple.Pair;
@@ -78,15 +79,18 @@ public class DiaCrimeMain {
         -j weather
         -j stocks
         -j crime
-        -j stock_stats -c config.properties;stock_stats.properties
         -j merge
         -j stats -c config.properties;stats.properties
         -j linear_regression -c config.properties;regression.properties
+
+        deprecated - disable for now
+        // TODO remove stock_stats job
+        -j stock_stats -c config.properties;stock_stats.properties
      */
 
     private static final String JOB_WEATHER = "weather";
     private static final String JOB_STOCKS = "stocks";
-    private static final String JOB_STOCK_STATS = "stock_stats";
+//    private static final String JOB_STOCK_STATS = "stock_stats";
     private static final String JOB_CRIME = "crime";
     private static final String JOB_MERGE = "merge";
     private static final String JOB_STATS = "stats";
@@ -97,7 +101,7 @@ public class DiaCrimeMain {
         jobList = new ArrayList<>();
         jobList.add(Pair.of(JOB_WEATHER, "process the weather file"));
         jobList.add(Pair.of(JOB_STOCKS, "process the stock files"));
-        jobList.add(Pair.of(JOB_STOCK_STATS, "calculate stock statistics"));
+//        jobList.add(Pair.of(JOB_STOCK_STATS, "calculate stock statistics"));
         jobList.add(Pair.of(JOB_CRIME, "process the crime file"));
         jobList.add(Pair.of(JOB_MERGE, "merge crime, stocks & weather to a single file"));
         jobList.add(Pair.of(JOB_STATS, "perform basic statistics analysis"));
@@ -160,9 +164,9 @@ public class DiaCrimeMain {
                             case JOB_STOCKS:
                                 resultCode = StockDriver.of(app).runStockJob(properties);
                                 break;
-                            case JOB_STOCK_STATS:
-                                resultCode = StockDriver.of(app).runStockStatsJob(properties);
-                                break;
+//                            case JOB_STOCK_STATS:
+//                                resultCode = StockDriver.of(app).runStockStatsJob(properties);
+//                                break;
                             case JOB_CRIME:
                                 resultCode = CrimeDriver.of(app).runCrimeJob(properties);
                                 break;
@@ -285,8 +289,18 @@ public class DiaCrimeMain {
                     .forEach(k -> {
                         String prop = sectionWrangler.getPropertyName(k);
                         if (propDefault.containsKey(prop)) {
-                            conf.set(confPropWrangler.getPropertyPath(prop),
-                                properties.getProperty(k, propDefault.get(prop)));
+                            String propertyValue = properties.getProperty(k, propDefault.get(prop));
+
+                            if (propertyValue.startsWith(PROPERTY_ALIAS)) {
+                                // read other property for value
+                                Pair<String, String> otherProperty = MapStringifier.ElementStringify.of(PROPERTY_ALIAS_SEPARATOR)
+                                    .destringifyElement(propertyValue);
+                                if (otherProperty.getRight() != null) {
+                                    propertyValue = properties.getProperty(otherProperty.getRight(), "");
+                                }
+                            }
+
+                            conf.set(confPropWrangler.getPropertyPath(prop), propertyValue);
                         }
                     });
             }

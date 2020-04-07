@@ -23,6 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop;
 
+import com.google.common.util.concurrent.AtomicDouble;
 import ie.ibuttimer.dia_crime.hadoop.stats.IStatWritable;
 import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.io.Writable;
@@ -41,8 +42,10 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.DATE_PROP;
+import static ie.ibuttimer.dia_crime.misc.Constants.VOLUME_PROP;
 
 /**
  * Base class for customer Writables
@@ -186,17 +189,36 @@ public abstract class AbstractBaseWritable<W extends AbstractBaseWritable<?>> im
 
         private Logger logger;
 
+        private Map<String, Double> factors;
+
         private W entry;
 
         public AbstractBaseWritableBuilder(Logger logger) {
+            this(logger, new HashMap<>());
+        }
+
+        public AbstractBaseWritableBuilder(Logger logger, Map<String, Double> factors) {
             this.logger = logger;
+            setFactors(factors);
             clear();
+        }
+
+        public void setFactors(Map<String, Double> factors) {
+            this.factors = factors;
         }
 
         @Override
         public B clear() {
             entry = getNewWritable();
             return getThis();
+        }
+
+        public Optional<Double> getFactor(String property) {
+            if (factors.containsKey(property)) {
+                return Optional.of(factors.get(property));
+            } else {
+                return Optional.empty();
+            }
         }
 
         @Override
@@ -239,6 +261,14 @@ public abstract class AbstractBaseWritable<W extends AbstractBaseWritable<?>> im
             return value;
         }
 
+        protected double getDouble(String text, String factor) {
+            AtomicDouble value = new AtomicDouble(getDouble(text));
+            getFactor(factor).ifPresent(f -> {
+                value.set(value.get() / f);
+            });
+            return value.get();
+        }
+
         protected float getFloat(String text) {
             float value = 0;
             if (!TextUtils.isEmpty(text)) {
@@ -273,6 +303,14 @@ public abstract class AbstractBaseWritable<W extends AbstractBaseWritable<?>> im
                 }
             }
             return value;
+        }
+
+        protected long getLong(String text, String factor) {
+            AtomicLong value = new AtomicLong(getLong(text));
+            getFactor(factor).ifPresent(f -> {
+                value.set((long)(value.get() / f));
+            });
+            return value.get();
         }
 
         protected BigDecimal getBigDecimal(String text) {

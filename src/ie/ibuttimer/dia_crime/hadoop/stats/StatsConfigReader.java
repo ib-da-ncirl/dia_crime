@@ -33,7 +33,6 @@ import java.math.BigInteger;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -47,6 +46,7 @@ public class StatsConfigReader extends ConfigReader {
     private Map<String, Class<?>> outputTypes;
 
     private List<String> variables;
+    private List<String> debugMapperToFile;
 
     private WeakReference<Configuration> confRef;
 
@@ -80,7 +80,7 @@ public class StatsConfigReader extends ConfigReader {
 
             variables = new ArrayList<>(outputTypes.keySet());
         } else {
-            variables = cfgReader.readCommaSeparatedProperty(getConf(conf), VARIABLES_PROP);
+            variables = cfgReader.readCommaSeparatedProperty(confLocal, VARIABLES_PROP);
             if (variables.size() == 0) {
                 throw new IllegalStateException("No variables specified");
             }

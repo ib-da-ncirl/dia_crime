@@ -23,31 +23,54 @@
 
 package ie.ibuttimer.dia_crime.hadoop;
 
-import ie.ibuttimer.dia_crime.hadoop.merge.IValueDecorator;
+import ie.ibuttimer.dia_crime.hadoop.merge.IDecorator;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.misc.DebugLevel;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 
-public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO, VO> {
+import static ie.ibuttimer.dia_crime.misc.Constants.*;
+
+public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO, VO>
+    implements IDecorator.IDecoratable<KO, VO>, ITagger, DebugLevel.Debuggable {
 
     public static final String CLASS_VAL_SEPARATOR = ":-";
 
-    private IValueDecorator<VO> decorator;
+    private IDecorator<KO, VO> decorator;
+    private IDecorator.DecorMode decoratorMode;
 
     private static Logger logger = null;
 
+    private DebugLevel debugLevel;  // current debug level
+
     public AbstractReducer() {
-        this(null);
+        this(null, IDecorator.DecorMode.NONE);
     }
 
-    public AbstractReducer(IValueDecorator<VO> decorator) {
-        this.decorator = decorator;
+    public AbstractReducer(IDecorator<KO, VO> decorator, IDecorator.DecorMode decoratorMode) {
+        setDecorator(decorator, decoratorMode);
+        setDebugLevel(DebugLevel.OFF);
     }
 
-    public void setDecorator(IValueDecorator<VO> decorator) {
+    @Override
+    public void setDecorator(IDecorator<KO, VO> decorator, IDecorator.DecorMode decoratorMode) {
         this.decorator = decorator;
+        this.decoratorMode = decoratorMode;
+    }
+
+    @Override
+    public IDecorator.DecorMode getMode() {
+        return decoratorMode;
+    }
+
+    @Override
+    public IDecorator<KO, VO> getDecorator() {
+        return decorator;
     }
 
     public static Logger getLogger() {
@@ -65,16 +88,6 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
         AbstractReducer.logger = logger;
     }
 
-    public VO decorate(VO value) {
-        VO decorated;
-        if (decorator != null) {
-            decorated = decorate(value);
-        } else {
-            decorated = value;
-        }
-        return decorated;
-    }
-
     protected Counters.ReducerCounter getCounter(Context context, String group, String name) {
         return new Counters.ReducerCounter(context, group, name);
     }
@@ -84,7 +97,30 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
     }
 
     public void write(Context context, KO key, VO value) throws IOException, InterruptedException {
-        context.write(key, decorate(value));
+        Pair<KO, VO> decorated = decorate(key, value);
+        context.write(decorated.getLeft(), decorated.getRight());
+
+        if ((decoratorMode.hasTransform() && show(DebugLevel.VERBOSE))) {
+            Pair<Object, Object> transformed = transform(decorated.getLeft(), decorated.getRight());
+            getLogger().info(transformed.getLeft().toString() + " " + transformed.getRight().toString());
+        }
     }
+
+    protected String getConfigProperty(Configuration conf, String section, String property, String defaultValue) {
+        return conf.get(generatePropertyName(section, property), defaultValue);
+    }
+
+    protected String getConfigProperty(Context context, String section, String property, String defaultValue) {
+        return getConfigProperty(context.getConfiguration(), section, property, defaultValue);
+    }
+
+    public DebugLevel getDebugLevel() {
+        return debugLevel;
+    }
+
+    public void setDebugLevel(DebugLevel debugLevel) {
+        this.debugLevel = debugLevel;
+    }
+
 
 }

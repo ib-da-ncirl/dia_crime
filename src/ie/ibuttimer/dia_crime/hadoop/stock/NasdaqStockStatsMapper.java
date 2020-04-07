@@ -43,16 +43,17 @@ public class NasdaqStockStatsMapper extends AbstractNasdaqStockMapper<BigStockWr
     public NasdaqStockStatsMapper() {
         // use stock id as the key
         super(StockMapperKey.STOCK_ID);
-
-        BigStockWritable.BigStockEntryWritableBuilder builder = BigStockWritable.BigStockEntryWritableBuilder.getInstance();
-
-        setMapperHelper(new StatsMapperHelper(builder));
     }
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
         setLogger(getClass());
+    }
+
+    @Override
+    protected IAbstractStockMapper getMapperHelper() {
+        return new StatsMapperHelper(BigStockWritable.BigStockEntryWritableBuilder.getInstance());
     }
 
     @Override

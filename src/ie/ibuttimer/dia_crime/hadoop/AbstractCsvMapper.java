@@ -23,9 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop;
 
-import ie.ibuttimer.dia_crime.misc.Constants;
-import ie.ibuttimer.dia_crime.misc.DateFilter;
-import ie.ibuttimer.dia_crime.misc.Utils;
+import ie.ibuttimer.dia_crime.misc.*;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -75,8 +73,6 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
     private Map<String, Integer> indices = new HashMap<>();
     private int maxIndex = -1;
 
-    private DebugLevel debugLevel;  // current debug level
-
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         Configuration conf = context.getConfiguration();
@@ -96,10 +92,10 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
         dateFilter = new DateFilter(conf.get(getPropertyPath(FILTER_START_DATE_PROP), ""),
                 conf.get(getPropertyPath(FILTER_END_DATE_PROP), ""));
 
-        debugLevel = DebugLevel.getSetting(conf, getEntryMapperCfg());
+        setDebugLevel(DebugLevel.getSetting(conf, getEntryMapperCfg()));
 
         if (show(DebugLevel.MEDIUM)) {
-            getEntryMapperCfg().dumpConfiguration(getLogger(), getClass().getSimpleName(), conf);
+            getEntryMapperCfg().dumpConfiguration(getLogger(), conf);
         }
     }
 
@@ -160,6 +156,16 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
             skip = isHasHeader();
         }
         return skip;
+    }
+
+    /**
+     * Check if the specified key is a header line or comment line and if it should be skipped
+     * @param key   Key; line number
+     * @param value Line
+     * @return      True if line should be skipped
+     */
+    public boolean skip(LongWritable key, Text value) {
+        return skipHeader(key) || skipComment(value);
     }
 
     /**
@@ -243,11 +249,27 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
         return Pair.of(dateFilter.filter(ld), ld);
     }
 
-    protected boolean show(DebugLevel level) {
-        return level.showMe(debugLevel);
-    }
-
     public abstract static class AbstractCsvEntryMapperCfg implements ICsvEntryMapperCfg {
+
+        private PropertyWrangler propertyWrangler;
+
+        private String propertyRoot;
+
+        public AbstractCsvEntryMapperCfg(String propertyRoot) {
+            this.propertyRoot = propertyRoot;
+            this.propertyWrangler = new PropertyWrangler(propertyRoot);
+        }
+
+        @Override
+        public String getPropertyRoot() {
+            return propertyRoot;
+        }
+
+        @Override
+        public String getPropertyPath(String propertyName) {
+            return propertyWrangler.getPropertyPath(propertyName);
+        }
+
         @Override
         public HashMap<String, String> getPropertyDefaults() {
             // create map of possible keys and default values
@@ -319,11 +341,11 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
             return Pair.of(resultCode, errors);
         }
 
-        public void dumpConfiguration(Logger logger, String section, Configuration conf) {
+        public void dumpConfiguration(Logger logger, Configuration conf) {
             // use info as its the default level
             getPropertyDefaults().forEach((p, d) -> {
                 logger.info(
-                    String.format("%s - %s [%s]", section, p, conf.get(getPropertyPath(p), "")));
+                    String.format("%s - %s [%s]", getPropertyRoot(), p, conf.get(getPropertyPath(p), "")));
             });
         }
 

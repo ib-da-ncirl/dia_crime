@@ -87,7 +87,7 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 
-        if (!skipHeader(key)) {
+        if (!skip(key, value)) {
             /* ID;Case Number;Date;Block;IUCR;Primary Type;Description;Location Description;Arrest;Domestic;Beat;District;
                 Ward;Community Area;FBI Code;X Coordinate;Y Coordinate;Year;Updated On;Latitude;Longitude;Location
              */
@@ -125,19 +125,7 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
 
     protected abstract void writeOutput(Context context, Text key, CrimeWritable value) throws IOException, InterruptedException;
 
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg() {
-
-        private PropertyWrangler propertyWrangler = new PropertyWrangler(CRIME_PROP_SECTION);
-
-        @Override
-        public String getPropertyRoot() {
-            return CRIME_PROP_SECTION;
-        }
-
-        @Override
-        public String getPropertyPath(String propertyName) {
-            return propertyWrangler.getPropertyPath(propertyName);
-        }
+    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg(CRIME_PROP_SECTION) {
 
         @Override
         public List<String> getPropertyIndices() {

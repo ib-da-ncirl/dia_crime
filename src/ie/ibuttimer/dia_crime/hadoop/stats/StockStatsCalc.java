@@ -28,6 +28,7 @@ import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.http.util.TextUtils;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -41,8 +42,10 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 public class StockStatsCalc extends AbstractStatsCalc implements IStats {
 
+    private static final Logger logger = Logger.getLogger(StockStatsCalc.class.getSimpleName());
+
     public StockStatsCalc(Path path, Configuration conf, String filename) {
-        super(path, conf, filename);
+        super(path, conf, filename, logger);
     }
 
     @Override
@@ -144,6 +147,10 @@ public class StockStatsCalc extends AbstractStatsCalc implements IStats {
         return resultSet;
     }
 
+    @Override
+    public Result.Set calcStat(String id1, String id2, List<Stat> stats, List<String> fields) throws IOException {
+        throw new UnsupportedOperationException("2 property stats not supported for stocks");
+    }
 
     private BigStockWritable readBigStock(List<String> lines, String lineTag) {
         BigStockWritable entry = new BigStockWritable();

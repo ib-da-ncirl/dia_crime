@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime.hadoop.stats;
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
+import ie.ibuttimer.dia_crime.hadoop.merge.IDecorator;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionWritable;
 import ie.ibuttimer.dia_crime.misc.*;
@@ -36,8 +37,10 @@ import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -52,7 +55,6 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
     private List<String> variables;
 
     private RegressionWritable<String, Value> valuesOut = new RegressionWritable<>();
-    private RegressionWritable<String, Value> sqValuesOut = new RegressionWritable<>();
 
 
     @Override
@@ -69,6 +71,22 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
 
         variables = cfgReader.readVariables(conf);
         outputTypes = cfgReader.readOutputTypes(conf);
+
+        if (show(DebugLevel.VERBOSE)) {
+            setDecorator(new IDecorator<>() {
+                @Override
+                public Object transformKey(Text key) {
+                    return String.format("%-15s", key.toString());
+                }
+
+                @Override
+                public Object transformValue(Value value) {
+                    AtomicReference<String> str = new AtomicReference<>("");
+                    value.ifPresent(v-> str.set(v.toString()));
+                    return str.get();
+                }
+            }, IDecorator.DecorMode.TRANSFORM);
+        }
     }
 
     /**
@@ -83,6 +101,21 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 
         if (!skipHeader(key)) {
+
+            if (skipComment(value)) {
+                ICsvEntryMapperCfg cfg = getEntryMapperCfg();
+                Configuration conf = context.getConfiguration();
+                String section = cfg.getPropertyRoot();
+                Pair<String, String> hKeyVal = hadoopKeyVal.destringifyElement(value.toString());
+
+                if (cfg.isDateRangeString(hKeyVal.getRight())) {
+                    cfg.verifyDateRangeTag(conf, section, cfg, hKeyVal.getRight());
+                } else if (cfg.isFactorsString(hKeyVal.getRight())) {
+                    cfg.verifyFactorsTag(conf, section, cfg, hKeyVal.getRight());
+                }
+                return;
+            }
+
             /* 2001-01-02	02:3, 03:35, 04A:15, 04B:21, 05:68, 06:221, 07:65, 08A:51, 08B:122, 10:9, 11:65, 12:2, 13:2,
                 14:118, 15:9, 16:11, 17:7, 18:156, 19:1, 20:3, 22:2, 24:2, 26:155, DJI_adjclose:10646.150391,
                 DJI_close:10646.150391, DJI_date:2001-01-02, DJI_high:10797.019531, DJI_low:10585.360352,
@@ -99,30 +132,54 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
             Pair<Boolean, LocalDate> filterRes = getDateAndFilter(hKeyVal.getLeft());
             if (filterRes.getLeft()) {
                 Map<String, String> map = MapStringifier.mapify(hKeyVal.getRight());
+                List<String> skipList = new ArrayList<>();
 
+                // collect the value and squared value for each property
                 outputTypes.forEach((name, cls) -> {
-                    String readValue = map.getOrDefault(name, "");
+                    String readValue = map.getOrDefault(name, Value.getDefaultValueStr(cls));
 
-                    Value wrapped = Value.of(readValue, cls, getDateTimeFormatter());
+                    Value wrapped = Value.of(readValue, cls, getDateTimeFormatter(), getLogger());
                     Value squared = wrapped.copyOf();
                     squared.pow(2);
 
                     valuesOut.put(name, wrapped);
-                    sqValuesOut.put(name, squared);
+                    valuesOut.put(getSquareKeyTag(name), squared);
+
+                    // collect the product value with each other property
+                    outputTypes.entrySet().stream()
+                        .filter(es -> !es.getKey().equals(name))    // not same property
+                        .filter(es ->
+                            // reversed properties are not in skip list
+                            skipList.stream()
+                                .noneMatch(getKeyPair(name, es.getKey())::equals)
+                        )
+                        .forEach(es -> {
+                            String propName = es.getKey();
+                            String leftRight = getKeyPair(name, propName);
+
+                            // no need to calc right-left as its the same as left-right
+                            skipList.add(getKeyPair(propName, name));
+
+                            String readPropValue = map.getOrDefault(propName, "");
+
+                            Value wrappedProduct = Value.of(readPropValue, es.getValue(), getDateTimeFormatter());
+                            wrappedProduct.multiply(wrapped);
+
+                            valuesOut.put(getProductKeyTag(leftRight), wrappedProduct);
+                        });
+
                 });
 
                 counter.increment();
 
+                /* output following key/values:
+                    <property name> - value
+                    <property name>-SQ - squared value
+                    <property name1>+<property name2>-PRD - product of 2 properties value
+                 */
                 valuesOut.forEach((name, val) -> {
                     try {
                         write(context, new Text(name), val);
-                    } catch (IOException | InterruptedException e) {
-                        getLogger().warn("Exception writing mapper output", e);
-                    }
-                });
-                sqValuesOut.forEach((name, val) -> {
-                    try {
-                        write(context, new Text(getSquareKeyTag(name)), val);
                     } catch (IOException | InterruptedException e) {
                         getLogger().warn("Exception writing mapper output", e);
                     }
@@ -131,9 +188,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
         }
     }
 
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg() {
-
-        private PropertyWrangler propertyWrangler = new PropertyWrangler(STATS_PROP_SECTION);
+    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg(STATS_PROP_SECTION) {
 
         private Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
         private Property varsProp = Property.of(VARIABLES_PROP, "list of variables to use", "");
@@ -141,7 +196,10 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
         @Override
         public List<Property> getAdditionalProps() {
             return List.of(typesPathProp, varsProp,
-                Property.of(STATS_PATH_PROP, "path for stats output", ""));
+                Property.of(STATS_PATH_PROP, "path for stats output", ""),
+                Property.of(FACTOR_PROP, "list of factors to apply to values", ""),
+                Property.of(DEPENDENT_PROP, "dependent variable", "")
+            );
         }
 
         @Override
@@ -150,16 +208,6 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
             list.add(typesPathProp);
             list.add(varsProp);
             return list;
-        }
-
-        @Override
-        public String getPropertyRoot() {
-            return STATS_PROP_SECTION;
-        }
-
-        @Override
-        public String getPropertyPath(String propertyName) {
-            return propertyWrangler.getPropertyPath(propertyName);
         }
 
         @Override

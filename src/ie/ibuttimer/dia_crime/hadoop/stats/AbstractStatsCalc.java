@@ -25,36 +25,66 @@ package ie.ibuttimer.dia_crime.hadoop.stats;
 
 import com.google.common.base.Charsets;
 import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
+import ie.ibuttimer.dia_crime.misc.Functional;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.http.util.TextUtils;
+import org.apache.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 public abstract class AbstractStatsCalc implements IStats {
 
-    public enum Stat { STDDEV, VARIANCE, MEAN, MIN, MAX }
+    public enum Stat {
+        STDDEV,     // standard deviation
+        VARIANCE,   // variance
+        MEAN,       // mean
+        MIN,        // min
+        MAX,        // max
+        COR;        // pearson correlation coefficient
+
+        public static List<Stat> singleElementValues() {
+            return Arrays.stream(values())
+                .filter(s -> multipleElementValues().contains(s))
+                .collect(Collectors.toList());
+        }
+
+        public static List<Stat> multipleElementValues() {
+            return Collections.singletonList(COR);
+        }
+    }
+
+    protected static final String SUMOFPRODUCT_XY = "sumOfProductXY";
+    protected static final String SUMOFPRODUCT_YX = "sumOfProductYX";
+    protected static final String SUMOFX = "sumOfX";
+    protected static final String SUMOFY = "sumOfY";
+    protected static final String SUMOFXSQ = "sumOfXSq";
+    protected static final String SUMOFYSQ = "sumOfYSq";
 
     private String filename;
     private FileUtil fileUtil;
+    private Logger logger;
 
-    public AbstractStatsCalc(Path path, Configuration conf, String filename) {
+    public AbstractStatsCalc(Path path, Configuration conf, String filename, Logger logger) {
         this.filename = filename;
         this.fileUtil = new FileUtil(path, conf);
+        this.logger = logger;
     }
 
     protected double calcStdDev(Value sum, Value sumOfSq, long count) {
@@ -107,6 +137,26 @@ public abstract class AbstractStatsCalc implements IStats {
         return mean;
     }
 
+    protected double calcCorrelation(Value sumOfProductXY, Value sumOfX, Value sumOfY,
+                                     Value sumOfXSq, Value sumOfYSq, long count) {
+        double cor;
+        switch (typeCheck(sumOfProductXY)) {
+            case BIG_DECIMAL:
+                cor = calcCorrelation(sumOfProductXY.bigDecimalValue(), sumOfX.bigDecimalValue(), sumOfY.bigDecimalValue(),
+                    sumOfXSq.bigDecimalValue(), sumOfYSq.bigDecimalValue(), count).doubleValue();
+                break;
+            case BIG_INT:
+                cor = calcCorrelation(sumOfProductXY.bigIntegerValue(), sumOfX.bigIntegerValue(), sumOfY.bigIntegerValue(),
+                    sumOfXSq.bigIntegerValue(), sumOfYSq.bigIntegerValue(), count).doubleValue();
+                break;
+            default:
+                cor = calcCorrelation(sumOfProductXY.doubleValue(), sumOfX.doubleValue(), sumOfY.doubleValue(),
+                    sumOfXSq.doubleValue(), sumOfYSq.doubleValue(), count);
+                break;
+        }
+        return cor;
+    }
+
     private enum CalcType { BIG_INT, BIG_DECIMAL, DOUBLE }
 
     protected CalcType sumSumOfSqCheck(Value sum, Value sumOfSq) {
@@ -136,6 +186,8 @@ public abstract class AbstractStatsCalc implements IStats {
 
     public abstract Result.Set calcStat(String id, List<Stat> stats, List<String> fields) throws IOException;
 
+    public abstract Result.Set calcStat(String id1, String id2, List<Stat> stats, List<String> fields) throws IOException;
+
     public Result.Set calcStdDev(String id, List<String> fields) throws IOException {
         return calcStat(id, Stat.STDDEV, fields);
     }
@@ -144,12 +196,44 @@ public abstract class AbstractStatsCalc implements IStats {
         return calcStat(id, Stat.MEAN, fields);
     }
 
+    public Result.Set calcCorrelation(String id1, String id2, List<String> fields) throws IOException {
+        return calcStat(id1, id2, Stat.COR, fields);
+    }
+
+    public Result.Set calcAllCorrelation(List<String> fields) throws IOException {
+        Result.Set results = new Result.Set();
+
+        List<String> sortedFields = fields.stream().sorted().collect(Collectors.toList());
+        AtomicInteger index = new AtomicInteger(0);
+
+        sortedFields.forEach(id1 -> {
+            sortedFields.stream()
+                .skip(index.get())
+                .filter(id2 -> !id1.equals(id2))
+                .forEach(
+                    Functional.exceptionLoggingConsumer(
+                        id2 -> {
+                            Result.Set res = calcCorrelation(id1, id2, fields);
+                            res.entryList().forEach(e -> results.set(e.getKey(), e.getValue()));
+                        }, IOException.class, logger
+                    )
+                );
+            index.incrementAndGet();
+        });
+
+        return results;
+    }
+
     public Result.Set calcAll(String id, List<String> fields) throws IOException {
         return calcStat(id, Arrays.asList(Stat.values()), fields);
     }
 
     public Result.Set calcStat(String id, Stat stat, List<String> fields) throws IOException {
         return calcStat(id, Collections.singletonList(stat), fields);
+    }
+
+    public Result.Set calcStat(String id1, String id2, Stat stat, List<String> fields) throws IOException {
+        return calcStat(id1, id2, Collections.singletonList(stat), fields);
     }
 
 
@@ -209,6 +293,34 @@ public abstract class AbstractStatsCalc implements IStats {
         return Math.sqrt(calcVariance(sum, sumOfSq, count));
     }
 
+    protected double calcCorrelation(double sumOfProductXY, double sumOfX, double sumOfY,
+                                     double sumOfXSq, double sumOfYSq, long count) {
+        /*                        (n * sumOfProductXY) - (sumOfX * sumOfY)
+           correlation = -----------------------------------------------------------------
+                         sqrt( ((n * sumOfXSq) - sumOfX^2) * ((n * sumOfYSq) - sumOfY^2) )
+        */
+        double divisor = overflowCheck(count * sumOfProductXY) - overflowCheck(sumOfX * sumOfY);
+        double dividendL = overflowCheck(count * sumOfXSq) - overflowCheck(Math.pow(sumOfX, 2));
+        double dividendR = overflowCheck(count * sumOfYSq) - overflowCheck(Math.pow(sumOfY, 2));
+        return divisor / sqrt(overflowCheck(dividendL * dividendR));
+    }
+
+    private double overflowCheck(double num) {
+        if (Double.isInfinite(num) || Double.isNaN(num)) {
+            throw new ArithmeticException("Overflow during calculation");
+        }
+        return num;
+    }
+
+    private double sqrt(double num) {
+        if (num < 0.0) {
+            throw new ArithmeticException("Square root of minus number [" + num + "]is NaN");
+        } else {
+            num = Math.sqrt(num);
+        }
+        return num;
+    }
+
     protected BigDecimal calcMean(BigDecimal sum, long count) {
         return sum.divide(BigDecimal.valueOf(count), RoundingMode.UP);
     }
@@ -227,6 +339,20 @@ public abstract class AbstractStatsCalc implements IStats {
         return Math.sqrt(calcVariance(sum, sumOfSq, count).doubleValue());
     }
 
+    protected BigDecimal calcCorrelation(BigDecimal sumOfProductXY, BigDecimal sumOfX, BigDecimal sumOfY,
+                                     BigDecimal sumOfXSq, BigDecimal sumOfYSq, long count) {
+        /*                        (n * sumOfProductXY) - (sumOfX * sumOfY)
+           correlation = -----------------------------------------------------------------
+                         sqrt( ((n * sumOfXSq) - sumOfX^2) * ((n * sumOfYSq) - sumOfY^2) )
+        */
+        BigDecimal bgCount = BigDecimal.valueOf(count);
+        BigDecimal divisor = sumOfProductXY.multiply(bgCount).subtract(sumOfX.multiply(sumOfY));
+        BigDecimal dividendX = sumOfXSq.multiply(bgCount).subtract(sumOfX.pow(2));
+        BigDecimal dividendY = sumOfYSq.multiply(bgCount).subtract(sumOfY.pow(2));
+        return divisor.divide(dividendX.multiply(dividendY).sqrt(MathContext.DECIMAL64), RoundingMode.UP);
+    }
+
+
     protected BigDecimal calcMean(BigInteger sum, long count) {
         BigInteger mean = sum.divide(BigInteger.valueOf(count));
         return BigDecimal.valueOf(mean.doubleValue());
@@ -241,5 +367,9 @@ public abstract class AbstractStatsCalc implements IStats {
         return Math.sqrt(calcVariance(sum, sumOfSq, count).doubleValue());
     }
 
-
+    protected BigDecimal calcCorrelation(BigInteger sumOfProductXY, BigInteger sumOfX, BigInteger sumOfY,
+                                     BigInteger sumOfXSq, BigInteger sumOfYSq, long count) {
+        return calcCorrelation(new BigDecimal(sumOfProductXY), new BigDecimal(sumOfX), new BigDecimal(sumOfY),
+                                new BigDecimal(sumOfXSq), new BigDecimal(sumOfYSq), count);
+    }
 }

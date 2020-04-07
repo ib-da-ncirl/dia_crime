@@ -23,106 +23,107 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stats;
 
+import ie.ibuttimer.dia_crime.misc.Value;
+import org.apache.commons.lang3.tuple.Pair;
+
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Result {
-    private boolean success;
-    private double stddev;
-    private double variance;
-    private double mean;
-    private double min;
-    private double max;
-
-    private boolean[] set = new boolean[StockStatsCalc.Stat.values().length];
+    private Map<String, Double> values;
+    private Map<String, Map<String, Value>> calcParams;
 
     Result() {
-        this.success = false;
-        this.stddev = 0;
-        this.variance = 0;
-        this.mean = 0;
-        this.min = 0;
-        this.max = 0;
-
-        Arrays.fill(this.set, false);
+        this.values = new HashMap<>();
+        this.calcParams = new HashMap<>();
     }
 
     public boolean isSuccess() {
-        return success;
+        return values.size() > 0;
     }
 
-    public void setSuccess(boolean success) {
-        this.success = success;
+    private boolean isSet(AbstractStatsCalc.Stat stat) {
+        return values.keySet().stream().anyMatch(stat.name()::equals);
     }
 
-    private boolean isSet(StockStatsCalc.Stat stat) {
-        return set[stat.ordinal()];
+    private void set(AbstractStatsCalc.Stat stat, double value) {
+        values.put(stat.name(), value);
     }
 
-    private void set(StockStatsCalc.Stat stat) {
-        set[stat.ordinal()] = true;
-        success = true;
+    private void set(AbstractStatsCalc.Stat stat, double value, Map<String, Value> params) {
+        values.put(stat.name(), value);
+        calcParams.put(stat.name(), params);
     }
 
-    private Optional<Double> getStat(StockStatsCalc.Stat stat) {
+    public Optional<Double> getStat(AbstractStatsCalc.Stat stat) {
         if (isSet(stat)) {
-            double value;
-            switch (stat) {
-                case STDDEV:    value = stddev;     break;
-                case VARIANCE:  value = variance;   break;
-                case MEAN:      value = mean;       break;
-                case MIN:       value = min;        break;
-                case MAX:       value = max;        break;
-                default:    throw new IllegalArgumentException("Unknown stat " + stat.toString());
-            }
-            return Optional.of(value);
+            return Optional.of(values.get(stat.name()));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Pair<Double, Map<String, Value>>> getStatAndParams(AbstractStatsCalc.Stat stat) {
+        if (isSet(stat)) {
+            return Optional.of(Pair.of(
+                    values.get(stat.name()), calcParams.get(stat.name())
+                )
+            );
         } else {
             return Optional.empty();
         }
     }
 
     public Optional<Double> getStddev() {
-        return getStat(StockStatsCalc.Stat.STDDEV);
+        return getStat(AbstractStatsCalc.Stat.STDDEV);
     }
 
     public void setStddev(double stddev) {
-        this.stddev = stddev;
-        set(StockStatsCalc.Stat.STDDEV);
+        set(AbstractStatsCalc.Stat.STDDEV, stddev);
     }
 
     public Optional<Double> getVariance() {
-        return getStat(StockStatsCalc.Stat.VARIANCE);
+        return getStat(AbstractStatsCalc.Stat.VARIANCE);
     }
 
     public void setVariance(double variance) {
-        this.variance = variance;
-        set(StockStatsCalc.Stat.VARIANCE);
+        set(AbstractStatsCalc.Stat.VARIANCE, variance);
     }
 
     public Optional<Double> getMean() {
-        return getStat(StockStatsCalc.Stat.MEAN);
+        return getStat(AbstractStatsCalc.Stat.MEAN);
     }
 
     public void setMean(double mean) {
-        this.mean = mean;
-        set(StockStatsCalc.Stat.MEAN);
+        set(AbstractStatsCalc.Stat.MEAN, mean);
     }
 
     public Optional<Double> getMin() {
-        return getStat(StockStatsCalc.Stat.MIN);
+        return getStat(AbstractStatsCalc.Stat.MIN);
     }
 
     public void setMin(double min) {
-        this.min = min;
-        set(StockStatsCalc.Stat.MIN);
+        set(AbstractStatsCalc.Stat.MIN, min);
     }
 
     public Optional<Double> getMax() {
-        return getStat(StockStatsCalc.Stat.MAX);
+        return getStat(AbstractStatsCalc.Stat.MAX);
     }
 
     public void setMax(double max) {
-        this.max = max;
-        set(StockStatsCalc.Stat.MAX);
+        set(AbstractStatsCalc.Stat.MAX, max);
+    }
+
+    public Optional<Double> getCorrelation() {
+        return getStat(AbstractStatsCalc.Stat.COR);
+    }
+
+    public Optional<Pair<Double, Map<String, Value>>> getCorrelationAndParams() {
+        return getStatAndParams(AbstractStatsCalc.Stat.COR);
+    }
+
+    public void setCorrelation(double cor, Map<String, Value> params) {
+        set(AbstractStatsCalc.Stat.COR, cor, params);
     }
 
 
@@ -151,6 +152,10 @@ public class Result {
                 result = new Result();
             }
             return result;
+        }
+
+        public List<Map.Entry<String, Result>> entryList() {
+            return new ArrayList<>(set.entrySet());
         }
     }
 }

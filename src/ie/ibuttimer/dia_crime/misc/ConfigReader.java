@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime.misc;
 import com.google.common.base.Charsets;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
@@ -34,10 +35,7 @@ import org.apache.http.util.TextUtils;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -73,6 +71,28 @@ public class ConfigReader {
 
     public List<String> readCommaSeparatedProperty(Configuration conf, String name) {
         return readSeparatedProperty(conf, name, ",");
+    }
+
+    public Map<String, String> readSeparatedKeyValueProperty(Configuration conf, String name, String separator, String kvSeparator) {
+        Map<String, String> map = new HashMap<>();
+        MapStringifier.ElementStringify kvSplitter = new MapStringifier.ElementStringify(kvSeparator);
+        List<String> list = readSeparatedProperty(conf, name, separator);
+
+        list.stream()
+            .map(kvSplitter::destringifyElement)
+            .forEach((pair -> {
+                String key = pair.getLeft();
+                String value = pair.getRight();
+                if ((key != null) && (value != null)) {
+                    map.put(key, value);
+                }
+            }));
+
+        return map;
+    }
+
+    public Map<String, String> readCommaSeparatedKeyColonValueProperty(Configuration conf, String name) {
+        return readSeparatedKeyValueProperty(conf, name, ",", ":");
     }
 
     public Map<String, Class<?>> readOutputTypeClasses(Configuration conf, String property, List<Class<?>> classes) {

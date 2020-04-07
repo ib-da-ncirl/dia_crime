@@ -24,7 +24,8 @@
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
+
+import java.io.IOException;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.DOWJONES_PROP_SECTION;
 
@@ -39,24 +40,16 @@ public abstract class AbstractDowJonesStockBaseMapper<VO> extends AbstractDowJon
 
     public AbstractDowJonesStockBaseMapper() {
         super(StockMapperKey.DATE);
-        setMapperHelper(new StockMapperHelper(
-            getId().toString(), StockWritable.StockEntryWritableBuilder.getInstance()));
     }
 
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractStockEntryMapperCfg() {
+    @Override
+    protected IAbstractStockMapper getMapperHelper() {
+        return new StockMapperHelper(
+            getId().toString(),
+            StockWritable.StockEntryWritableBuilder.getInstance(getFactors()));
+    }
 
-        private PropertyWrangler propertyWrangler = new PropertyWrangler(DOWJONES_PROP_SECTION);
-
-        @Override
-        public String getPropertyRoot() {
-            return DOWJONES_PROP_SECTION;
-        }
-
-        @Override
-        public String getPropertyPath(String propertyName) {
-            return propertyWrangler.getPropertyPath(propertyName);
-        }
-    };
+    private static ICsvEntryMapperCfg sCfgChk = new StockEntryMapperCfg(DOWJONES_PROP_SECTION);
 
     @Override
     public ICsvEntryMapperCfg getEntryMapperCfg() {

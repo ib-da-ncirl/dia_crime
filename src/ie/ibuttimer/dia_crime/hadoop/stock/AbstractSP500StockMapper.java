@@ -27,6 +27,8 @@ import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 
+import java.io.IOException;
+
 import static ie.ibuttimer.dia_crime.misc.Constants.SP500_ID;
 
 /**
@@ -42,6 +44,14 @@ public abstract class AbstractSP500StockMapper<W extends AbstractBaseWritable<?>
     public AbstractSP500StockMapper(StockMapperKey key) {
         super(SP500_ID, key);
     }
+
+    @Override
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setMapperHelper(getMapperHelper());
+    }
+
+    protected abstract IAbstractStockMapper getMapperHelper();
 
     @Override
     protected Counters.MapperCounter getCounter(Context context) {

@@ -24,10 +24,8 @@
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
-import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.List;
+import java.io.IOException;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -42,24 +40,16 @@ public abstract class AbstractNasdaqStockBaseMapper<VO> extends AbstractNasdaqSt
 
     public AbstractNasdaqStockBaseMapper() {
         super(StockMapperKey.DATE);
-        setMapperHelper(new StockMapperHelper(
-            getId().toString(), StockWritable.StockEntryWritableBuilder.getInstance()));
     }
 
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractStockEntryMapperCfg() {
+    @Override
+    protected IAbstractStockMapper getMapperHelper() {
+        return new StockMapperHelper(
+            getId().toString(),
+            StockWritable.StockEntryWritableBuilder.getInstance(getFactors()));
+    }
 
-        private PropertyWrangler propertyWrangler = new PropertyWrangler(NASDAQ_PROP_SECTION);
-
-        @Override
-        public String getPropertyRoot() {
-            return NASDAQ_PROP_SECTION;
-        }
-
-        @Override
-        public String getPropertyPath(String propertyName) {
-            return propertyWrangler.getPropertyPath(propertyName);
-        }
-    };
+    private static ICsvEntryMapperCfg sCfgChk = new StockEntryMapperCfg(NASDAQ_PROP_SECTION);
 
     @Override
     public ICsvEntryMapperCfg getEntryMapperCfg() {

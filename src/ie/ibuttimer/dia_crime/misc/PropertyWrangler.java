@@ -39,6 +39,10 @@ public class PropertyWrangler {
         setRoot(root);
     }
 
+    public static PropertyWrangler of(String root) {
+        return new PropertyWrangler(root);
+    }
+
     public void setRoot(String root) {
         this.root = makePropertyRoot(root);
     }

@@ -84,7 +84,7 @@ public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 
-        if (!skipHeader(key)) {
+        if (!skip(key, value)) {
             /* 2001-01-02	02:3, 03:35, 04A:15, 04B:21, 05:68, 06:221, 07:65, 08A:51, 08B:122, 10:9, 11:65, 12:2, 13:2,
                 14:118, 15:9, 16:11, 17:7, 18:156, 19:1, 20:3, 22:2, 24:2, 26:155, DJI_adjclose:10646.150391,
                 DJI_close:10646.150391, DJI_date:2001-01-02, DJI_high:10797.019531, DJI_low:10585.360352,
@@ -126,9 +126,7 @@ public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable
 
 
 
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg() {
-
-        private PropertyWrangler propertyWrangler = new PropertyWrangler(REGRESSION_PROP_SECTION);
+    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg(REGRESSION_PROP_SECTION) {
 
         private Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
         private Property indoProp = Property.of(INDEPENDENTS_PROP, "list of independent variables to use", "");
@@ -146,16 +144,6 @@ public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable
             list.add(indoProp);
             list.add(depProp);
             return list;
-        }
-
-        @Override
-        public String getPropertyRoot() {
-            return REGRESSION_PROP_SECTION;
-        }
-
-        @Override
-        public String getPropertyPath(String propertyName) {
-            return propertyWrangler.getPropertyPath(propertyName);
         }
 
         @Override

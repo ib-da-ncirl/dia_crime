@@ -42,14 +42,17 @@ public class SP500StockStatsMapper extends AbstractSP500StockMapper<BigStockWrit
     public SP500StockStatsMapper() {
         // use stock id as the key
         super(StockMapperKey.STOCK_ID);
-
-        setMapperHelper(new StatsMapperHelper(BigStockWritable.BigStockEntryWritableBuilder.getInstance()));
     }
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
         setLogger(getClass());
+    }
+
+    @Override
+    protected IAbstractStockMapper getMapperHelper() {
+        return new StatsMapperHelper(BigStockWritable.BigStockEntryWritableBuilder.getInstance());
     }
 
     @Override

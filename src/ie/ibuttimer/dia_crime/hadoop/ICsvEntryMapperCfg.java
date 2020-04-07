@@ -34,7 +34,7 @@ import java.util.List;
 import static ie.ibuttimer.dia_crime.misc.Constants.IN_PATH_PROP;
 import static ie.ibuttimer.dia_crime.misc.Constants.OUT_PATH_PROP;
 
-public interface ICsvEntryMapperCfg {
+public interface ICsvEntryMapperCfg extends ITagger {
 
     /**
      * Get the property names and their default values
@@ -79,7 +79,7 @@ public interface ICsvEntryMapperCfg {
 
     String getPropertyPath(String propertyName);
 
-    void dumpConfiguration(Logger logger, String section, Configuration conf);
+    void dumpConfiguration(Logger logger, Configuration conf);
 
 
     class Property {

@@ -25,26 +25,29 @@ package ie.ibuttimer.dia_crime.hadoop.stats;
 
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionWritable;
 import ie.ibuttimer.dia_crime.misc.Value;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.http.util.TextUtils;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static ie.ibuttimer.dia_crime.hadoop.stats.AbstractStatsCalc.Stat.STDDEV;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 public class StatsCalc extends AbstractStatsCalc implements IStats {
 
+    private static final Logger logger = Logger.getLogger(StatsCalc.class.getSimpleName());
+
     private RegressionWritable<String, Value> zero;
 
     public StatsCalc(Path path, Configuration conf, String filename) {
-        super(path, conf, filename);
+        super(path, conf, filename, logger);
     }
 
     private void setZero(List<String> fields) {
@@ -80,33 +83,31 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
                 }
             });
 
-            Value sum = null;
-            Value sumOfSq = null;
-            Value min = null;
-            Value max = null;
+            AtomicReference<Value> sum = new AtomicReference<>();
+            AtomicReference<Value> sumOfSq = new AtomicReference<>();
+            AtomicReference<Value> min = new AtomicReference<>();
+            AtomicReference<Value> max = new AtomicReference<>();
             long count = -1;
             for (String key : req) {
                 switch (key) {
-                    case SQUARE_KEY_TAG:    sumOfSq = readEntry(lines, id, getSquareKeyTag(id));        break;
-                    case SUM_KEY_TAG:       sum = readEntry(lines, id, getSumKeyTag(id));               break;
-                    case COUNT_KEY_TAG:     count = readLong(lines, getCountKeyTag(id), COUNT_PROP);    break;
-                    case MIN_KEY_TAG:       min = readEntry(lines, id, getMinKeyTag(id));               break;
-                    case MAX_KEY_TAG:       max = readEntry(lines, id, getMaxKeyTag(id));               break;
+                    case SQUARE_KEY_TAG:    readEntry(lines, getSquareKeyTag(id)).ifPresent(sumOfSq::set);  break;
+                    case SUM_KEY_TAG:       readEntry(lines, getSumKeyTag(id)).ifPresent(sum::set);         break;
+                    case COUNT_KEY_TAG:     count = readLong(lines, getCountKeyTag(id), COUNT_PROP);        break;
+                    case MIN_KEY_TAG:       readEntry(lines, getMinKeyTag(id)).ifPresent(min::set);         break;
+                    case MAX_KEY_TAG:       readEntry(lines, getMaxKeyTag(id)).ifPresent(max::set);         break;
                 }
             }
 
-            Value finalSumOfSq = sumOfSq;
-            Value finalSum = sum;
+            Value finalSumOfSq = sumOfSq.get();
+            Value finalSum = sum.get();
             long finalCount = count;
-            Value finalMin = min;
-            Value finalMax = max;
+            Value finalMin = min.get();
+            Value finalMax = max.get();
             Result result = new Result();
             stats.forEach(stat -> {
                 switch (stat) {
                     case STDDEV:
                     case VARIANCE:
-                        assert finalSum != null;
-                        assert finalSumOfSq != null;
                         if (finalSum.isPresent() && finalSumOfSq.isPresent()) {
                             if (stat == STDDEV) {
                                 result.setStddev(
@@ -120,14 +121,12 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
                         }
                         break;
                     case MEAN:
-                        assert finalSum != null;
                         if (finalSum.isPresent()) {
                             double meanVal = calcMean(finalSum, finalCount);
                             result.setMean(meanVal);
                         }
                         break;
                     case MIN:
-                        assert finalMin != null;
                         if (finalMin.isPresent()) {
                             result.setMin(finalMin.doubleValue());
                         }
@@ -145,17 +144,137 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
         return resultSet;
     }
 
+    @Override
+    public Result.Set calcStat(String idX, String idY, List<Stat> stats, List<String> fields) throws IOException {
+        Result.Set resultSet = new Result.Set();
 
-    private Value readEntry(List<String> lines, String key, String lineTag) {
-        AtomicReference<Value> entry = new AtomicReference<>(Value.of(0));
+        String keyPairXY = getKeyPair(idX, idY);
+        String keyPairYX = getKeyPair(idY, idX);
+        List<String> lines = new ArrayList<>();
+        lines.addAll(getLines(idX));
+        lines.addAll(getLines(idY));
+
+        if (lines.size() > 0) {
+            Set<String> req = new HashSet<>();
+            Map<String, String> corTags = new HashMap<>();
+            stats.forEach(stat -> {
+                if (stat == Stat.COR) {
+                    /* need the following key/values:
+                        one of:
+                            <property 1 name>+<property 2 name>-PRD-SUM - sum of product of property 1 & 2 values
+                            <property 2 name>+<property 1 name>-PRD-SUM - sum of product of property 1 & 2 values
+                        <property 1 name>-SQ-SUM - sum of squared values of property 1
+                        <property 2 name>-SQ-SUM - sum of squared values of property 2
+                        <property 1 name>-SUM - sum of values of property 1
+                        <property 2 name>-SUM - sum of values of property 2
+                        plus any count (should all be the same)
+                        <property 1 name>-CNT - count of values
+                     */
+                    List.of(Pair.of(keyPairXY, SUMOFPRODUCT_XY),
+                            Pair.of(keyPairYX, SUMOFPRODUCT_YX))
+                        .forEach(pair -> {
+                            String tag = getSumKeyTag(getProductKeyTag(pair.getLeft()));
+                            corTags.put(pair.getRight(), tag);
+                            req.add(tag);
+                        });
+
+                    Consumer<? super Pair<String, String>> consumer = p -> {
+                        String ftag = getSumKeyTag(getSquareKeyTag(p.getRight()));
+                        corTags.put(p.getLeft(), ftag);
+                        req.add(ftag);
+                    };
+                    List.of(Pair.of(SUMOFXSQ, idX), Pair.of(SUMOFYSQ, idY)).forEach(consumer);
+                    consumer = p -> {
+                        String ftag = getSumKeyTag(p.getRight());
+                        corTags.put(p.getLeft(), ftag);
+                        req.add(ftag);
+                    };
+                    List.of(Pair.of(SUMOFX, idX), Pair.of(SUMOFY, idY)).forEach(consumer);
+
+                    req.add(getCountKeyTag(idX));
+                }
+            });
+
+            Map<String, Value> valueMap = new HashMap<>();
+            long count = -1;
+            String countKey = "";
+            for (String key : req) {
+                if (isCountKey(key)) {
+                    count = readLong(lines, key, COUNT_PROP);
+                    countKey = key;
+                } else {
+                    readEntry(lines, key).ifPresent(v -> valueMap.put(key, v));
+                }
+            }
+            if (count < 0) {
+                throw new IllegalStateException("Missing count value");
+            }
+
+            Result result = new Result();
+            long finalCount = count;
+            String finalCountKey = countKey;
+            stats.forEach(stat -> {
+                if (stat == Stat.COR) {
+                    String sumOfPrdTag = null;
+                    String sumOfPrdTagNotReq = null;
+                    List<String> missing = new ArrayList<>();
+
+                    corTags.values().forEach(valKey -> {
+                        if (!valueMap.containsKey(valKey)) {
+                            missing.add(valKey);
+                        }
+                    });
+                    boolean missingPrdXY = missing.contains(corTags.get(SUMOFPRODUCT_XY));
+                    boolean missingPrdYX = missing.contains(corTags.get(SUMOFPRODUCT_YX));
+                    if (missingPrdXY && !missingPrdYX) {
+                        sumOfPrdTag = SUMOFPRODUCT_YX;
+                        sumOfPrdTagNotReq = corTags.get(SUMOFPRODUCT_XY);
+                        missing.remove(sumOfPrdTagNotReq);
+                    } else if (!missingPrdXY && missingPrdYX) {
+                        sumOfPrdTag = SUMOFPRODUCT_XY;
+                        sumOfPrdTagNotReq = corTags.get(SUMOFPRODUCT_YX);
+                        missing.remove(sumOfPrdTagNotReq);
+                    }
+                    if (missing.size() > 0) {
+                        throw new IllegalStateException("Missing value(s) for " + missing);
+                    }
+
+                    // save params for result
+                    Map<String, Value> params = new HashMap<>();
+                    String finalSumOfPrdTagReverse = sumOfPrdTagNotReq;
+                    corTags.values().stream()
+                        .filter(valKey -> !valKey.equals(finalSumOfPrdTagReverse))
+                        .forEach(valKey -> params.put(valKey, valueMap.get(valKey)));
+                    params.put(finalCountKey, Value.of(finalCount));
+
+                    result.setCorrelation(
+                        calcCorrelation(
+                            valueMap.get(corTags.get(sumOfPrdTag)),
+                            valueMap.get(corTags.get(SUMOFX)),
+                            valueMap.get(corTags.get(SUMOFY)),
+                            valueMap.get(corTags.get(SUMOFXSQ)),
+                            valueMap.get(corTags.get(SUMOFYSQ)), finalCount),
+                        params
+                    );
+                }
+                resultSet.set(keyPairXY, result);
+            });
+        }
+        return resultSet;
+    }
+
+    private Optional<Value> readEntry(List<String> lines, String keyTag) {
+        AtomicReference<Optional<Value>> entry = new AtomicReference<>(Value.empty());
         lines.stream()
-            .filter(l -> l.startsWith(lineTag))
+            .filter(l -> l.startsWith(keyTag))
             .findFirst()
             .ifPresent(l -> {
                 String line = getValueFromLine(l);
                 if (!TextUtils.isEmpty(line)) {
-                    entry.set(Value.of(
-                        Double.valueOf(line)
+                    entry.set(Optional.of(
+                        Value.of(
+                            Double.valueOf(line)
+                        )
                     ));
                 }
             });

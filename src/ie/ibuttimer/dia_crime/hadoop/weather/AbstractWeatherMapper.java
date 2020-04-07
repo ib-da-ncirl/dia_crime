@@ -85,7 +85,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
 
         // NOTE: there are multiple entries for the same hour in some cases, seems to be different weather descriptions
 
-        if (!skipHeader(key)) {
+        if (!skip(key, value)) {
             /* dt,dt_iso,timezone,city_name,lat,lon,temp,feels_like,temp_min,temp_max,pressure,sea_level,grnd_level,humidity,
                 wind_speed,wind_deg,rain_1h,rain_3h,snow_1h,snow_3h,clouds_all,weather_id,weather_main,weather_description,weather_icon
              */
@@ -135,20 +135,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
 
     protected abstract void writeOutput(Context context, Text key, WeatherWritable value) throws IOException, InterruptedException;
 
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg() {
-
-        private PropertyWrangler propertyWrangler = new PropertyWrangler(WEATHER_PROP_SECTION);
-
-        @Override
-        public String getPropertyRoot() {
-            return WEATHER_PROP_SECTION;
-        }
-
-        @Override
-        public String getPropertyPath(String propertyName) {
-            return propertyWrangler.getPropertyPath(propertyName);
-        }
-
+    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg(WEATHER_PROP_SECTION) {
         @Override
         public List<String> getPropertyIndices() {
             return WEATHER_PROPERTY_INDICES;

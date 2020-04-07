@@ -23,31 +23,40 @@
 
 package ie.ibuttimer.dia_crime.hadoop;
 
-import ie.ibuttimer.dia_crime.hadoop.merge.IValueDecorator;
+import ie.ibuttimer.dia_crime.hadoop.merge.IDecorator;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.misc.Constants;
+import ie.ibuttimer.dia_crime.misc.DebugLevel;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 
-public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, VO> {
+public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, VO>
+    implements IDecorator.IDecoratable<KO, VO>, DebugLevel.Debuggable {
 
     private static Logger logger = null;
 
-    private IValueDecorator<VO> decorator;
+    private IDecorator<KO, VO> decorator;
+    private IDecorator.DecorMode decoratorMode;
 
     private PropertyWrangler propertyWrangler;
 
+    private DebugLevel debugLevel;  // current debug level
+
     public AbstractMapper() {
-        this(null, null);
+        this(null, IDecorator.DecorMode.NONE, null);
     }
 
-    public AbstractMapper(IValueDecorator<VO> decorator, String propertyRoot) {
-        this.decorator = decorator;
+    public AbstractMapper(IDecorator<KO, VO> decorator, IDecorator.DecorMode decoratorMode, String propertyRoot) {
+        setDecorator(decorator, decoratorMode);
         setPropertyRoot(propertyRoot);
+        setDebugLevel(DebugLevel.OFF);
     }
 
     public static Logger getLogger() {
@@ -65,18 +74,30 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
         AbstractMapper.logger = logger;
     }
 
-    public void setDecorator(IValueDecorator<VO> decorator) {
+    @Override
+    public void setDecorator(IDecorator<KO, VO> decorator, IDecorator.DecorMode decoratorMode) {
         this.decorator = decorator;
+        this.decoratorMode = decoratorMode;
     }
 
-    public VO decorate(VO value) {
-        VO decorated;
-        if (decorator != null) {
-            decorated = decorator.decorate(value);
-        } else {
-            decorated = value;
+    @Override
+    public IDecorator.DecorMode getMode() {
+        return decoratorMode;
+    }
+
+    @Override
+    public IDecorator<KO, VO> getDecorator() {
+        return decorator;
+    }
+
+    public void write(Context context, KO key, VO value) throws IOException, InterruptedException {
+        Pair<KO, VO> decorated = decorate(key, value);
+        context.write(decorated.getLeft(), decorated.getRight());
+
+        if ((decoratorMode.hasTransform() && show(DebugLevel.VERBOSE))) {
+            Pair<Object, Object> transformed = transform(decorated.getLeft(), decorated.getRight());
+            getLogger().info(transformed.getLeft().toString() + " " + transformed.getRight().toString());
         }
-        return decorated;
     }
 
     protected Counters.MapperCounter getCounter(Mapper<?,?,?,?>.Context context, String group, String name) {
@@ -89,10 +110,6 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
 
     public void setPropertyRoot(String propertyRoot) {
         this.propertyWrangler = new PropertyWrangler(propertyRoot);
-    }
-
-    public void write(Context context, KO key, VO value) throws IOException, InterruptedException {
-        context.write(key, decorate(value));
     }
 
     public String getPropertyPath(String propertyName) {
@@ -124,4 +141,22 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
 
     public abstract ICsvEntryMapperCfg getEntryMapperCfg();
 
+
+    /**
+     * Check if the line is a comment line should be skipped
+     * @param line  line
+     * @return      True if line should be skipped
+     */
+    public boolean skipComment(Text line) {
+        return line.toString().startsWith(Constants.COMMENT_PREFIX);
+    }
+
+
+    public DebugLevel getDebugLevel() {
+        return debugLevel;
+    }
+
+    public void setDebugLevel(DebugLevel debugLevel) {
+        this.debugLevel = debugLevel;
+    }
 }

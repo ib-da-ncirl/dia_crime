@@ -27,6 +27,8 @@ import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 
+import java.io.IOException;
+
 import static ie.ibuttimer.dia_crime.misc.Constants.NASDAQ_ID;
 
 /**
@@ -42,6 +44,14 @@ public abstract class AbstractNasdaqStockMapper<W extends AbstractBaseWritable<?
     public AbstractNasdaqStockMapper(StockMapperKey key) {
         super(NASDAQ_ID, key);
     }
+
+    @Override
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setMapperHelper(getMapperHelper());
+    }
+
+    protected abstract IAbstractStockMapper getMapperHelper();
 
     @Override
     protected Counters.MapperCounter getCounter(Context context) {

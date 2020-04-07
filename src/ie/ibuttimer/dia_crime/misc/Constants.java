@@ -35,14 +35,19 @@ import java.util.stream.Stream;
 
 public class Constants {
 
+    public static final String COMMENT_PREFIX = "#";
+
     // stock index ids
     public static final String NASDAQ_ID = "IXIC";
     public static final String DOWJONES_ID = "DJI";
     public static final String SP500_ID = "GSPC";
 
-
     /* properties are stored in the format "<section>.<property>" */
     public static final String PROPERTY_SEPARATOR = ".";
+
+    /* property aliases are stored in the format "<section>.<property> = property-alias:<other section>.<other property>" */
+    public static final String PROPERTY_ALIAS = "property-alias";
+    public static final String PROPERTY_ALIAS_SEPARATOR = ":";
 
     public static final String CONF_PROPERTY_ROOT = "conf_property_root";
 
@@ -94,6 +99,7 @@ public class Constants {
 
     public static final String ID_LIST_PROP = "id_list";
     public static final String COUNT_PROP = "count";
+    public static final String FACTOR_PROP = "factors";
 
     // weather specific properties
     public static final String TEMP_PROP = "temp";
@@ -125,27 +131,6 @@ public class Constants {
     public static final int ECODE_CONFIG_ERROR = -1;
     public static final int ECODE_SUCCESS = 0;
     public static final int ECODE_FAIL = 1;
-
-    public enum DebugLevel { OFF, LOW, MEDIUM, HIGH, VERBOSE;
-
-        public static DebugLevel getSetting(Configuration conf, ICsvEntryMapperCfg sCfgChk) {
-            String setting = conf.get(sCfgChk.getPropertyPath(DEBUG_PROP), OFF.name());
-            return DebugLevel.valueOf(setting);
-        }
-
-        public static boolean show(DebugLevel setting, DebugLevel level) {
-            return (setting != OFF) && (level.ordinal() <= setting.ordinal());
-        }
-
-        public boolean showMe(DebugLevel setting) {
-            return show(setting, this);
-        }
-
-        public static boolean show(Configuration conf, ICsvEntryMapperCfg sCfgChk, DebugLevel level) {
-            DebugLevel setting = getSetting(conf, sCfgChk);
-            return show(setting, level);
-        }
-    }
 
     private static MapStringifier.ElementStringify propertyNamer = new MapStringifier.ElementStringify(PROPERTY_SEPARATOR);
 

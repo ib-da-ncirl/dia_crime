@@ -89,9 +89,18 @@ public class MapStringifier<K, V> {
     public static class ElementStringify {
 
         private String separator;
+        private String regex;
 
         public ElementStringify(String separator) {
+            this(separator, null);
+        }
+
+        public ElementStringify(String separator, String regex) {
             this.separator = separator;
+            if (regex == null) {
+                regex = separator;
+            }
+            this.regex = regex;
         }
 
         public static ElementStringify of(String separator) {
@@ -104,7 +113,7 @@ public class MapStringifier<K, V> {
 
         public Pair<String, String> destringifyElement(String element) {
             Pair<String, String> result;
-            String[] splits = element.split(separator);
+            String[] splits = element.split(regex);
             if (splits.length == 2) {
                 result = Pair.of(splits[0], splits[1]);
             } else {

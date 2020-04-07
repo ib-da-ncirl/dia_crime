@@ -36,28 +36,33 @@ import org.apache.hadoop.io.Text;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> implements IStats {
 
     private Counters.ReducerCounter counter;
+    private Counters.ReducerCounter statsInCounter;
+    private Counters.ReducerCounter statsOutCounter;
 
     private Map<String, Class<?>> outputTypes;
 
     private List<String> variables;
+
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
 
         counter = getCounter(context, CountersEnum.STATS_REDUCER_COUNT);
+        statsInCounter = getCounter(context, CountersEnum.STATS_REDUCER_GROUP_IN_COUNT);
+        statsOutCounter = getCounter(context, CountersEnum.STATS_REDUCER_GROUP_OUT_COUNT);
 
         Configuration conf = context.getConfiguration();
         StatsConfigReader cfgReader = new StatsConfigReader(StatsMapper.getCsvEntryMapperCfg());
@@ -69,65 +74,90 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> imple
     @Override
     protected void reduce(Text key, Iterable<Value> values, Context context) throws IOException, InterruptedException {
 
+        Optional<Long> inCount = statsInCounter.getCount();
+        inCount.ifPresent(count -> {
+            if (count == 0) {
+                Configuration conf = context.getConfiguration();
+
+                getTagStrings(conf, STATS_PROP_SECTION).forEach(tagLine -> {
+                    try {
+                        context.write(new Text(COMMENT_PREFIX), new Text(tagLine));
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
+        });
+
+        statsInCounter.increment();
+
         String keyStr = key.toString();
-        String keyBase;
-        boolean stdKey = isStandardKey(keyStr);
-        if (stdKey) {
-            keyBase = keyStr;
-        } else {
-            keyBase = splitKeyTag(keyStr).getLeft();
-        }
+        Triple<Optional<String>, Optional<String>, Optional<String>> keySplit = split(keyStr);
 
-        Triple <Value, Value, Value> collectors = initialiseCollectors(keyBase);
-        Value summer = collectors.getLeft();
-        Value minimiser = collectors.getMiddle();
-        Value maximiser = collectors.getRight();
+        keySplit.getLeft().ifPresent(key1 -> {
 
-        AtomicLong entryCount = new AtomicLong();
+            Triple <Value, Value, Value> collectors = initialiseCollectors(key1);
+            Value summer = collectors.getLeft();
 
-        if (stdKey) {
-            values.forEach(writable -> {
-                summer.add(writable);
-                minimiser.min(writable);
-                maximiser.max(writable);
+            AtomicLong entryCount = new AtomicLong();
+            List<Pair<Text, Value>> outputList = new ArrayList<>();
 
-                counter.increment();
-                entryCount.incrementAndGet();
-            });
-            writeOutput(context, Stream.of(
-                Pair.of(summer, new Text(getSumKeyTag(key.toString()))),
-                Pair.of(minimiser, new Text(getMinKeyTag(key.toString()))),
-                Pair.of(maximiser, new Text(getMaxKeyTag(key.toString())))
+            if (isStandardKey(keyStr)) {
+                Value minimiser = collectors.getMiddle();
+                Value maximiser = collectors.getRight();
+
+                values.forEach(writable -> {
+                    summer.add(writable);
+                    minimiser.min(writable);
+                    maximiser.max(writable);
+
+                    counter.increment();
+                    entryCount.incrementAndGet();
+                });
+                /* output following key/values:
+                    <key>-MIN - min value
+                    <key>-MAX - max value
+                 */
+                outputList.addAll(List.of(
+                    Pair.of(new Text(getMinKeyTag(keyStr)), minimiser),
+                    Pair.of(new Text(getMaxKeyTag(keyStr)), maximiser)
+                ));
+            } else {
+                // slight duplication but min/min not required for squared/product values and it'll be quicker
+                values.forEach(writable -> {
+                    summer.add(writable);
+
+                    counter.increment();
+                    entryCount.incrementAndGet();
+                });
+            }
+
+            /* always output following key/values:
+                <key>-SUM - sum of values
+                <key>-CNT - count of values
+             */
+            // write count to file
+            Map<String, String> map = Map.of(COUNT_PROP, Long.toString(entryCount.get()));
+            outputList.addAll(List.of(
+                Pair.of(new Text(getSumKeyTag(keyStr)), summer),
+                Pair.of(new Text(getCountKeyTag(keyStr)), Value.of(MapStringifier.stringify(map)))
             ));
-        } else {
-            // slight duplication but min/min not required for squared values and it'll be quicker
-            values.forEach(writable -> {
-                summer.add(writable);
 
-                counter.increment();
-                entryCount.incrementAndGet();
-            });
-            writeOutput(context, Stream.of(
-                Pair.of(summer, key)
-            ));
-        }
-
-        // write count to file
-        Map<String, String> map = Map.of(COUNT_PROP, Long.toString(entryCount.get()));
-        writeOutput(context, new Text(getCountKeyTag(key.toString())), new Text(MapStringifier.stringify(map)));
+            writeOutput(context, outputList);
+        });
     }
 
-    private void writeOutput(Context context, Stream<Pair<Value, Text>> stream) {
-        Map<String, String> map = new TreeMap<>();
-
+    private void writeOutput(Context context, List<Pair<Text, Value>> stream) {
         stream.forEach(pair -> {
-                writeOutput(context, pair.getRight(), new Text(pair.getLeft().value().toString()));
+            writeOutput(context, pair.getLeft(), new Text(pair.getRight().value().toString()));
         });
     }
 
     private void writeOutput(Context context, Text key, Text value) {
         try {
             context.write(key, value);
+
+            statsOutCounter.increment();
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -156,19 +186,19 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> imple
                     min = Value.MAX_BIG_DECIMAL;
                     max = Value.MIN_BIG_DECIMAL;
                 } else if (cls.equals(Double.class)) {
-                    sum = 0.0;
+                    sum = (double) 0;
                     min = Double.MAX_VALUE;
                     max = Double.MIN_VALUE;
                 } else if (cls.equals(Float.class)) {
-                    sum = 0.0;
+                    sum = (double) 0;
                     min = Float.MAX_VALUE;
                     max = Float.MIN_VALUE;
                 } else if (cls.equals(Long.class)) {
-                    sum = 0;
+                    sum = (double) 0;
                     min = Double.MAX_VALUE;
                     max = Double.MIN_VALUE;
                 } else if (cls.equals(Integer.class)) {
-                    sum = 0;
+                    sum = (double) 0;
                     min = Integer.MAX_VALUE;
                     max = Integer.MIN_VALUE;
                 }

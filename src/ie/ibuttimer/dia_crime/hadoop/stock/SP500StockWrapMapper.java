@@ -39,14 +39,18 @@ public class SP500StockWrapMapper extends AbstractSP500StockBaseMapper<CSWWrappe
 
     public SP500StockWrapMapper() {
         super();
-        setMapperHelper(new StockWrapMapperHelper(
-            getId().toString(), StockWritable.StockEntryWritableBuilder.getInstance()));
     }
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
         setLogger(getClass());
+    }
+
+    protected IAbstractStockMapper getMapperHelper() {
+        return new StockWrapMapperHelper(
+            getId().toString(),
+            StockWritable.StockEntryWritableBuilder.getInstance(getFactors()));
     }
 
     public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {

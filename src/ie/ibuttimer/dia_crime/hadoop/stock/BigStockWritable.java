@@ -428,6 +428,8 @@ public class BigStockWritable extends AbstractStockWritable<BigStockWritable> im
     public static class BigStockEntryWritableBuilder
             extends AbstractBigStockEntryWritableBuilder<BigStockEntryWritableBuilder, BigStockWritable> {
 
+        // TODO add factor support
+
         private static final Logger logger = Logger.getLogger(BigStockEntryWritableBuilder.class);
 
         public static BigStockEntryWritableBuilder getInstance() {

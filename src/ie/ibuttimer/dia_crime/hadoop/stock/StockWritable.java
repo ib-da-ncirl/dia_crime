@@ -31,8 +31,10 @@ import org.apache.log4j.Logger;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
@@ -71,6 +73,8 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
         this.close = close;
         this.adjClose = adjClose;
         this.volume = volume;
+
+        // TODO convert volume to double to reduce data loss when using factors
     }
 
     public StockWritable(StockWritable toCopy) {
@@ -307,39 +311,43 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
             super(logger);
         }
 
+        public AbstractStockEntryWritableBuilder(Logger logger, Map<String, Double> factors) {
+            super(logger, factors);
+        }
+
         @Override
         public B setOpen(String open) {
-            getWritable().setOpen(getDouble(open));
+            getWritable().setOpen(getDouble(open, OPEN_PROP));
             return getThis();
         }
 
         @Override
         public B setHigh(String high) {
-            getWritable().setHigh(getDouble(high));
+            getWritable().setHigh(getDouble(high, HIGH_PROP));
             return getThis();
         }
 
         @Override
         public B setLow(String low) {
-            getWritable().setLow(getDouble(low));
+            getWritable().setLow(getDouble(low, LOW_PROP));
             return getThis();
         }
 
         @Override
         public B setClose(String close) {
-            getWritable().setClose(getDouble(close));
+            getWritable().setClose(getDouble(close, CLOSE_PROP));
             return getThis();
         }
 
         @Override
         public B setAdjClose(String adjClose) {
-            getWritable().setAdjClose(getDouble(adjClose));
+            getWritable().setAdjClose(getDouble(adjClose, ADJCLOSE_PROP));
             return getThis();
         }
 
         @Override
         public B setVolume(String volume) {
-            getWritable().setVolume(getLong(volume));
+            getWritable().setVolume(getLong(volume, VOLUME_PROP));
             return getThis();
         }
 
@@ -359,8 +367,16 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
             return new StockEntryWritableBuilder();
         }
 
+        public static StockEntryWritableBuilder getInstance(Map<String, Double> factors) {
+            return new StockEntryWritableBuilder(factors);
+        }
+
         protected StockEntryWritableBuilder() {
             super(logger);
+        }
+
+        public StockEntryWritableBuilder(Map<String, Double> factors) {
+            super(logger, factors);
         }
 
         @Override

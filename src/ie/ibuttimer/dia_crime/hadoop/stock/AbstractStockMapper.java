@@ -26,16 +26,15 @@ package ie.ibuttimer.dia_crime.hadoop.stock;
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.misc.ConfigReader;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -68,6 +67,8 @@ public abstract class AbstractStockMapper<VO>
     private Text id;
     private StockMapperKey keyOutType;
 
+    private Map<String, Double> factors;
+
     public AbstractStockMapper(String id, StockMapperKey key) {
         this.id = new Text(id);
         this.keyOutType = key;
@@ -86,6 +87,17 @@ public abstract class AbstractStockMapper<VO>
         maxIndex = getMaxIndex();
 
         counter = getCounter(context);
+
+        factors = new HashMap<>();
+        ConfigReader cfgReader = new ConfigReader(getEntryMapperCfg());
+        Map<String, String> factorSetting =
+            cfgReader.readCommaSeparatedKeyColonValueProperty(context.getConfiguration(), FACTOR_PROP);
+
+        factorSetting.entrySet().stream()
+            .filter(es -> getEntryMapperCfg().getPropertyIndices().contains(es.getKey()))
+            .forEach(es -> {
+                factors.put(es.getKey(), Double.valueOf(es.getValue()));
+            });
     }
 
     /**
@@ -99,7 +111,7 @@ public abstract class AbstractStockMapper<VO>
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 
-        if (!skipHeader(key)) {
+        if (!skip(key, value)) {
             /* Date,Open,High,Low,Close,Adj Close,Volume
              */
             String line = value.toString();
@@ -154,16 +166,33 @@ public abstract class AbstractStockMapper<VO>
         this.id = id;
     }
 
+    protected Optional<Double> getFactor(String property) {
+        if (factors.containsKey(property)) {
+            return Optional.of(factors.get(property));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    protected Map<String, Double> getFactors() {
+        return factors;
+    }
+
     protected abstract Counters.MapperCounter getCounter(Context context);
 
-    public static abstract class AbstractStockEntryMapperCfg extends AbstractCsvEntryMapperCfg {
+    public static class StockEntryMapperCfg extends AbstractCsvEntryMapperCfg {
 
         private static Property tagProp = Property.of(STOCK_TAG_PROP, "stock tag", "");
+
+        public StockEntryMapperCfg(String propertyRoot) {
+            super(propertyRoot);
+        }
 
         @Override
         public List<Property> getAdditionalProps() {
             return List.of(tagProp,
-                Property.of(STATS_PATH_PROP, "path for stats output", ""));
+                Property.of(STATS_PATH_PROP, "path for stats output", ""),
+                Property.of(FACTOR_PROP, "list of factors to apply to values", ""));
         }
 
         @Override
