@@ -26,12 +26,19 @@ package ie.ibuttimer.dia_crime.misc;
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import org.apache.hadoop.conf.Configuration;
 
+import static ie.ibuttimer.dia_crime.misc.Constants.DEBUG_PROP;
+
 public enum DebugLevel {
 
     OFF, LOW, MEDIUM, HIGH, VERBOSE;
 
     public static DebugLevel getSetting(Configuration conf, ICsvEntryMapperCfg sCfgChk) {
-        String setting = conf.get(sCfgChk.getPropertyPath(Constants.DEBUG_PROP), OFF.name());
+        String setting = conf.get(sCfgChk.getPropertyPath(DEBUG_PROP), OFF.name());
+        return DebugLevel.valueOf(setting);
+    }
+
+    public static DebugLevel getSetting(Configuration conf, String section) {
+        String setting = conf.get(PropertyWrangler.of(section).getPropertyPath(DEBUG_PROP), OFF.name());
         return DebugLevel.valueOf(setting);
     }
 

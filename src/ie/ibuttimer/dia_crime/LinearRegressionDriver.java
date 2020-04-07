@@ -36,8 +36,8 @@ import org.apache.log4j.Logger;
 
 import java.util.*;
 
-import static ie.ibuttimer.dia_crime.misc.Constants.ECODE_SUCCESS;
-import static ie.ibuttimer.dia_crime.misc.Constants.REGRESSION_PROP_SECTION;
+import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.Constants.ECODE_RUNNING;
 
 
 public class LinearRegressionDriver extends AbstractDriver {
@@ -91,12 +91,17 @@ public class LinearRegressionDriver extends AbstractDriver {
     }
 
 
-    public int runLinearRegressionJob(Properties properties) throws Exception {
+    public int runLinearRegressionJob(JobConfig cfg) throws Exception {
 
-        int resultCode = Constants.ECODE_FAIL;
-        Job job = getLinearRegressionJob(properties);
+        int resultCode = ECODE_FAIL;
+        Job job = getLinearRegressionJob(cfg.properties);
         if (job != null) {
-            resultCode = job.waitForCompletion(true) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
+            if (cfg.wait) {
+                resultCode = job.waitForCompletion(cfg.verbose) ? ECODE_SUCCESS : ECODE_FAIL;
+            } else {
+                job.submit();
+                resultCode = ECODE_RUNNING;
+            }
         }
 
         return resultCode;

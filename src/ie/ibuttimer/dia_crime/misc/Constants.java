@@ -131,6 +131,7 @@ public class Constants {
     public static final int ECODE_CONFIG_ERROR = -1;
     public static final int ECODE_SUCCESS = 0;
     public static final int ECODE_FAIL = 1;
+    public static final int ECODE_RUNNING = 2;
 
     private static MapStringifier.ElementStringify propertyNamer = new MapStringifier.ElementStringify(PROPERTY_SEPARATOR);
 

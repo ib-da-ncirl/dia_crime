@@ -47,11 +47,13 @@ public interface IStats {
     String MAX_KEY_TAG = "MAX";
     String COUNT_KEY_TAG = "CNT";
     String PRODUCT_KEY_TAG = "PRD";
+    String ZERO_KEY_TAG = "ZERO";
 
     MapStringifier.ElementStringify TAG_WRANGLER = new MapStringifier.ElementStringify(KEY_TAG_SPLIT);
     MapStringifier.ElementStringify KEY_PAIR_WRANGLER = new MapStringifier.ElementStringify(KEY_KEY_SPLIT, "\\" + KEY_KEY_SPLIT);
 
-    List<String> KEY_TAGS = Arrays.asList(SUM_KEY_TAG, SQUARE_KEY_TAG, MIN_KEY_TAG, MAX_KEY_TAG, COUNT_KEY_TAG, PRODUCT_KEY_TAG);
+    List<String> KEY_TAGS = Arrays.asList(SUM_KEY_TAG, SQUARE_KEY_TAG, MIN_KEY_TAG, MAX_KEY_TAG,
+        COUNT_KEY_TAG, PRODUCT_KEY_TAG, ZERO_KEY_TAG);
 
     default String getSumKeyTag(String key) {
         return TAG_WRANGLER.stringifyElement(key, SUM_KEY_TAG);
@@ -75,6 +77,10 @@ public interface IStats {
 
     default String getProductKeyTag(String key) {
         return TAG_WRANGLER.stringifyElement(key, PRODUCT_KEY_TAG);
+    }
+
+    default String getZeroKeyTag(String key) {
+        return TAG_WRANGLER.stringifyElement(key, ZERO_KEY_TAG);
     }
 
     default String getKeyPair(String key1, String key2) {
@@ -103,6 +109,10 @@ public interface IStats {
 
     default boolean isProductKeyTag(String key) {
         return key.endsWith(PRODUCT_KEY_TAG);
+    }
+
+    default boolean isZeroKeyTag(String key) {
+        return key.endsWith(ZERO_KEY_TAG);
     }
 
     default boolean isStandardKey(String key) {

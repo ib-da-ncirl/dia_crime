@@ -34,8 +34,11 @@ import ie.ibuttimer.dia_crime.hadoop.weather.WeatherMapper;
 import ie.ibuttimer.dia_crime.misc.Constants;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
+import ie.ibuttimer.dia_crime.misc.Utils;
 import org.apache.commons.cli.*;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.shaded.org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
@@ -43,6 +46,7 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -73,15 +77,19 @@ public class DiaCrimeMain {
     private static final String OPT_HELP = "h";
     private static final String OPT_CFG = "c";
     private static final String OPT_JOB = "j";
+    private static final String OPT_WAIT = "w";
+    private static final String OPT_NO_WAIT = "nw";
     private static final String OPT_LIST_JOBS = "l";
+    private static final String OPT_MULTI_JOB = "m";
 
     /* sample argument lists
         -j weather
         -j stocks
         -j crime
-        -j merge
+        -j merge -c config.properties;merge.properties
         -j stats -c config.properties;stats.properties
         -j linear_regression -c config.properties;regression.properties
+        -m <path to file>
 
         deprecated - disable for now
         // TODO remove stock_stats job
@@ -95,19 +103,19 @@ public class DiaCrimeMain {
     private static final String JOB_MERGE = "merge";
     private static final String JOB_STATS = "stats";
     private static final String JOB_LINEAR_REGRESSION = "linear_regression";
-    private static final List<Pair<String, String>> jobList;
+    private static final List<Triple<String, String, String>> jobList;
     private static final String jobListFmt;
     static {
         jobList = new ArrayList<>();
-        jobList.add(Pair.of(JOB_WEATHER, "process the weather file"));
-        jobList.add(Pair.of(JOB_STOCKS, "process the stock files"));
-//        jobList.add(Pair.of(JOB_STOCK_STATS, "calculate stock statistics"));
-        jobList.add(Pair.of(JOB_CRIME, "process the crime file"));
-        jobList.add(Pair.of(JOB_MERGE, "merge crime, stocks & weather to a single file"));
-        jobList.add(Pair.of(JOB_STATS, "perform basic statistics analysis"));
-        jobList.add(Pair.of(JOB_LINEAR_REGRESSION, "perform a linear regression on merged crime, stocks & weather data"));
+        jobList.add(Triple.of(JOB_WEATHER, "process the weather file", "Weather Job"));
+        jobList.add(Triple.of(JOB_STOCKS, "process the stock files", "Stocks Job"));
+//        jobList.add(Triple.of(JOB_STOCK_STATS, "calculate stock statistics", "Stock Statistics Job"));
+        jobList.add(Triple.of(JOB_CRIME, "process the crime file", "Crime Job"));
+        jobList.add(Triple.of(JOB_MERGE, "merge crime, stocks & weather to a single file", "Merge Job"));
+        jobList.add(Triple.of(JOB_STATS, "perform basic statistics analysis", "Statistics Job"));
+        jobList.add(Triple.of(JOB_LINEAR_REGRESSION, "perform a linear regression on merged crime, stocks & weather data", "Linear Regression Job"));
 
-        OptionalInt width = jobList.stream().map(Pair::getLeft).mapToInt(String::length).max();
+        OptionalInt width = jobList.stream().map(Triple::getLeft).mapToInt(String::length).max();
         StringBuffer sb = new StringBuffer("  %");
         width.ifPresent(w -> sb.append("-").append(w));
         sb.append("s : %s%n");
@@ -121,7 +129,10 @@ public class DiaCrimeMain {
         options.addOption(OPT_CFG, true, "configuration file(s), multiple files separated by '" +
             MULTIPLE_CFG_FILE_SEP + "'");
         options.addOption(OPT_JOB, true, "name of job to run");
+        options.addOption(OPT_WAIT, false, "wait for job completion, [default]");
+        options.addOption(OPT_NO_WAIT, false, "do not wait for job completion");
         options.addOption(OPT_LIST_JOBS, false, "list available jobs");
+        options.addOption(OPT_MULTI_JOB, true, "process multiple jobs as per specified file");
     }
 
     public static void main(String[] args) throws Exception {
@@ -133,12 +144,50 @@ public class DiaCrimeMain {
         try {
             CommandLine cmd = parser.parse(options, args);
 
+            if (cmd.hasOption(OPT_MULTI_JOB)) {
+                String jobFile = cmd.getOptionValue(OPT_MULTI_JOB);
+                if (org.apache.http.util.TextUtils.isEmpty(jobFile)) {
+                    resultCode = ECODE_CONFIG_ERROR;
+                    System.out.format("No job file specified");
+                    app.help();
+                }
+
+                File file = FileUtils.getFile(jobFile);
+                List<String> contents = FileUtils.readLines(file, StandardCharsets.UTF_8);
+
+                for (String jobSpec : contents) {
+                    if (!jobSpec.trim().startsWith(COMMENT_PREFIX)) {
+                        resultCode = app.processJob(jobSpec.split(" "));
+                        if (resultCode != ECODE_SUCCESS) {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                resultCode = app.processJob(args);
+            }
+        } catch (ParseException pe) {
+            System.out.format("%s%n%n", pe.getMessage());
+            app.help();
+            resultCode = ECODE_FAIL;
+        }
+
+        System.exit(resultCode);
+    }
+
+    private int processJob(String[] args) throws Exception {
+
+        CommandLineParser parser = new BasicParser();
+        int resultCode = ECODE_SUCCESS;
+        try {
+            CommandLine cmd = parser.parse(options, args);
+
             if (cmd.hasOption(OPT_HELP)) {
                 // print help
-                app.help();
+                help();
             } else if (cmd.hasOption(OPT_LIST_JOBS)) {
                 // print job list
-                app.jobList();
+                jobList();
             } else {
                 String resourceFile;
                 if (cmd.hasOption(OPT_CFG)) {
@@ -150,53 +199,64 @@ public class DiaCrimeMain {
 
                 if (cmd.hasOption(OPT_JOB)) {
                     // read the config
-                    Properties properties = app.getResources(resourceFile);
+                    Properties properties = getResources(resourceFile);
                     if (properties.isEmpty()) {
                         resultCode = ECODE_CONFIG_ERROR;
                         System.out.format("No configuration specified, properties empty%n%n");
-                        app.help();
+                        help();
                     } else {
                         // run the job
-                        switch (cmd.getOptionValue(OPT_JOB)) {
+                        AbstractDriver.JobConfig jobCfg = AbstractDriver.JobConfig.of(properties,
+                            (!cmd.hasOption(OPT_NO_WAIT)));
+
+                        String name = cmd.getOptionValue(OPT_JOB);
+                        jobList.stream()
+                            .filter(e -> e.getLeft().equals(name))
+                            .findFirst()
+                            .ifPresent(t -> {
+                                logger.info(Utils.getDialog("Running " + t.getRight()));
+                            });
+
+                        switch (name) {
                             case JOB_WEATHER:
-                                resultCode = WeatherDriver.of(app).runWeatherJob(properties);
+                                resultCode = WeatherDriver.of(this).runWeatherJob(jobCfg);
                                 break;
                             case JOB_STOCKS:
-                                resultCode = StockDriver.of(app).runStockJob(properties);
+                                resultCode = StockDriver.of(this).runStockJob(jobCfg);
                                 break;
 //                            case JOB_STOCK_STATS:
-//                                resultCode = StockDriver.of(app).runStockStatsJob(properties);
+//                                resultCode = StockDriver.of(this).runStockStatsJob(properties);
 //                                break;
                             case JOB_CRIME:
-                                resultCode = CrimeDriver.of(app).runCrimeJob(properties);
+                                resultCode = CrimeDriver.of(this).runCrimeJob(jobCfg);
                                 break;
                             case JOB_MERGE:
-                                resultCode = MergeDriver.of(app).runMergeJob(properties);
+                                resultCode = MergeDriver.of(this).runMergeJob(jobCfg);
                                 break;
                             case JOB_STATS:
-                                resultCode = StatsDriver.of(app).runStatsJob(properties);
+                                resultCode = StatsDriver.of(this).runStatsJob(jobCfg);
                                 break;
                             case JOB_LINEAR_REGRESSION:
-                                resultCode = LinearRegressionDriver.of(app).runLinearRegressionJob(properties);
+                                resultCode = LinearRegressionDriver.of(this).runLinearRegressionJob(jobCfg);
                                 break;
                             default:
                                 System.out.format("Unknown job: %s%n%n", cmd.getOptionValue(OPT_JOB));
-                                app.jobList();
+                                jobList();
                                 resultCode = ECODE_CONFIG_ERROR;
                         }
                     }
                 } else {
                     System.out.format("No arguments specified%n%n");
-                    app.help();
+                    help();
                 }
             }
         } catch (ParseException pe) {
             System.out.format("%s%n%n", pe.getMessage());
-            app.help();
+            help();
             resultCode = ECODE_FAIL;
         }
 
-        System.exit(resultCode);
+        return resultCode;
     }
 
     private void help() {
@@ -206,7 +266,7 @@ public class DiaCrimeMain {
 
     private void jobList() {
         System.out.println("Job List");
-        jobList.forEach(pair -> System.out.format(jobListFmt, pair.getLeft(), pair.getRight()));
+        jobList.forEach(job -> System.out.format(jobListFmt, job.getLeft(), job.getRight()));
     }
 
 

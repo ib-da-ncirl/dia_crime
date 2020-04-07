@@ -26,7 +26,6 @@ package ie.ibuttimer.dia_crime.hadoop.stats;
 import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
@@ -98,8 +97,9 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> imple
 
             Triple <Value, Value, Value> collectors = initialiseCollectors(key1);
             Value summer = collectors.getLeft();
+            Value zeroCnt = Value.of(0L);
 
-            AtomicLong entryCount = new AtomicLong();
+            AtomicLong entryCount = new AtomicLong(0);
             List<Pair<Text, Value>> outputList = new ArrayList<>();
 
             if (isStandardKey(keyStr)) {
@@ -107,11 +107,10 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> imple
                 Value maximiser = collectors.getRight();
 
                 values.forEach(writable -> {
-                    summer.add(writable);
+                    reduceStd(writable, summer, zeroCnt);
                     minimiser.min(writable);
                     maximiser.max(writable);
 
-                    counter.increment();
                     entryCount.incrementAndGet();
                 });
                 /* output following key/values:
@@ -125,25 +124,37 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> imple
             } else {
                 // slight duplication but min/min not required for squared/product values and it'll be quicker
                 values.forEach(writable -> {
-                    summer.add(writable);
+                    reduceStd(writable, summer, zeroCnt);
 
-                    counter.increment();
                     entryCount.incrementAndGet();
                 });
             }
+            counter.incrementValue(entryCount.get());
 
             /* always output following key/values:
                 <key>-SUM - sum of values
                 <key>-CNT - count of values
+                <key>-ZERO - count of zero values
              */
             // write count to file
-            Map<String, String> map = Map.of(COUNT_PROP, Long.toString(entryCount.get()));
             outputList.addAll(List.of(
                 Pair.of(new Text(getSumKeyTag(keyStr)), summer),
-                Pair.of(new Text(getCountKeyTag(keyStr)), Value.of(MapStringifier.stringify(map)))
+                Pair.of(new Text(getCountKeyTag(keyStr)), Value.of(entryCount.get())),
+                Pair.of(new Text(getZeroKeyTag(keyStr)), zeroCnt)
             ));
 
             writeOutput(context, outputList);
+        });
+    }
+
+    private void reduceStd(Value value, Value summer, Value zeroCnt) {
+
+        summer.add(value);
+
+        value.asDouble(d -> {
+            if (d == 0.0) {
+                zeroCnt.add(1);
+            }
         });
     }
 

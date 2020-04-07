@@ -27,7 +27,7 @@ import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Result {
     private Map<String, Double> values;
@@ -112,6 +112,28 @@ public class Result {
 
     public void setMax(double max) {
         set(AbstractStatsCalc.Stat.MAX, max);
+    }
+
+    private Optional<Long> getOptLong(AbstractStatsCalc.Stat stat) {
+        AtomicReference<Optional<Long>> value = new AtomicReference<>(Optional.empty());
+        getStat(stat).ifPresent(c -> value.set(Optional.of(c.longValue())));
+        return value.get();
+    }
+
+    public Optional<Long> getCount() {
+        return getOptLong(AbstractStatsCalc.Stat.COUNT);
+    }
+
+    public void setCount(double count) {
+        set(AbstractStatsCalc.Stat.COUNT, count);
+    }
+
+    public Optional<Long> getZeroCount() {
+        return getOptLong(AbstractStatsCalc.Stat.ZERO_COUNT);
+    }
+
+    public void setZeroCount(double count) {
+        set(AbstractStatsCalc.Stat.ZERO_COUNT, count);
     }
 
     public Optional<Double> getCorrelation() {

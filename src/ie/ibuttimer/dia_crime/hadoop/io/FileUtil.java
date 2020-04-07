@@ -26,14 +26,12 @@ package ie.ibuttimer.dia_crime.hadoop.io;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 
-import java.io.BufferedWriter;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class FileUtil {
 
@@ -88,7 +86,6 @@ public class FileUtil {
     }
 
     public FSDataOutputStream fileWriteOpen(Path filePath, boolean overwrite) throws IOException {
-        FSDataOutputStream stream = null;
         if (fileExists(filePath) && !overwrite) {
             throw new InvalidRequestException("Unable to create '" + filePath + "' as it already exists. " +
                     "Specify 'overwrite' as true to overwrite");
@@ -112,7 +109,6 @@ public class FileUtil {
         return fileWriteOpen(path, false);
     }
 
-
     public void write(FSDataOutputStream stream, List<String> lines) throws IOException {
         try (OutputStreamWriter outputStreamWriter = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
                 BufferedWriter bufferedWriter = new BufferedWriter(outputStreamWriter)) {
@@ -135,8 +131,104 @@ public class FileUtil {
         write(stream, Collections.singletonList(""));
     }
 
+    public List<String> read(FSDataInputStream stream) throws IOException {
+        List<String> contents = List.of();
+        try (InputStreamReader inputStreamReader = new InputStreamReader(stream, StandardCharsets.UTF_8);
+             BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
+
+            contents = bufferedReader.lines().collect(Collectors.toList());
+        }
+        return contents;
+    }
+
+
     public void close() throws IOException {
         fileSystem.close();
+    }
+
+
+    public static class FileWriter {
+
+        private FileUtil fileUtil;
+        private FSDataOutputStream stream;
+        private OutputStreamWriter outputStreamWriter;
+        private BufferedWriter bufferedWriter;
+
+        public FileWriter(Path path, Configuration conf) {
+            fileUtil = new FileUtil(path, conf);
+        }
+
+        public FileWriter open(Path filePath, boolean overwrite) {
+            try {
+                stream = fileUtil.fileWriteOpen(filePath, overwrite);
+            } catch (IOException e) {
+                e.printStackTrace();
+                close();
+            }
+            return this;
+        }
+
+        public FileWriter open(String filename, boolean overwrite) {
+            try {
+                stream = fileUtil.fileWriteOpen(filename, overwrite);
+            } catch (IOException e) {
+                e.printStackTrace();
+                close();
+            }
+            return this;
+        }
+
+        public FileWriter write(List<String> lines) {
+            if (fileUtil == null) {
+                throw new IllegalStateException("Writer is closed");
+            }
+            if (outputStreamWriter == null) {
+                outputStreamWriter = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
+                bufferedWriter = new BufferedWriter(outputStreamWriter);
+            }
+
+            try {
+                lines.forEach(l -> {
+                    try {
+                        bufferedWriter.write(l);
+                        bufferedWriter.newLine();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                close();
+            }
+            return this;
+        }
+
+        public FileWriter write(String line) {
+            return write(Collections.singletonList(line));
+        }
+
+        public FileWriter newline() {
+            return write(Collections.singletonList(""));
+        }
+
+        public void close() {
+            try {
+                if (bufferedWriter != null) {
+                    bufferedWriter.close();
+                }
+                if (outputStreamWriter != null) {
+                    outputStreamWriter.close();
+                }
+                if (stream != null) {
+                    stream.close();
+                }
+                if (fileUtil != null) {
+                    fileUtil.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
 }

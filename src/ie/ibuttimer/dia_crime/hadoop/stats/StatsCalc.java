@@ -80,6 +80,12 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
                     case MAX:
                         req.add(MAX_KEY_TAG);
                         break;
+                    case COUNT:
+                        req.add(COUNT_KEY_TAG);
+                        break;
+                    case ZERO_COUNT:
+                        req.add(ZERO_KEY_TAG);
+                        break;
                 }
             });
 
@@ -87,20 +93,23 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
             AtomicReference<Value> sumOfSq = new AtomicReference<>();
             AtomicReference<Value> min = new AtomicReference<>();
             AtomicReference<Value> max = new AtomicReference<>();
-            long count = -1;
+            AtomicReference<Value> count = new AtomicReference<>();
+            AtomicReference<Value> zero = new AtomicReference<>();
             for (String key : req) {
                 switch (key) {
                     case SQUARE_KEY_TAG:    readEntry(lines, getSquareKeyTag(id)).ifPresent(sumOfSq::set);  break;
                     case SUM_KEY_TAG:       readEntry(lines, getSumKeyTag(id)).ifPresent(sum::set);         break;
-                    case COUNT_KEY_TAG:     count = readLong(lines, getCountKeyTag(id), COUNT_PROP);        break;
+                    case COUNT_KEY_TAG:     readEntry(lines, getCountKeyTag(id)).ifPresent(count::set);     break;
                     case MIN_KEY_TAG:       readEntry(lines, getMinKeyTag(id)).ifPresent(min::set);         break;
                     case MAX_KEY_TAG:       readEntry(lines, getMaxKeyTag(id)).ifPresent(max::set);         break;
+                    case ZERO_KEY_TAG:      readEntry(lines, getZeroKeyTag(id)).ifPresent(zero::set);       break;
                 }
             }
 
             Value finalSumOfSq = sumOfSq.get();
             Value finalSum = sum.get();
-            long finalCount = count;
+            Value finalCount = count.get();
+            Value finalZero = zero.get();
             Value finalMin = min.get();
             Value finalMax = max.get();
             Result result = new Result();
@@ -108,34 +117,35 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
                 switch (stat) {
                     case STDDEV:
                     case VARIANCE:
-                        if (finalSum.isPresent() && finalSumOfSq.isPresent()) {
+                        if (finalSum.isPresent() && finalSumOfSq.isPresent() && finalCount.isPresent()) {
                             if (stat == STDDEV) {
                                 result.setStddev(
-                                    calcStdDev(finalSum, finalSumOfSq, finalCount)
+                                    calcStdDev(finalSum, finalSumOfSq, finalCount.longValue())
                                 );
                             } else {
                                 result.setVariance(
-                                    calcVariance(finalSum, finalSumOfSq, finalCount)
+                                    calcVariance(finalSum, finalSumOfSq, finalCount.longValue())
                                 );
                             }
                         }
                         break;
                     case MEAN:
-                        if (finalSum.isPresent()) {
-                            double meanVal = calcMean(finalSum, finalCount);
+                        if (finalSum.isPresent() && finalCount.isPresent()) {
+                            double meanVal = calcMean(finalSum, finalCount.longValue());
                             result.setMean(meanVal);
                         }
                         break;
                     case MIN:
-                        if (finalMin.isPresent()) {
-                            result.setMin(finalMin.doubleValue());
-                        }
+                        finalMin.asDouble(result::setMin);
                         break;
                     case MAX:
-                        assert finalMax != null;
-                        if (finalMax.isPresent()) {
-                            result.setMax(finalMax.doubleValue());
-                        }
+                        finalMax.asDouble(result::setMax);
+                        break;
+                    case COUNT:
+                        finalCount.asLong(result::setCount);
+                        break;
+                    case ZERO_COUNT:
+                        finalZero.asLong(result::setZeroCount);
                         break;
                 }
                 resultSet.set(id, result);
@@ -191,28 +201,18 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
                     };
                     List.of(Pair.of(SUMOFX, idX), Pair.of(SUMOFY, idY)).forEach(consumer);
 
-                    req.add(getCountKeyTag(idX));
+                    String tag = getCountKeyTag(idX);
+                    corTags.put(COUNTOFXY, tag);
+                    req.add(tag);
                 }
             });
 
             Map<String, Value> valueMap = new HashMap<>();
-            long count = -1;
-            String countKey = "";
             for (String key : req) {
-                if (isCountKey(key)) {
-                    count = readLong(lines, key, COUNT_PROP);
-                    countKey = key;
-                } else {
-                    readEntry(lines, key).ifPresent(v -> valueMap.put(key, v));
-                }
-            }
-            if (count < 0) {
-                throw new IllegalStateException("Missing count value");
+                readEntry(lines, key).ifPresent(v -> valueMap.put(key, v));
             }
 
             Result result = new Result();
-            long finalCount = count;
-            String finalCountKey = countKey;
             stats.forEach(stat -> {
                 if (stat == Stat.COR) {
                     String sumOfPrdTag = null;
@@ -245,7 +245,6 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
                     corTags.values().stream()
                         .filter(valKey -> !valKey.equals(finalSumOfPrdTagReverse))
                         .forEach(valKey -> params.put(valKey, valueMap.get(valKey)));
-                    params.put(finalCountKey, Value.of(finalCount));
 
                     result.setCorrelation(
                         calcCorrelation(
@@ -253,7 +252,8 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
                             valueMap.get(corTags.get(SUMOFX)),
                             valueMap.get(corTags.get(SUMOFY)),
                             valueMap.get(corTags.get(SUMOFXSQ)),
-                            valueMap.get(corTags.get(SUMOFYSQ)), finalCount),
+                            valueMap.get(corTags.get(SUMOFYSQ)),
+                            valueMap.get(corTags.get(COUNTOFXY)).longValue()),
                         params
                     );
                 }

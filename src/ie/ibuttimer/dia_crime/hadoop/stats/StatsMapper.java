@@ -101,8 +101,8 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 
         if (!skipHeader(key)) {
-
             if (skipComment(value)) {
+                // verify parameters specified in input file
                 ICsvEntryMapperCfg cfg = getEntryMapperCfg();
                 Configuration conf = context.getConfiguration();
                 String section = cfg.getPropertyRoot();

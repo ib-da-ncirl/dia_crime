@@ -163,4 +163,28 @@ public abstract class AbstractDriver {
         });
     }
 
+    public static class JobConfig {
+
+        Properties properties;
+        boolean wait;
+        boolean verbose;
+
+        private JobConfig(Properties properties) {
+            this(properties , true);
+        }
+
+        private JobConfig(Properties properties, boolean wait) {
+            this.properties = properties;
+            this.wait = wait;
+            this.verbose = true;
+        }
+
+        public static JobConfig of(Properties properties, boolean wait) {
+            return new JobConfig(properties, wait);
+        }
+
+        public static JobConfig of(Properties properties) {
+            return new JobConfig(properties);
+        }
+    }
 }

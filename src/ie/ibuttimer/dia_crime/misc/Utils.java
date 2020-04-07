@@ -25,17 +25,17 @@ package ie.ibuttimer.dia_crime.misc;
 
 import org.apache.log4j.Logger;
 
-import java.lang.reflect.InvocationTargetException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -189,4 +189,30 @@ public class Utils {
         return getDate(date, formatter, logger);
     }
 
+
+    public static String banner(int length, char chr) {
+        char[] line = new char[length];
+        Arrays.fill(line, chr);
+        return new String(line);
+    }
+
+    public static String heading(String heading) {
+        return String.format("%s%n%s%n", heading, banner(heading.length(), '-'));
+    }
+
+    public static String getDialog(List<String> lines) {
+        AtomicInteger maxLen = new AtomicInteger(25);
+        lines.stream().mapToInt(String::length).max().ifPresent(maxLen::set);
+        String banner = banner(maxLen.get(), '*');
+        String ls = System.getProperty("line.separator");
+        StringBuilder sb = new StringBuilder(ls);
+        sb.append(banner).append(ls);
+        lines.forEach(sb::append);
+        sb.append(ls).append(banner).append(ls);
+        return sb.toString();
+    }
+
+    public static String getDialog(String line) {
+        return getDialog(Collections.singletonList(line));
+    }
 }

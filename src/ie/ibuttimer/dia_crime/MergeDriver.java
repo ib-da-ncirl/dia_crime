@@ -107,12 +107,17 @@ public class MergeDriver extends AbstractDriver {
     }
 
 
-    public int runMergeJob(Properties properties) throws Exception {
+    public int runMergeJob(JobConfig cfg) throws Exception {
 
         int resultCode = Constants.ECODE_FAIL;
-        Job job = getMergeJob(properties);
+        Job job = getMergeJob(cfg.properties);
         if (job != null) {
-            resultCode = job.waitForCompletion(true) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
+            if (cfg.wait) {
+                resultCode = job.waitForCompletion(cfg.verbose) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
+            } else {
+                job.submit();
+                resultCode = ECODE_RUNNING;
+            }
         }
 
         return resultCode;

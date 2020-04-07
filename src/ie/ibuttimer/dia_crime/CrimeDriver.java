@@ -36,7 +36,8 @@ import org.apache.log4j.Logger;
 
 import java.util.*;
 
-import static ie.ibuttimer.dia_crime.misc.Constants.CRIME_PROP_SECTION;
+import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.Constants.ECODE_RUNNING;
 
 
 public class CrimeDriver extends AbstractDriver {
@@ -89,12 +90,17 @@ public class CrimeDriver extends AbstractDriver {
     }
 
 
-    public int runCrimeJob(Properties properties) throws Exception {
+    public int runCrimeJob(JobConfig cfg) throws Exception {
 
         int resultCode = Constants.ECODE_FAIL;
-        Job job = getCrimeJob(properties);
+        Job job = getCrimeJob(cfg.properties);
         if (job != null) {
-            resultCode = job.waitForCompletion(true) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
+            if (cfg.wait) {
+                resultCode = job.waitForCompletion(cfg.verbose) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
+            } else {
+                job.submit();
+                resultCode = ECODE_RUNNING;
+            }
         }
 
         return resultCode;

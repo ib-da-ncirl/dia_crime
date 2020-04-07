@@ -25,6 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop.stats;
 
 import com.google.common.base.Charsets;
 import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
+import ie.ibuttimer.dia_crime.misc.DebugLevel;
 import ie.ibuttimer.dia_crime.misc.Functional;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Value;
@@ -57,6 +58,8 @@ public abstract class AbstractStatsCalc implements IStats {
         MEAN,       // mean
         MIN,        // min
         MAX,        // max
+        COUNT,      // value count
+        ZERO_COUNT, // zero value count
         COR;        // pearson correlation coefficient
 
         public static List<Stat> singleElementValues() {
@@ -76,6 +79,7 @@ public abstract class AbstractStatsCalc implements IStats {
     protected static final String SUMOFY = "sumOfY";
     protected static final String SUMOFXSQ = "sumOfXSq";
     protected static final String SUMOFYSQ = "sumOfYSq";
+    protected static final String COUNTOFXY = "countOfYSq";
 
     private String filename;
     private FileUtil fileUtil;
@@ -200,7 +204,7 @@ public abstract class AbstractStatsCalc implements IStats {
         return calcStat(id1, id2, Stat.COR, fields);
     }
 
-    public Result.Set calcAllCorrelation(List<String> fields) throws IOException {
+    public Result.Set calcAllCorrelation(List<String> fields, Logger logger) throws IOException {
         Result.Set results = new Result.Set();
 
         List<String> sortedFields = fields.stream().sorted().collect(Collectors.toList());
@@ -213,6 +217,11 @@ public abstract class AbstractStatsCalc implements IStats {
                 .forEach(
                     Functional.exceptionLoggingConsumer(
                         id2 -> {
+
+                            if (logger != null) {
+                                logger.info("- " + id1 + " " + id2);
+                            }
+
                             Result.Set res = calcCorrelation(id1, id2, fields);
                             res.entryList().forEach(e -> results.set(e.getKey(), e.getValue()));
                         }, IOException.class, logger

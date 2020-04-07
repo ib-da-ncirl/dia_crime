@@ -89,12 +89,17 @@ public class WeatherDriver extends AbstractDriver {
         return job;
     }
 
-    public int runWeatherJob(Properties properties) throws Exception {
+    public int runWeatherJob(JobConfig cfg) throws Exception {
 
-        int resultCode = Constants.ECODE_FAIL;
-        Job job = getWeatherJob(properties);
+        int resultCode = ECODE_FAIL;
+        Job job = getWeatherJob(cfg.properties);
         if (job != null) {
-            resultCode = job.waitForCompletion(true) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
+            if (cfg.wait) {
+                resultCode = job.waitForCompletion(cfg.verbose) ? ECODE_SUCCESS : ECODE_FAIL;
+            } else {
+                job.submit();
+                resultCode = ECODE_RUNNING;
+            }
         }
 
         return resultCode;

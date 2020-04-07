@@ -240,13 +240,8 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
             inCount.ifPresent(in -> {
                 outCount.ifPresent(out -> {
                     if (!in.equals(out)) {
-                        String ls = System.getProperty("line.separator");
-                        String banner = "******************************";
-                        StringBuilder sb = new StringBuilder(ls);
-                        sb.append(banner).append(ls)
-                            .append("ALERT: Day in/out count mismatch: in=").append(in).append(" out=").append(out)
-                            .append(banner).append(ls);
-                        getLogger().warn(sb.toString());
+                        getLogger().warn(Utils.getDialog("ALERT: Day in/out count mismatch: in=" + in +
+                            " out=" + out));
                     }
                 });
             });
