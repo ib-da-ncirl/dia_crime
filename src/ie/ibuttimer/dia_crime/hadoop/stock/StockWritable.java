@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
@@ -46,15 +45,15 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
     private double low;
     private double close;
     private double adjClose;
-    private long volume;
+    private double volume;
 
     public static final StockWritable MIN_VALUE;
     public static final StockWritable MAX_VALUE;
     static {
         MIN_VALUE = new StockWritable(Double.MIN_VALUE, Double.MIN_VALUE, Double.MIN_VALUE, Double.MIN_VALUE,
-                Double.MIN_VALUE, Long.MIN_VALUE, "");
+                Double.MIN_VALUE, Double.MIN_VALUE, "");
         MAX_VALUE = new StockWritable(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE,
-                Double.MAX_VALUE, Long.MAX_VALUE, "");
+                Double.MAX_VALUE, Double.MAX_VALUE, "");
     }
 
     /* Date,Open,High,Low,Close,Adj Close,Volume
@@ -65,7 +64,7 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
         this(0, 0, 0, 0, 0, 0, "");
     }
 
-    public StockWritable(double open, double high, double low, double close, double adjClose, long volume, String id) {
+    public StockWritable(double open, double high, double low, double close, double adjClose, double volume, String id) {
         super(id);
         this.open = open;
         this.high = high;
@@ -73,8 +72,6 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
         this.close = close;
         this.adjClose = adjClose;
         this.volume = volume;
-
-        // TODO convert volume to double to reduce data loss when using factors
     }
 
     public StockWritable(StockWritable toCopy) {
@@ -100,7 +97,7 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
         dataOutput.writeDouble(low);
         dataOutput.writeDouble(close);
         dataOutput.writeDouble(adjClose);
-        dataOutput.writeLong(volume);
+        dataOutput.writeDouble(volume);
     }
 
     @Override
@@ -163,11 +160,11 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
         this.adjClose = adjClose;
     }
 
-    public long getVolume() {
+    public double getVolume() {
         return volume;
     }
 
-    public void setVolume(long volume) {
+    public void setVolume(double volume) {
         this.volume = volume;
     }
 
@@ -200,17 +197,10 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
                     case LOW_PROP:      setLow(v);      break;
                     case CLOSE_PROP:    setClose(v);    break;
                     case ADJCLOSE_PROP: setAdjClose(v); break;
+                    case VOLUME_PROP:   setVolume(v);   break;
                     default:            set.set(false); break;
                 }
             });
-            if (!set.get()) {
-                Value.ifLong(value, v -> {
-                    if (VOLUME_PROP.equals(field)) {
-                        setVolume(v);
-                        set.set(true);
-                    }
-                });
-            }
         }
         return set.get();
     }
@@ -244,7 +234,7 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
         this.low = Double.min(this.low, other.low);
         this.close = Double.min(this.close, other.close);
         this.adjClose = Double.min(this.adjClose, other.adjClose);
-        this.volume = Long.min(this.volume, other.volume);
+        this.volume = Double.min(this.volume, other.volume);
     }
 
     @Override
@@ -254,7 +244,7 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
         this.low = Double.max(this.low, other.low);
         this.close = Double.max(this.close, other.close);
         this.adjClose = Double.max(this.adjClose, other.adjClose);
-        this.volume = Long.max(this.volume, other.volume);
+        this.volume = Double.max(this.volume, other.volume);
     }
 
     @Override
@@ -347,7 +337,7 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
 
         @Override
         public B setVolume(String volume) {
-            getWritable().setVolume(getLong(volume, VOLUME_PROP));
+            getWritable().setVolume(getDouble(volume, VOLUME_PROP));
             return getThis();
         }
 
