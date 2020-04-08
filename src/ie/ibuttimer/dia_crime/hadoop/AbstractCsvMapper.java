@@ -28,7 +28,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.shaded.org.apache.http.util.TextUtils;
+import org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -37,6 +37,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -51,14 +52,12 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
 
     public static final String DEFAULT_SEPARATOR = ",";
     public static final boolean DEFAULT_HAS_HEADER = false;
-    public static final String DEFAULT_DATE_TIME_FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME.toString();
+//    public static final String DEFAULT_DATE_TIME_FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     /** Separator for csv file */
     private String separator = DEFAULT_SEPARATOR;
     /** Csv file has a header line flag */
     private boolean hasHeader = DEFAULT_HAS_HEADER;
-    /** java.time.format.DateTimeFormatter pattern for format of dates */
-    private String dateTimeFmt = DEFAULT_DATE_TIME_FMT;
     /** Number of columns in csv file */
     private int numIndices = 0;
 
@@ -81,13 +80,18 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
 
         separator = conf.get(getPropertyPath(SEPARATOR_PROP), DEFAULT_SEPARATOR);
         hasHeader = conf.getBoolean(getPropertyPath(HAS_HEADER_PROP), DEFAULT_HAS_HEADER);
-        dateTimeFmt = conf.get(getPropertyPath(DATE_FORMAT_PROP), DEFAULT_DATE_TIME_FMT);
         numIndices = conf.getInt(getPropertyPath(NUM_INDICES_PROP), 0);
 
-        dateTimeFormatter = new DateTimeFormatterBuilder()
-            .parseCaseInsensitive()
-            .appendPattern(dateTimeFmt)
-            .toFormatter();
+        /* java.time.format.DateTimeFormatter pattern for format of dates */
+        String dateTimeFmt = conf.get(getPropertyPath(DATE_FORMAT_PROP), "");
+        if (TextUtils.isEmpty(dateTimeFmt)) {
+            dateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+        } else {
+            dateTimeFormatter = new DateTimeFormatterBuilder()
+                .parseCaseInsensitive()
+                .appendPattern(dateTimeFmt)
+                .toFormatter();
+        }
 
         dateFilter = new DateFilter(conf.get(getPropertyPath(FILTER_START_DATE_PROP), ""),
                 conf.get(getPropertyPath(FILTER_END_DATE_PROP), ""));
@@ -249,6 +253,17 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
         return Pair.of(dateFilter.filter(ld), ld);
     }
 
+    public List<String> readSeparatedString(String value, String separator) {
+        return Arrays.stream(value.split(separator))
+            .map(String::trim)
+            .collect(Collectors.toList());
+    }
+
+    public List<String> readCommaSeparatedString(String value) {
+        return readSeparatedString(value, ",");
+    }
+
+
     public abstract static class AbstractCsvEntryMapperCfg implements ICsvEntryMapperCfg {
 
         private PropertyWrangler propertyWrangler;
@@ -278,7 +293,7 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
             propDefault.put(DEBUG_PROP, DebugLevel.OFF.name());
             propDefault.put(SEPARATOR_PROP, DEFAULT_SEPARATOR);
             propDefault.put(HAS_HEADER_PROP, Boolean.toString(DEFAULT_HAS_HEADER));
-            propDefault.put(DATE_FORMAT_PROP, DEFAULT_DATE_TIME_FMT);
+            propDefault.put(DATE_FORMAT_PROP, "");
             propDefault.put(NUM_INDICES_PROP, "0");
             DATE_FILTER_PROPS.forEach((p -> propDefault.put(p, "")));
             getPropertyIndices().forEach(p -> propDefault.put(p, "-1"));

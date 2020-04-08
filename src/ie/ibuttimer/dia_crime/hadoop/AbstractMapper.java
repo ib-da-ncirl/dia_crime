@@ -151,6 +151,15 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
         return line.toString().startsWith(Constants.COMMENT_PREFIX);
     }
 
+    /**
+     * Check if the line is a empty should be skipped
+     * @param line  line
+     * @return      True if line should be skipped
+     */
+    public boolean skipEmpty(Text line) {
+        return TextUtils.isEmpty(line.toString());
+    }
+
 
     public DebugLevel getDebugLevel() {
         return debugLevel;

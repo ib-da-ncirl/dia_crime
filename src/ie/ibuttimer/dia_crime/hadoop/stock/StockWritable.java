@@ -108,7 +108,7 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
         this.low = dataInput.readDouble();
         this.close = dataInput.readDouble();
         this.adjClose = dataInput.readDouble();
-        this.volume = dataInput.readLong();
+        this.volume = dataInput.readDouble();
     }
 
     public static StockWritable readWritable(DataInput dataInput, StockWritable obj) throws IOException {

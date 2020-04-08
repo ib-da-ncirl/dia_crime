@@ -49,6 +49,10 @@ public enum CountersEnum {
     REGRESSION_MAPPER_COUNT,
     REGRESSION_REDUCER_COUNT,
 
+    // Matrix
+    MATRIX_MAPPER_COUNT,
+    MATRIX_REDUCER_COUNT,
+
     // Stats
     STATS_MAPPER_COUNT,
     STATS_REDUCER_COUNT,

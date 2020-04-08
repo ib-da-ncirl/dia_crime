@@ -24,6 +24,7 @@
 package ie.ibuttimer.dia_crime.misc;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.matrix.MatrixMapper;
 import org.apache.hadoop.conf.Configuration;
 
 import java.util.Arrays;
@@ -60,6 +61,8 @@ public class Constants {
     public static final String WEATHER_PROP_SECTION = "weather";
     public static final String REGRESSION_PROP_SECTION = "regression";
     public static final String STATS_PROP_SECTION = "stats";
+    public static final String MATRIX_PROP_1_SECTION = "matrix1";
+    public static final String MATRIX_PROP_2_SECTION = "matrix2";
 
     // common properties
     public static final String DEBUG_PROP = "debug";
@@ -127,6 +130,12 @@ public class Constants {
     public static final String VARIABLES_PROP = "variables";
 
     public static final String VARIABLES_NUMERIC = "numeric";
+
+    // matrix specific properties
+    public static final String SPEC_PROP = "spec";
+    public static final String SPEC_OTHER_PROP = "spec_other";
+
+
 
     public static final int ECODE_CONFIG_ERROR = -1;
     public static final int ECODE_SUCCESS = 0;

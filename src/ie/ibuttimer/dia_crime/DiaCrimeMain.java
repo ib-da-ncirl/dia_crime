@@ -25,6 +25,7 @@ package ie.ibuttimer.dia_crime;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeMapper;
+import ie.ibuttimer.dia_crime.hadoop.matrix.MatrixMapper;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionMapper;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.DowJonesStockMapper;
@@ -69,6 +70,8 @@ public class DiaCrimeMain {
         propDefaults.put(WEATHER_PROP_SECTION, WeatherMapper.getCsvEntryMapperCfg());
         propDefaults.put(STATS_PROP_SECTION, StatsMapper.getCsvEntryMapperCfg());
         propDefaults.put(REGRESSION_PROP_SECTION, RegressionMapper.getCsvEntryMapperCfg());
+        propDefaults.put(MATRIX_PROP_1_SECTION, MatrixMapper.MatrixMapper1.getCsvEntryMapperCfg());
+        propDefaults.put(MATRIX_PROP_2_SECTION, MatrixMapper.MatrixMapper2.getCsvEntryMapperCfg());
     }
 
     private static final String DEFLT_CFG_FILE = "config.properties";
@@ -89,6 +92,7 @@ public class DiaCrimeMain {
         -j merge -c config.properties;merge.properties
         -j stats -c config.properties;stats.properties
         -j linear_regression -c config.properties;regression.properties
+        -j matrix_multiply -c config.properties;matrix.properties
         -m <path to file>
 
         deprecated - disable for now
@@ -103,6 +107,7 @@ public class DiaCrimeMain {
     private static final String JOB_MERGE = "merge";
     private static final String JOB_STATS = "stats";
     private static final String JOB_LINEAR_REGRESSION = "linear_regression";
+    private static final String JOB_MATRIX_MULTIPLY = "matrix_multiply";
     private static final List<Triple<String, String, String>> jobList;
     private static final String jobListFmt;
     static {
@@ -114,6 +119,7 @@ public class DiaCrimeMain {
         jobList.add(Triple.of(JOB_MERGE, "merge crime, stocks & weather to a single file", "Merge Job"));
         jobList.add(Triple.of(JOB_STATS, "perform basic statistics analysis", "Statistics Job"));
         jobList.add(Triple.of(JOB_LINEAR_REGRESSION, "perform a linear regression on merged crime, stocks & weather data", "Linear Regression Job"));
+        jobList.add(Triple.of(JOB_MATRIX_MULTIPLY, "perform a matrix multiplication", "Matrix Multiplication Job"));
 
         OptionalInt width = jobList.stream().map(Triple::getLeft).mapToInt(String::length).max();
         StringBuffer sb = new StringBuffer("  %");
@@ -238,6 +244,9 @@ public class DiaCrimeMain {
                                 break;
                             case JOB_LINEAR_REGRESSION:
                                 resultCode = LinearRegressionDriver.of(this).runLinearRegressionJob(jobCfg);
+                                break;
+                            case JOB_MATRIX_MULTIPLY:
+                                resultCode = MatrixDriver.of(this).runMatrixJob(jobCfg);
                                 break;
                             default:
                                 System.out.format("Unknown job: %s%n%n", cmd.getOptionValue(OPT_JOB));
