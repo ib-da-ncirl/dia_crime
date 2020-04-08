@@ -43,6 +43,13 @@ import java.util.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
 
+/**
+ * Reducer for a crime entry
+ * - input key : date
+ * - input value : MapWritable<date, CrimeWritable>
+ * - output key : date
+ * - output value : value string of <category>:<count> separated by ','
+ */
 public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text> implements ICrimeReducer {
 
     private Map<String, Class<?>> outputTypes;
@@ -84,6 +91,13 @@ public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text>
         saveOutputTypes(context,this, getLogger());
     }
 
+    /**
+     * Reduce inputs to totals per FBI code category
+     * @param values
+     * @param counter
+     * @param reducer
+     * @return
+     */
     public static Map<String, Integer> reduceToTotalsPerCategory(
         List<CrimeWritable> values, Counters.ReducerCounter counter, ICrimeReducer reducer) {
 
@@ -122,7 +136,12 @@ public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text>
         return map;
     }
 
-
+    /**
+     * Save the types of the crime properties to file
+     * @param context
+     * @param reducer
+     * @param logger
+     */
     public static void saveOutputTypes(Reducer<?,?,?,?>.Context context, ICrimeReducer reducer, Logger logger) {
         // TODO check this in case of multiple reducers
         if (context.getProgress() == 1.0) {

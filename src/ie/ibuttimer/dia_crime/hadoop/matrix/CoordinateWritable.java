@@ -29,6 +29,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+/**
+ * Custom writable representing a coordinate
+ */
 public class CoordinateWritable implements WritableComparable<CoordinateWritable> {
 
     private int row;

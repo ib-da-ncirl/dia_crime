@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+/**
+ * Interface to be implemented to provide standardised output for a statistics job
+ */
 public interface IStats {
 
     /* key tag can take the following forms:

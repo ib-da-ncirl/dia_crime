@@ -24,7 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop;
 
 import com.google.common.util.concurrent.AtomicDouble;
-import ie.ibuttimer.dia_crime.hadoop.stats.IStatWritable;
+import ie.ibuttimer.dia_crime.hadoop.stats.IStatOps;
 import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.io.Writable;
 import org.apache.http.util.TextUtils;
@@ -45,12 +45,11 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.DATE_PROP;
-import static ie.ibuttimer.dia_crime.misc.Constants.VOLUME_PROP;
 
 /**
- * Base class for customer Writables
+ * Base class for custom Writables
  */
-public abstract class AbstractBaseWritable<W extends AbstractBaseWritable<?>> implements Writable, IStatWritable<W> {
+public abstract class AbstractBaseWritable<W extends AbstractBaseWritable<?>> implements Writable, IStatOps<W> {
 
     private LocalDateTime localDateTime;
 
@@ -338,6 +337,11 @@ public abstract class AbstractBaseWritable<W extends AbstractBaseWritable<?>> im
         }
     }
 
+    /**
+     * Base writable builder interface
+     * @param <B>   Builder class
+     * @param <W>   Writable class
+     */
     public interface IBaseWritableBuilder<B, W extends AbstractBaseWritable<?>> {
 
         B clear();

@@ -23,7 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop.crime;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.log4j.Logger;
@@ -32,11 +32,11 @@ import java.io.IOException;
 
 
 /**
- * Mapper for a crime entry:
+ * Mapper for a crime entry used in statistics workflow. Parses input line and generates a custom writable.
  * - input key : csv file line number
  * - input value : csv file line text
  * - output key : date
- * - output value : MapWritable<date, CrimeWritable>
+ * - output value : CSWWrapperWritable
  */
 public class CrimeWrapMapper extends AbstractCrimeMapper<CSWWrapperWritable> {
 
@@ -63,8 +63,8 @@ public class CrimeWrapMapper extends AbstractCrimeMapper<CSWWrapperWritable> {
         super.cleanup(context);
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
-        return AbstractCrimeMapper.getCsvEntryMapperCfg();
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
+        return AbstractCrimeMapper.getClsCsvMapperCfg();
     }
 }
 

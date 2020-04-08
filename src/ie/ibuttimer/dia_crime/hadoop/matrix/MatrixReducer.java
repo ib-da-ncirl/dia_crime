@@ -35,9 +35,10 @@ import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Matrix multiplication reducer
+ */
 public class MatrixReducer extends AbstractReducer<CoordinateWritable, MatrixWritable, Text, DoubleWritable> {
-
-
 
     private Text keyOut;
     private DoubleWritable valueOut;

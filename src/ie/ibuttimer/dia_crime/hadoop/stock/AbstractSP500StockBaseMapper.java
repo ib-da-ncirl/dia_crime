@@ -23,10 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
-
-import java.io.IOException;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.SP500_PROP_SECTION;
 
@@ -47,17 +44,17 @@ public abstract class AbstractSP500StockBaseMapper<VO> extends AbstractSP500Stoc
     protected IAbstractStockMapper getMapperHelper() {
         return new StockMapperHelper(
             getId().toString(),
-            StockWritable.StockEntryWritableBuilder.getInstance(getFactors()));
+            StockWritable.StockWritableBuilder.getInstance(getFactors()));
     }
 
-    private static ICsvEntryMapperCfg sCfgChk = new StockEntryMapperCfg(SP500_PROP_SECTION);
+    private static ICsvMapperCfg sCfgChk = new StockMapperCfg(SP500_PROP_SECTION);
 
     @Override
-    public ICsvEntryMapperCfg getEntryMapperCfg() {
-        return AbstractSP500StockBaseMapper.getCsvEntryMapperCfg();
+    public ICsvMapperCfg getEntryMapperCfg() {
+        return AbstractSP500StockBaseMapper.getClsCsvMapperCfg();
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
         return sCfgChk;
     }
 }

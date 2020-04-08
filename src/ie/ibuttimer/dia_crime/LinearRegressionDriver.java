@@ -39,7 +39,9 @@ import java.util.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.ECODE_RUNNING;
 
-
+/**
+ * Hadoop driver class for linear regression related jobs
+ */
 public class LinearRegressionDriver extends AbstractDriver {
 
     private static final Logger logger = Logger.getLogger(LinearRegressionDriver.class);

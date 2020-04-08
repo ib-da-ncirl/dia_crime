@@ -23,10 +23,9 @@
 
 package ie.ibuttimer.dia_crime.hadoop.weather;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 
@@ -55,8 +54,8 @@ public class WeatherWrapMapper extends AbstractWeatherMapper<CSWWrapperWritable>
         setLogger(getClass());
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
-        return AbstractWeatherMapper.getCsvEntryMapperCfg();
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
+        return AbstractWeatherMapper.getClsCsvMapperCfg();
     }
 }
 

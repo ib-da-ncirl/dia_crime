@@ -38,7 +38,9 @@ import java.util.*;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
-
+/**
+ * Hadoop driver class for weather related jobs
+ */
 public class WeatherDriver extends AbstractDriver {
 
     private static final Logger logger = Logger.getLogger(WeatherDriver.class);

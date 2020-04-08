@@ -23,6 +23,10 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stats;
 
+/**
+ * Interface for implementation by classes on which statistics operations are performed
+ * @param <W>   Object class
+ */
 public interface IStatOps<W> {
 
     /**

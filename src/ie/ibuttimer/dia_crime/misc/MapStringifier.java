@@ -29,6 +29,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Utility class to manipulate key/value separated strings to/from maps
+ * @param <K>   Key class
+ * @param <V>   Value class
+ */
 public class MapStringifier<K, V> {
 
     public static final String KVP_SEPARATOR = ", ";
@@ -85,7 +90,9 @@ public class MapStringifier<K, V> {
         return new ElementStringify(KV_SEPARATOR);
     }
 
-
+    /**
+     * Separated key/value manipulation
+     */
     public static class ElementStringify {
 
         private String separator;

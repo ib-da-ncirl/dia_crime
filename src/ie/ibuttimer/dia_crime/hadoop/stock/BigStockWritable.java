@@ -38,6 +38,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Customer stock writable utilising 'Big' number classes
+ */
+@Deprecated
 public class BigStockWritable extends AbstractStockWritable<BigStockWritable> implements Writable {
 
     private BigDecimal open;
@@ -54,8 +58,9 @@ public class BigStockWritable extends AbstractStockWritable<BigStockWritable> im
     public static final BigStockWritable MAX_VALUE;
     private static final UUID MAX_UUID;
     static {
-        /* BigDecimal & BigInteger min/max values are *big*, there are no statics in jdk and there is no point in
-            creating them here. So there are symbolic min & max which is sufficient for the purposes of this application.
+        /* BigDecimal & BigInteger min/max values are *big*, there are no statics in jdk since they are basically only
+            limited by device memory. For the purposes of this application these are symbolic min & max which are
+            sufficient.
             Note: This implementation is not portable!
          */
         MIN_VALUE = new BigStockWritable(null, null, null, null, null, null, "");

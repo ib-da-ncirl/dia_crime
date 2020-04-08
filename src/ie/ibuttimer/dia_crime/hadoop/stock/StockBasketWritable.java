@@ -33,6 +33,10 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.IntStream;
 
+/**
+ * Custom writable for a basket of stocks
+ */
+@Deprecated
 public class StockBasketWritable implements Writable {
 
     private Map<String, StockWritable> basket;

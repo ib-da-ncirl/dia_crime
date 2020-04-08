@@ -23,7 +23,6 @@
 
 package ie.ibuttimer.dia_crime.misc;
 
-
 import ie.ibuttimer.dia_crime.hadoop.stats.IStatOps;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -47,6 +46,9 @@ import java.util.function.Consumer;
 import static ie.ibuttimer.dia_crime.misc.Functional.exceptionLoggingConsumer;
 import static ie.ibuttimer.dia_crime.misc.Utils.getLogger;
 
+/**
+ * A value wrapper class
+ */
 public class Value implements IStatOps<Value>, Writable {
 
     // not really but something to work with

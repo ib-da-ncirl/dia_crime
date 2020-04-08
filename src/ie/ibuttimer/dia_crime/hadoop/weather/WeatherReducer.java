@@ -41,6 +41,13 @@ import java.util.stream.Collectors;
 
 import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
 
+/**
+ * Reducer for weather data
+ * - input key : date
+ * - input value : MapWritable<date, WeatherWritable>
+ * - output key : date
+ * - output value : value string of <field>:<value> separated by ','
+ */
 public class WeatherReducer extends AbstractReducer<Text, MapWritable, Text, Text> {
 
     /**
@@ -67,6 +74,12 @@ public class WeatherReducer extends AbstractReducer<Text, MapWritable, Text, Tex
         context.write(key, new Text(MapStringifier.stringify(map)));
     }
 
+    /**
+     * Reduce entries to averages
+     * @param values
+     * @param counter
+     * @return
+     */
     public static Map<String, Object> reduceToAverages(List<WeatherWritable> values, Counters.ReducerCounter counter) {
 
         // get average for all daily measurements

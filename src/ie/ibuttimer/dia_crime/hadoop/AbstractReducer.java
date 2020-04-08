@@ -36,6 +36,13 @@ import java.io.IOException;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Base class for Reducer's
+ * @param <KI>  Reducer key input class
+ * @param <VI>  Reducer values input class
+ * @param <KO>  Reducer key output class
+ * @param <VO>  Reducer values output class
+ */
 public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO, VO>
     implements IDecorator.IDecoratable<KO, VO>, ITagger, DebugLevel.Debuggable {
 

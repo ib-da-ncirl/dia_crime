@@ -33,6 +33,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+/**
+ * Custom writable wrapper which may contain one of: CrimeWritable, StockWritable or WeatherWritable
+ */
 public class CSWWrapperWritable implements Writable {
 
     private CrimeWritable crime;

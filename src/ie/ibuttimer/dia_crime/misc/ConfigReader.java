@@ -24,9 +24,8 @@
 package ie.ibuttimer.dia_crime.misc;
 
 import com.google.common.base.Charsets;
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
@@ -38,13 +37,15 @@ import java.io.InputStreamReader;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
+/**
+ * Hadoop configuration reader
+ */
 public class ConfigReader {
 
-    private ICsvEntryMapperCfg mapperCfg;
+    private ICsvMapperCfg mapperCfg;
     private PropertyWrangler propertyWrangler;
 
-    public ConfigReader(ICsvEntryMapperCfg mapperCfg) {
+    public ConfigReader(ICsvMapperCfg mapperCfg) {
         this.mapperCfg = mapperCfg;
         this.propertyWrangler = new PropertyWrangler(mapperCfg.getPropertyRoot());
     }

@@ -23,7 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
 import org.apache.hadoop.io.MapWritable;
 
@@ -56,12 +56,12 @@ public class SP500StockStatsMapper extends AbstractSP500StockMapper<BigStockWrit
     }
 
     @Override
-    public ICsvEntryMapperCfg getEntryMapperCfg() {
-        return SP500StockStatsMapper.getCsvEntryMapperCfg();
+    public ICsvMapperCfg getEntryMapperCfg() {
+        return SP500StockStatsMapper.getClsCsvMapperCfg();
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
-        return SP500StockMapper.getCsvEntryMapperCfg();
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
+        return SP500StockMapper.getClsCsvMapperCfg();
     }
 }
 

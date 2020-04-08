@@ -25,9 +25,8 @@ package ie.ibuttimer.dia_crime.hadoop.crime;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
-import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -42,7 +41,7 @@ import java.util.Map;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 /**
- * Mapper for a crime entry:
+ * Base Mapper for a crime entry. Parses input line and generates a custom writable.
  * - input key : csv file line number
  * - input value : csv file line text
  * - output key : date
@@ -50,23 +49,24 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  */
 public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO> {
 
-    private CrimeWritable.CrimeEntryWritableBuilder builder;
+    private CrimeWritable.CrimeWritableBuilder builder;
 
     private Map<String, Integer> indices = new HashMap<>();
     private int maxIndex = -1;
 
+    // names of config properties for indices of data in input csv file
     public static final List<String> CRIME_PROPERTY_INDICES = Arrays.asList(
         DATE_PROP, PRIMARYTYPE_PROP, DESCRIPTION_PROP, LOCATIONDESCRIPTION_PROP, IUCR_PROP, FBICODE_PROP
     );
 
-    private Text keyOut = new Text();
+    private final Text keyOut = new Text();
 
     private Counters.MapperCounter counter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        super.setup(context, CRIME_PROPERTY_INDICES);
+        super.initIndices(context, CRIME_PROPERTY_INDICES);
 
         indices = getIndices();
         maxIndex = getMaxIndex();
@@ -123,9 +123,18 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
         }
     }
 
+    /**
+     * Write mapper output
+     * @param context
+     * @param key
+     * @param value
+     * @throws IOException
+     * @throws InterruptedException
+     */
     protected abstract void writeOutput(Context context, Text key, CrimeWritable value) throws IOException, InterruptedException;
 
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg(CRIME_PROP_SECTION) {
+    // Configuration object
+    private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(CRIME_PROP_SECTION) {
 
         @Override
         public List<String> getPropertyIndices() {
@@ -134,11 +143,11 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
     };
 
     @Override
-    public ICsvEntryMapperCfg getEntryMapperCfg() {
-        return AbstractCrimeMapper.getCsvEntryMapperCfg();
+    public ICsvMapperCfg getEntryMapperCfg() {
+        return AbstractCrimeMapper.getClsCsvMapperCfg();
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
         return sCfgChk;
     }
 }

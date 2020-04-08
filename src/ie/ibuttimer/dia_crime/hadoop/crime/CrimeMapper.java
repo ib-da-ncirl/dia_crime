@@ -23,15 +23,14 @@
 
 package ie.ibuttimer.dia_crime.hadoop.crime;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 
 /**
- * Mapper for a crime entry:
+ * Mapper for a crime entry. Parses input line and generates a custom writable.
  * - input key : csv file line number
  * - input value : csv file line text
  * - output key : date
@@ -39,7 +38,7 @@ import java.io.IOException;
  */
 public class CrimeMapper extends AbstractCrimeMapper<MapWritable> {
 
-    private MapWritable mapOut = new MapWritable();
+    private final MapWritable mapOut = new MapWritable();
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -56,8 +55,8 @@ public class CrimeMapper extends AbstractCrimeMapper<MapWritable> {
         write(context, key, mapOut);
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
-        return AbstractCrimeMapper.getCsvEntryMapperCfg();
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
+        return AbstractCrimeMapper.getClsCsvMapperCfg();
     }
 }
 

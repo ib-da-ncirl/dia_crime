@@ -36,6 +36,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
+/**
+ * Custom writable for crime, weather and stock
+ */
+@Deprecated
 public class DayWritable implements Writable {
 
     private CrimeWritable crime;

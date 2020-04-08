@@ -23,7 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stats;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.misc.ConfigReader;
 import org.apache.hadoop.conf.Configuration;
 
@@ -36,6 +36,9 @@ import java.util.function.Predicate;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Statistics specific configuration reader
+ */
 public class StatsConfigReader extends ConfigReader {
 
     private static List<Class<?>> CLASSES = List.of(Integer.class, Long.class, Float.class, Double.class, String.class,
@@ -51,7 +54,7 @@ public class StatsConfigReader extends ConfigReader {
     private WeakReference<Configuration> confRef;
 
 
-    public StatsConfigReader(ICsvEntryMapperCfg mapperCfg) {
+    public StatsConfigReader(ICsvMapperCfg mapperCfg) {
         super(mapperCfg);
         this.cfgReader = new ConfigReader(mapperCfg);
     }
@@ -69,6 +72,11 @@ public class StatsConfigReader extends ConfigReader {
         return conf;
     }
 
+    /**
+     * Read list of variable to perform statistics for
+     * @param conf
+     * @return
+     */
     public List<String> readVariables(Configuration conf) {
         Configuration confLocal = getConf(conf);
 
@@ -88,6 +96,11 @@ public class StatsConfigReader extends ConfigReader {
         return variables;
     }
 
+    /**
+     * Read the output types configuration
+     * @param conf
+     * @return
+     */
     public Map<String, Class<?>> readOutputTypes(Configuration conf) {
         Configuration confLocal = getConf(conf);
 
@@ -100,6 +113,13 @@ public class StatsConfigReader extends ConfigReader {
         return outputTypes;
     }
 
+    /**
+     * Read the output types configuration
+     * @param conf
+     * @param allNumeric
+     * @param vars
+     * @return
+     */
     private Map<String, Class<?>> readOutputTypes(Configuration conf, boolean allNumeric, List<String> vars) {
         outputTypes = new HashMap<>();
 
@@ -139,11 +159,21 @@ public class StatsConfigReader extends ConfigReader {
         return numericTypes;
     }
 
+    /**
+     * Numeric class test
+     * @param cls
+     * @return
+     */
     private boolean isNumericClass(Class<?> cls) {
         return (cls.equals(Integer.class) || cls.equals(Long.class) || cls.equals(Float.class) ||
             cls.equals(Double.class) || cls.equals(BigInteger.class) || cls.equals(BigDecimal.class));
     }
 
+    /**
+     * Get only numeric property field names from configuration
+     * @param conf
+     * @return
+     */
     public List<String> getNumericFields(Configuration conf) {
         Configuration confLocal = getConf(conf);
 

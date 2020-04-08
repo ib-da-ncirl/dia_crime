@@ -23,17 +23,9 @@
 
 package ie.ibuttimer.dia_crime.misc;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-import ie.ibuttimer.dia_crime.hadoop.matrix.MatrixMapper;
-import org.apache.hadoop.conf.Configuration;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
+/**
+ * Application constants
+ */
 public class Constants {
 
     public static final String COMMENT_PREFIX = "#";

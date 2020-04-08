@@ -46,7 +46,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static ie.ibuttimer.dia_crime.StockDriver.addStockSpecificsToConfig;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
-
+/**
+ * Hadoop driver class for merge related jobs
+ */
 public class MergeDriver extends AbstractDriver {
 
     private static final Logger logger = Logger.getLogger(MergeDriver.class);

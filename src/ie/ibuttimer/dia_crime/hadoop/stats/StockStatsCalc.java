@@ -40,6 +40,10 @@ import java.util.Set;
 import static ie.ibuttimer.dia_crime.hadoop.stats.AbstractStatsCalc.Stat.STDDEV;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Stocks specific statistics calculation
+ */
+@Deprecated
 public class StockStatsCalc extends AbstractStatsCalc implements IStats {
 
     private static final Logger logger = Logger.getLogger(StockStatsCalc.class.getSimpleName());

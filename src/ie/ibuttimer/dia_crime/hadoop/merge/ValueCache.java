@@ -31,6 +31,12 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.UnaryOperator;
 
+/**
+ * Data cache class
+ * @param <K>   Key class
+ * @param <VC>  Cached value class
+ * @param <VR>  Partial data class
+ */
 public class ValueCache<K, VC, VR> {
 
     /*

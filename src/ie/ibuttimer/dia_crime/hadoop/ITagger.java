@@ -34,6 +34,9 @@ import java.util.List;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Interface for tagging output files with the parameters used in their production
+ */
 public interface ITagger {
 
     String DATE_RANGE_TAG = "Date range: ";
@@ -103,7 +106,7 @@ public interface ITagger {
     }
 
 
-    default boolean verifyDateRangeTag(Configuration conf, String section, ICsvEntryMapperCfg cfg, String inputTag) {
+    default boolean verifyDateRangeTag(Configuration conf, String section, ICsvMapperCfg cfg, String inputTag) {
         Pair<LocalDate, LocalDate> cfgDates = cfg.getDateRange(conf, section);
         Pair<LocalDate, LocalDate> inDates = cfg.decodeDateRange(inputTag);
         if (!cfgDates.getLeft().equals(inDates.getLeft()) || !cfgDates.getRight().equals(inDates.getRight())) {
@@ -113,7 +116,7 @@ public interface ITagger {
         return true;
     }
 
-    default boolean verifyFactorsTag(Configuration conf, String section, ICsvEntryMapperCfg cfg, String inputTag) {
+    default boolean verifyFactorsTag(Configuration conf, String section, ICsvMapperCfg cfg, String inputTag) {
         String cfgFactors = getFactorsString(conf, section);
         if (!cfgFactors.equals(inputTag)) {
             throw new IllegalStateException("Input factors [" + inputTag +

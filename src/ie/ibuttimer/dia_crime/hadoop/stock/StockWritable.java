@@ -38,6 +38,9 @@ import java.util.function.Consumer;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Custom writable for stocks
+ */
 public class StockWritable extends AbstractStockWritable<StockWritable> implements Writable {
 
     private double open;
@@ -294,14 +297,19 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
         B setId(String id);
     }
 
-    public abstract static class AbstractStockEntryWritableBuilder<B extends AbstractBaseWritableBuilder<?,?>, W extends StockWritable>
+    /**
+     * Base class for stock writable builders
+     * @param <B>   Builder class
+     * @param <W>   Writable class
+     */
+    public abstract static class AbstractStockWritableBuilder<B extends AbstractBaseWritableBuilder<?,?>, W extends StockWritable>
             extends AbstractBaseWritableBuilder<B, W> implements IStockWritableBuilder<B, W> {
 
-        protected AbstractStockEntryWritableBuilder(Logger logger) {
+        protected AbstractStockWritableBuilder(Logger logger) {
             super(logger);
         }
 
-        public AbstractStockEntryWritableBuilder(Logger logger, Map<String, Double> factors) {
+        public AbstractStockWritableBuilder(Logger logger, Map<String, Double> factors) {
             super(logger, factors);
         }
 
@@ -348,29 +356,32 @@ public class StockWritable extends AbstractStockWritable<StockWritable> implemen
         }
     }
 
-    public static class StockEntryWritableBuilder
-            extends AbstractStockEntryWritableBuilder<StockEntryWritableBuilder, StockWritable> {
+    /**
+     * Stock writable builder
+     */
+    public static class StockWritableBuilder
+            extends AbstractStockWritableBuilder<StockWritableBuilder, StockWritable> {
 
-        private static final Logger logger = Logger.getLogger(StockEntryWritableBuilder.class);
+        private static final Logger logger = Logger.getLogger(StockWritableBuilder.class);
 
-        public static StockEntryWritableBuilder getInstance() {
-            return new StockEntryWritableBuilder();
+        public static StockWritableBuilder getInstance() {
+            return new StockWritableBuilder();
         }
 
-        public static StockEntryWritableBuilder getInstance(Map<String, Double> factors) {
-            return new StockEntryWritableBuilder(factors);
+        public static StockWritableBuilder getInstance(Map<String, Double> factors) {
+            return new StockWritableBuilder(factors);
         }
 
-        protected StockEntryWritableBuilder() {
+        protected StockWritableBuilder() {
             super(logger);
         }
 
-        public StockEntryWritableBuilder(Map<String, Double> factors) {
+        public StockWritableBuilder(Map<String, Double> factors) {
             super(logger, factors);
         }
 
         @Override
-        public StockEntryWritableBuilder getThis() {
+        public StockWritableBuilder getThis() {
             return this;
         }
 

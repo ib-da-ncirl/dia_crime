@@ -24,7 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop.stats;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.merge.IDecorator;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
@@ -44,6 +44,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Statistics mapper that outputs property value, property value squared and, property product values
+ * - input key : csv file line number
+ * - input value : csv file line text
+ * - output key : property name plus specific identifier for squared value etc.
+ * - output value : value
+ */
 public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStats {
 
     private Counters.MapperCounter counter;
@@ -60,7 +67,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        super.setup(context, sCfgChk.getPropertyIndices());
+        super.initIndices(context, sCfgChk.getPropertyIndices());
 
         counter = getCounter(context, CountersEnum.STATS_MAPPER_COUNT);
 
@@ -103,7 +110,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
         if (!skipHeader(key)) {
             if (skipComment(value)) {
                 // verify parameters specified in input file
-                ICsvEntryMapperCfg cfg = getEntryMapperCfg();
+                ICsvMapperCfg cfg = getEntryMapperCfg();
                 Configuration conf = context.getConfiguration();
                 String section = cfg.getPropertyRoot();
                 Pair<String, String> hKeyVal = hadoopKeyVal.destringifyElement(value.toString());
@@ -188,7 +195,8 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
         }
     }
 
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg(STATS_PROP_SECTION) {
+    // mapper config
+    private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(STATS_PROP_SECTION) {
 
         private Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
         private Property varsProp = Property.of(VARIABLES_PROP, "list of variables to use", "");
@@ -217,11 +225,11 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
     };
 
     @Override
-    public ICsvEntryMapperCfg getEntryMapperCfg() {
-        return getCsvEntryMapperCfg();
+    public ICsvMapperCfg getEntryMapperCfg() {
+        return getClsCsvMapperCfg();
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
         return sCfgChk;
     }
 }

@@ -25,13 +25,10 @@ package ie.ibuttimer.dia_crime.hadoop.regression;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
-import ie.ibuttimer.dia_crime.misc.ConfigReader;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
-import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
-import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -59,7 +56,7 @@ public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        super.setup(context, sCfgChk.getPropertyIndices());
+        super.initIndices(context, sCfgChk.getPropertyIndices());
 
         counter = getCounter(context, CountersEnum.REGRESSION_MAPPER_COUNT);
 
@@ -126,7 +123,7 @@ public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable
 
 
 
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg(REGRESSION_PROP_SECTION) {
+    private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(REGRESSION_PROP_SECTION) {
 
         private Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
         private Property indoProp = Property.of(INDEPENDENTS_PROP, "list of independent variables to use", "");
@@ -153,11 +150,11 @@ public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable
     };
 
     @Override
-    public ICsvEntryMapperCfg getEntryMapperCfg() {
-        return getCsvEntryMapperCfg();
+    public ICsvMapperCfg getEntryMapperCfg() {
+        return getClsCsvMapperCfg();
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
         return sCfgChk;
     }
 }

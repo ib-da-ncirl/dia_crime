@@ -37,6 +37,13 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 
+/**
+ * Base class for Mapper's
+ * @param <KI>  Mapper key input class
+ * @param <VI>  Mapper values input class
+ * @param <KO>  Mapper key output class
+ * @param <VO>  Mapper values output class
+ */
 public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, VO>
     implements IDecorator.IDecoratable<KO, VO>, DebugLevel.Debuggable {
 
@@ -139,7 +146,11 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
     }
 
 
-    public abstract ICsvEntryMapperCfg getEntryMapperCfg();
+    /**
+     * Get mapper configuration
+     * @return
+     */
+    public abstract ICsvMapperCfg getEntryMapperCfg();
 
 
     /**

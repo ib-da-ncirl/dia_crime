@@ -36,14 +36,17 @@ import java.util.Map;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Mapper helper for stocks
+ */
 public class StockMapperHelper implements IStats, IAbstractStockMapper {
 
     private String id;
-    private StockWritable.StockEntryWritableBuilder builder;
+    private StockWritable.StockWritableBuilder builder;
 
     private MapWritable mapOut = new MapWritable();
 
-    public StockMapperHelper(String id, StockWritable.StockEntryWritableBuilder builder) {
+    public StockMapperHelper(String id, StockWritable.StockWritableBuilder builder) {
         this.id = id;
         this.builder = builder;
     }

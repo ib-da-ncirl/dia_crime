@@ -50,6 +50,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+/**
+ * Base class for statistics calculation
+ */
 public abstract class AbstractStatsCalc implements IStats {
 
     public enum Stat {
@@ -91,6 +94,13 @@ public abstract class AbstractStatsCalc implements IStats {
         this.logger = logger;
     }
 
+    /**
+     * Calculate standard deviation
+     * @param sum
+     * @param sumOfSq
+     * @param count
+     * @return
+     */
     protected double calcStdDev(Value sum, Value sumOfSq, long count) {
         double stddev;
         switch (sumSumOfSqCheck(sum, sumOfSq)) {
@@ -107,6 +117,13 @@ public abstract class AbstractStatsCalc implements IStats {
         return stddev;
     }
 
+    /**
+     * Calculate variance
+     * @param sum
+     * @param sumOfSq
+     * @param count
+     * @return
+     */
     protected double calcVariance(Value sum, Value sumOfSq, long count) {
         double variance;
         switch (sumSumOfSqCheck(sum, sumOfSq)) {
@@ -125,6 +142,12 @@ public abstract class AbstractStatsCalc implements IStats {
         return variance;
     }
 
+    /**
+     * Calculate mean
+     * @param sum
+     * @param count
+     * @return
+     */
     protected double calcMean(Value sum, long count) {
         double mean;
         switch (typeCheck(sum)) {
@@ -141,6 +164,16 @@ public abstract class AbstractStatsCalc implements IStats {
         return mean;
     }
 
+    /**
+     * Calculate correlation
+     * @param sumOfProductXY
+     * @param sumOfX
+     * @param sumOfY
+     * @param sumOfXSq
+     * @param sumOfYSq
+     * @param count
+     * @return
+     */
     protected double calcCorrelation(Value sumOfProductXY, Value sumOfX, Value sumOfY,
                                      Value sumOfXSq, Value sumOfYSq, long count) {
         double cor;
@@ -163,6 +196,12 @@ public abstract class AbstractStatsCalc implements IStats {
 
     private enum CalcType { BIG_INT, BIG_DECIMAL, DOUBLE }
 
+    /**
+     * Check the is no type mismatch
+     * @param sum
+     * @param sumOfSq
+     * @return
+     */
     protected CalcType sumSumOfSqCheck(Value sum, Value sumOfSq) {
         CalcType type;
         CalcType sumCls = typeCheck(sum);
@@ -192,6 +231,13 @@ public abstract class AbstractStatsCalc implements IStats {
 
     public abstract Result.Set calcStat(String id1, String id2, List<Stat> stats, List<String> fields) throws IOException;
 
+    /**
+     * Calculate standard deviation
+     * @param id
+     * @param fields
+     * @return
+     * @throws IOException
+     */
     public Result.Set calcStdDev(String id, List<String> fields) throws IOException {
         return calcStat(id, Stat.STDDEV, fields);
     }
@@ -200,10 +246,24 @@ public abstract class AbstractStatsCalc implements IStats {
         return calcStat(id, Stat.MEAN, fields);
     }
 
+    /**
+     * Calculate correlation for the specified properties
+     * @param id1
+     * @param id2
+     * @param fields
+     * @return
+     * @throws IOException
+     */
     public Result.Set calcCorrelation(String id1, String id2, List<String> fields) throws IOException {
         return calcStat(id1, id2, Stat.COR, fields);
     }
 
+    /**
+     * Calculate correlation for all properties
+     * @param fields
+     * @return
+     * @throws IOException
+     */
     public Result.Set calcAllCorrelation(List<String> fields, Logger logger) throws IOException {
         Result.Set results = new Result.Set();
 
@@ -245,7 +305,12 @@ public abstract class AbstractStatsCalc implements IStats {
         return calcStat(id1, id2, Collections.singletonList(stat), fields);
     }
 
-
+    /**
+     * Get all the lines for the specified property
+     * @param id
+     * @return
+     * @throws IOException
+     */
     protected List<String> getLines(String id) throws IOException {
         List<String> lines = null;
         if (fileUtil.wasSuccess()) {

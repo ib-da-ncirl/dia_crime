@@ -47,7 +47,9 @@ import java.util.stream.Collectors;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.Functional.exceptionLoggingConsumer;
 
-
+/**
+ * Hadoop driver class for statistics related jobs
+ */
 public class StatsDriver extends AbstractDriver implements ITagger {
 
     private static final Logger logger = Logger.getLogger(StatsDriver.class);
@@ -124,7 +126,7 @@ public class StatsDriver extends AbstractDriver implements ITagger {
 
         Configuration conf = job.getConfiguration();
 
-        StatsConfigReader cfgReader = new StatsConfigReader(StatsMapper.getCsvEntryMapperCfg());
+        StatsConfigReader cfgReader = new StatsConfigReader(StatsMapper.getClsCsvMapperCfg());
 
         List<String> variables = cfgReader.readVariables(conf);
         List<String> numericTypes = cfgReader.getNumericFields(conf);

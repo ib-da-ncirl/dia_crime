@@ -23,7 +23,7 @@
 
 package ie.ibuttimer.dia_crime;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeMapper;
 import ie.ibuttimer.dia_crime.hadoop.matrix.MatrixMapper;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionMapper;
@@ -54,24 +54,26 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
-
+/**
+ * Main class providing argument processing
+ */
 public class DiaCrimeMain {
 
     private static final Logger logger = Logger.getLogger(DiaCrimeMain.class);
 
-    private static Map<String, ICsvEntryMapperCfg> propDefaults;
+    private static Map<String, ICsvMapperCfg> propDefaults;
     static {
         propDefaults = new HashMap<>();
 
-        propDefaults.put(CRIME_PROP_SECTION, CrimeMapper.getCsvEntryMapperCfg());
-        propDefaults.put(NASDAQ_PROP_SECTION, NasdaqStockMapper.getCsvEntryMapperCfg());
-        propDefaults.put(DOWJONES_PROP_SECTION, DowJonesStockMapper.getCsvEntryMapperCfg());
-        propDefaults.put(SP500_PROP_SECTION, SP500StockMapper.getCsvEntryMapperCfg());
-        propDefaults.put(WEATHER_PROP_SECTION, WeatherMapper.getCsvEntryMapperCfg());
-        propDefaults.put(STATS_PROP_SECTION, StatsMapper.getCsvEntryMapperCfg());
-        propDefaults.put(REGRESSION_PROP_SECTION, RegressionMapper.getCsvEntryMapperCfg());
-        propDefaults.put(MATRIX_PROP_1_SECTION, MatrixMapper.MatrixMapper1.getCsvEntryMapperCfg());
-        propDefaults.put(MATRIX_PROP_2_SECTION, MatrixMapper.MatrixMapper2.getCsvEntryMapperCfg());
+        propDefaults.put(CRIME_PROP_SECTION, CrimeMapper.getClsCsvMapperCfg());
+        propDefaults.put(NASDAQ_PROP_SECTION, NasdaqStockMapper.getClsCsvMapperCfg());
+        propDefaults.put(DOWJONES_PROP_SECTION, DowJonesStockMapper.getClsCsvMapperCfg());
+        propDefaults.put(SP500_PROP_SECTION, SP500StockMapper.getClsCsvMapperCfg());
+        propDefaults.put(WEATHER_PROP_SECTION, WeatherMapper.getClsCsvMapperCfg());
+        propDefaults.put(STATS_PROP_SECTION, StatsMapper.getClsCsvMapperCfg());
+        propDefaults.put(REGRESSION_PROP_SECTION, RegressionMapper.getClsCsvMapperCfg());
+        propDefaults.put(MATRIX_PROP_1_SECTION, MatrixMapper.MatrixMapper1.getClsCsvMapperCfg());
+        propDefaults.put(MATRIX_PROP_2_SECTION, MatrixMapper.MatrixMapper2.getClsCsvMapperCfg());
     }
 
     private static final String DEFLT_CFG_FILE = "config.properties";
@@ -335,13 +337,13 @@ public class DiaCrimeMain {
     /**
      * Load configuration for specified MapReduce
      * @param properties    Property object to read
-     * @param main          Main section used as key for ICsvEntryMapperCfg
+     * @param main          Main section used as key for ICsvMapperCfg
      * @param sections      Property sections for MapReduce
      * @return Configuration
      */
     private Configuration getConfiguration(Configuration conf, Properties properties, String main, List<String> sections) {
 
-        ICsvEntryMapperCfg entryMapperCfg = propDefaults.get(main);
+        ICsvMapperCfg entryMapperCfg = propDefaults.get(main);
         if (entryMapperCfg != null) {
             PropertyWrangler confPropWrangler = new PropertyWrangler(main);
 
@@ -386,7 +388,7 @@ public class DiaCrimeMain {
     private int checkConfiguration(Configuration conf, String section) {
         int resultCode;
 
-        ICsvEntryMapperCfg entryMapperCfg = propDefaults.get(section);
+        ICsvMapperCfg entryMapperCfg = propDefaults.get(section);
         if (entryMapperCfg != null) {
             Pair<Integer, List<String>> chkRes = entryMapperCfg.checkConfiguration(conf);
             resultCode = chkRes.getLeft();

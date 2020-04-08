@@ -24,7 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
-import ie.ibuttimer.dia_crime.hadoop.stats.IStatWritable;
+import ie.ibuttimer.dia_crime.hadoop.stats.IStatOps;
 import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -37,9 +37,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Custom stock writable base class
+ * @param <W>   Stock writable class
+ */
 public abstract class AbstractStockWritable<W extends AbstractBaseWritable<?>>
     extends AbstractBaseWritable<W>
-    implements Writable, IStatWritable<W> {
+    implements Writable, IStatOps<W> {
 
     public static List<String> FIELDS;
     public static List<String> NUMERIC_FIELDS = Arrays.asList(OPEN_PROP, HIGH_PROP, LOW_PROP, CLOSE_PROP,

@@ -39,6 +39,9 @@ import java.util.function.Consumer;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.DESCRIPTION_PROP;
 
+/**
+ * Custom writable class for crime entries
+ */
 public class CrimeWritable extends AbstractBaseWritable<CrimeWritable> implements Writable {
 
     public static List<String> FIELDS;
@@ -218,47 +221,49 @@ public class CrimeWritable extends AbstractBaseWritable<CrimeWritable> implement
                 '}';
     }
 
-    public static CrimeEntryWritableBuilder getBuilder() {
-        return new CrimeEntryWritableBuilder();
+    public static CrimeWritableBuilder getBuilder() {
+        return new CrimeWritableBuilder();
     }
 
+    /**
+     * Builder class for crime writables
+     */
+    public static class CrimeWritableBuilder
+            extends AbstractBaseWritable.AbstractBaseWritableBuilder<CrimeWritableBuilder, CrimeWritable> {
 
-    public static class CrimeEntryWritableBuilder
-            extends AbstractBaseWritable.AbstractBaseWritableBuilder<CrimeEntryWritableBuilder, CrimeWritable> {
+        private static final Logger logger = Logger.getLogger(CrimeWritableBuilder.class);
 
-        private static final Logger logger = Logger.getLogger(CrimeEntryWritableBuilder.class);
-
-        public CrimeEntryWritableBuilder() {
+        public CrimeWritableBuilder() {
             super(logger);
         }
 
-        public CrimeEntryWritableBuilder setPrimaryType(String primaryType) {
+        public CrimeWritableBuilder setPrimaryType(String primaryType) {
             getWritable().setPrimaryType(primaryType);
             return this;
         }
 
-        public CrimeEntryWritableBuilder setDescription(String description) {
+        public CrimeWritableBuilder setDescription(String description) {
             getWritable().setDescription(description);
             return this;
         }
 
-        public CrimeEntryWritableBuilder setLocationDescription(String locationDescription) {
+        public CrimeWritableBuilder setLocationDescription(String locationDescription) {
             getWritable().setLocationDescription(locationDescription);
             return this;
         }
 
-        public CrimeEntryWritableBuilder setIucr(String iucr) {
+        public CrimeWritableBuilder setIucr(String iucr) {
             getWritable().setIucr(iucr);
             return this;
         }
 
-        public CrimeEntryWritableBuilder setFbiCode(String fbiCode) {
+        public CrimeWritableBuilder setFbiCode(String fbiCode) {
             getWritable().setFbiCode(fbiCode);
             return this;
         }
 
         @Override
-        public CrimeEntryWritableBuilder getThis() {
+        public CrimeWritableBuilder getThis() {
             return this;
         }
 

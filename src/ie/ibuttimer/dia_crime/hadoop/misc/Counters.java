@@ -29,6 +29,9 @@ import org.apache.hadoop.mapreduce.Reducer;
 
 import java.util.Optional;
 
+/**
+ * Hadoop counter utility class
+ */
 public class Counters {
 
     private Counters() {
@@ -59,6 +62,9 @@ public class Counters {
         }
     }
 
+    /**
+     * Base class for counters
+     */
     public abstract static class AbstractCounter implements ICounter {
 
         protected String className;
@@ -70,6 +76,9 @@ public class Counters {
         }
     }
 
+    /**
+     * Mapper specific counter class
+     */
     public static class MapperCounter extends AbstractCounter {
 
         Mapper<?,?,?,?>.Context context;
@@ -85,6 +94,9 @@ public class Counters {
         }
     }
 
+    /**
+     * Reducer specific counter class
+     */
     public static class ReducerCounter extends AbstractCounter {
 
         Reducer<?,?,?,?>.Context context;

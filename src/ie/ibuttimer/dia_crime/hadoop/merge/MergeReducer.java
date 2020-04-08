@@ -48,15 +48,18 @@ import java.util.*;
 import static ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer.saveOutputTypes;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Reducer to merge crime, weather and stock data to a single output file
+ * - input key : date
+ * - input value : CSWWrapperWritable wrapper for crime/weather/stock data
+ * - output key : date
+ * - output value : value string of <property>:<value> separated by ','
+ */
 public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text, Text> implements ICrimeReducer {
 
     private Map<String, Class<?>> categorySet;
 
-    private MapStringifier.ElementStringify prependStringifier = MapStringifier.ElementStringify.of(CLASS_VAL_SEPARATOR);
-
-    private DayWritable day = new DayWritable();
-
-    private DateTimeFormatter dateTimeFormatter = new DateTimeFormatterBuilder()
+    private final DateTimeFormatter dateTimeFormatter = new DateTimeFormatterBuilder()
         .parseCaseInsensitive()
         .appendPattern("uuuu-MM-dd")
         .toFormatter();
@@ -209,7 +212,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
         Map<String, Object> outMap = new TreeMap<>(toWrite.getMiddle());
         outMap.putAll(toWrite.getRight());
 
-        // create value string of <category>:<count> separated by ',' with <total>:<count> at the end
+        // create value string of <property>:<value> separated by ','
         // e.g. 2001-01-01	01A:2, 02:87, 03:41, 04A:28, 04B:44, 05:66, 06:413, 07:60, 08A:43, 08B:252, 10:12, 11:73, 12:7, 14:233, 15:32, 16:5, 17:68, 18:89, 19:2, 20:44, 22:3, 24:4, 26:211, total:1819
         try {
             write(context, toWrite.getLeft(), new Text(MapStringifier.stringify(outMap)));

@@ -23,6 +23,9 @@
 
 package ie.ibuttimer.dia_crime.hadoop;
 
+/**
+ * Enum of Hadoop counters
+ */
 public enum CountersEnum {
 
     // Stock

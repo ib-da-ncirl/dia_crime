@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 /**
- * Base mapper for a csv files:
+ * Base mapper for a csv file:
  * - input key : csv file line number
  * - input value : csv file line text
  * @param <K>   output key type
@@ -52,7 +52,6 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
 
     public static final String DEFAULT_SEPARATOR = ",";
     public static final boolean DEFAULT_HAS_HEADER = false;
-//    public static final String DEFAULT_DATE_TIME_FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     /** Separator for csv file */
     private String separator = DEFAULT_SEPARATOR;
@@ -78,6 +77,7 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
 
         super.setup(context);
 
+        // read basic properties
         separator = conf.get(getPropertyPath(SEPARATOR_PROP), DEFAULT_SEPARATOR);
         hasHeader = conf.getBoolean(getPropertyPath(HAS_HEADER_PROP), DEFAULT_HAS_HEADER);
         numIndices = conf.getInt(getPropertyPath(NUM_INDICES_PROP), 0);
@@ -93,6 +93,7 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
                 .toFormatter();
         }
 
+        // get date filter
         dateFilter = new DateFilter(conf.get(getPropertyPath(FILTER_START_DATE_PROP), ""),
                 conf.get(getPropertyPath(FILTER_END_DATE_PROP), ""));
 
@@ -103,7 +104,14 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
         }
     }
 
-    protected void setup(Context context, List<String> propertyIndices) throws IOException, InterruptedException {
+    /**
+     * Initialise property indices
+     * @param context
+     * @param propertyIndices
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    protected void initIndices(Context context, List<String> propertyIndices) throws IOException, InterruptedException {
         Configuration conf = context.getConfiguration();
 
         // read the element indices from the configuration
@@ -253,6 +261,12 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
         return Pair.of(dateFilter.filter(ld), ld);
     }
 
+    /**
+     * Read a separated string to a list
+     * @param value     String to split
+     * @param separator Separator to use
+     * @return
+     */
     public List<String> readSeparatedString(String value, String separator) {
         return Arrays.stream(value.split(separator))
             .map(String::trim)
@@ -263,14 +277,16 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
         return readSeparatedString(value, ",");
     }
 
-
-    public abstract static class AbstractCsvEntryMapperCfg implements ICsvEntryMapperCfg {
+    /**
+     * Base configuration class
+     */
+    public abstract static class AbstractCsvMapperCfg implements ICsvMapperCfg {
 
         private PropertyWrangler propertyWrangler;
 
         private String propertyRoot;
 
-        public AbstractCsvEntryMapperCfg(String propertyRoot) {
+        public AbstractCsvMapperCfg(String propertyRoot) {
             this.propertyRoot = propertyRoot;
             this.propertyWrangler = new PropertyWrangler(propertyRoot);
         }

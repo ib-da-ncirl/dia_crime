@@ -44,7 +44,9 @@ import java.util.*;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
-
+/**
+ * Hadoop driver class for stock related jobs
+ */
 public class StockDriver extends AbstractDriver {
 
     private static final Logger logger = Logger.getLogger(StockDriver.class);
@@ -127,6 +129,7 @@ public class StockDriver extends AbstractDriver {
         return resultCode;
     }
 
+    @Deprecated
     public int runStockStatsJob(Properties properties) throws Exception {
 
         Pair<List<String>, List<String>> sectionLists = getSectionLists();

@@ -30,6 +30,7 @@ import java.util.function.Consumer;
 
 
 /**
+ * Functional programming utilities
  * Nod to https://www.baeldung.com/java-lambda-exceptions
  */
 public class Functional {

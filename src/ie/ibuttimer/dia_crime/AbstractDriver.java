@@ -39,7 +39,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
-
+/**
+ * Base class for hadoop job processing
+ */
 public abstract class AbstractDriver {
 
     private DiaCrimeMain app;

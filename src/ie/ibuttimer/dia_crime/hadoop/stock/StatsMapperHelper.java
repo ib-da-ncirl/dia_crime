@@ -36,6 +36,10 @@ import java.util.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.VOLUME_PROP;
 
+/**
+ * Mapper helper for stock specific statistics calculations
+ */
+@Deprecated
 public class StatsMapperHelper implements IStats, IAbstractStockMapper {
 
     private BigStockWritable.BigStockEntryWritableBuilder builder;

@@ -25,9 +25,8 @@ package ie.ibuttimer.dia_crime.hadoop.weather;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
-import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -40,7 +39,7 @@ import java.util.Map;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 /**
- * Mapper for a crime entry:
+ * Mapper for a weather entry:
  * - input key : csv file line number
  * - input value : csv file line text
  * - output key : date
@@ -62,7 +61,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        super.setup(context, WEATHER_PROPERTY_INDICES);
+        super.initIndices(context, WEATHER_PROPERTY_INDICES);
 
         indices = getIndices();
         maxIndex = getMaxIndex();
@@ -135,7 +134,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
 
     protected abstract void writeOutput(Context context, Text key, WeatherWritable value) throws IOException, InterruptedException;
 
-    private static ICsvEntryMapperCfg sCfgChk = new AbstractCsvEntryMapperCfg(WEATHER_PROP_SECTION) {
+    private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(WEATHER_PROP_SECTION) {
         @Override
         public List<String> getPropertyIndices() {
             return WEATHER_PROPERTY_INDICES;
@@ -143,11 +142,11 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
     };
 
     @Override
-    public ICsvEntryMapperCfg getEntryMapperCfg() {
-        return AbstractWeatherMapper.getCsvEntryMapperCfg();
+    public ICsvMapperCfg getEntryMapperCfg() {
+        return AbstractWeatherMapper.getClsCsvMapperCfg();
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
         return sCfgChk;
     }
 }

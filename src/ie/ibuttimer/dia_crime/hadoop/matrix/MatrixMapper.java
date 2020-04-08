@@ -25,7 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop.matrix;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.ConfigReader;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
@@ -39,6 +39,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Base class for matrix multiplication mapper
+ */
 public abstract class MatrixMapper extends AbstractCsvMapper<CoordinateWritable, MatrixWritable> {
 
     public static final int SPEC_ELEMENT_IDX = 0;
@@ -59,7 +62,7 @@ public abstract class MatrixMapper extends AbstractCsvMapper<CoordinateWritable,
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        super.setup(context, getEntryMapperCfg().getPropertyIndices());
+        super.initIndices(context, getEntryMapperCfg().getPropertyIndices());
 
         keyOut = CoordinateWritable.of();
 
@@ -165,7 +168,8 @@ public abstract class MatrixMapper extends AbstractCsvMapper<CoordinateWritable,
         }
     }
 
-    protected static class AbstractMatrixMapperCfg extends AbstractCsvEntryMapperCfg {
+    // Matrix mapper configuration
+    protected static class AbstractMatrixMapperCfg extends AbstractCsvMapperCfg {
 
         private final Property mSpecProp = Property.of(SPEC_PROP, "specification for matrix file", "");
         private final Property mSpecOtherProp = Property.of(SPEC_OTHER_PROP, "specification for other matrix file", "");
@@ -219,6 +223,9 @@ public abstract class MatrixMapper extends AbstractCsvMapper<CoordinateWritable,
         }
     }
 
+    /**
+     * Matrix mapper config
+     */
     private static class Spec {
         EqElement element;
         int rows;
@@ -239,34 +246,37 @@ public abstract class MatrixMapper extends AbstractCsvMapper<CoordinateWritable,
         }
     }
 
-
+    /**
+     * Matrix mapper class for first matrix in multiplication
+     */
     public static class MatrixMapper1 extends MatrixMapper {
 
-        private static ICsvEntryMapperCfg sCfgChk = new AbstractMatrixMapperCfg(MATRIX_PROP_1_SECTION);
+        private static final ICsvMapperCfg sCfgChk = new AbstractMatrixMapperCfg(MATRIX_PROP_1_SECTION);
 
         @Override
-        public ICsvEntryMapperCfg getEntryMapperCfg() {
-            return getCsvEntryMapperCfg();
+        public ICsvMapperCfg getEntryMapperCfg() {
+            return getClsCsvMapperCfg();
         }
 
-        public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
+        public static ICsvMapperCfg getClsCsvMapperCfg() {
             return sCfgChk;
         }
-
     }
 
+    /**
+     * Matrix mapper class for second matrix in multiplication
+     */
     public static class MatrixMapper2 extends MatrixMapper {
 
-        private static ICsvEntryMapperCfg sCfgChk = new AbstractMatrixMapperCfg(MATRIX_PROP_2_SECTION);
+        private static final ICsvMapperCfg sCfgChk = new AbstractMatrixMapperCfg(MATRIX_PROP_2_SECTION);
 
         @Override
-        public ICsvEntryMapperCfg getEntryMapperCfg() {
-            return getCsvEntryMapperCfg();
+        public ICsvMapperCfg getEntryMapperCfg() {
+            return getClsCsvMapperCfg();
         }
 
-        public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
+        public static ICsvMapperCfg getClsCsvMapperCfg() {
             return sCfgChk;
         }
-
     }
 }

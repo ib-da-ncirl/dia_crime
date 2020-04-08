@@ -29,6 +29,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Counter for multiple values. Vales are stored for the count objects and returned as the result of high/low etc.
+ * @param <K>   Class for count identifiers
+ * @param <V>   Class for items to be returned as results
+ */
 public class Counter<K, V> {
 
     private Map<K, V> keyValues = new HashMap<>();

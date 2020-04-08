@@ -23,9 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
-
-import java.io.IOException;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.DOWJONES_PROP_SECTION;
 
@@ -46,17 +44,17 @@ public abstract class AbstractDowJonesStockBaseMapper<VO> extends AbstractDowJon
     protected IAbstractStockMapper getMapperHelper() {
         return new StockMapperHelper(
             getId().toString(),
-            StockWritable.StockEntryWritableBuilder.getInstance(getFactors()));
+            StockWritable.StockWritableBuilder.getInstance(getFactors()));
     }
 
-    private static ICsvEntryMapperCfg sCfgChk = new StockEntryMapperCfg(DOWJONES_PROP_SECTION);
+    private static ICsvMapperCfg sCfgChk = new StockMapperCfg(DOWJONES_PROP_SECTION);
 
     @Override
-    public ICsvEntryMapperCfg getEntryMapperCfg() {
-        return AbstractDowJonesStockBaseMapper.getCsvEntryMapperCfg();
+    public ICsvMapperCfg getEntryMapperCfg() {
+        return AbstractDowJonesStockBaseMapper.getClsCsvMapperCfg();
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
         return sCfgChk;
     }
 }

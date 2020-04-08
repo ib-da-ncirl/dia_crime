@@ -29,6 +29,9 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Statistics result class
+ */
 public class Result {
     private Map<String, Double> values;
     private Map<String, Map<String, Value>> calcParams;
@@ -148,7 +151,9 @@ public class Result {
         set(AbstractStatsCalc.Stat.COR, cor, params);
     }
 
-
+    /**
+     * A set of statistics results
+     */
     public static class Set {
 
         private Map<String, Result> set;

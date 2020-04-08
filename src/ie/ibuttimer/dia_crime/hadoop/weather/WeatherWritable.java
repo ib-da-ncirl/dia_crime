@@ -38,7 +38,9 @@ import java.util.function.Consumer;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
-
+/**
+ * Custom writable for weather
+ */
 public class WeatherWritable extends AbstractBaseWritable<WeatherWritable> implements Writable {
 
     public static List<String> FIELDS;

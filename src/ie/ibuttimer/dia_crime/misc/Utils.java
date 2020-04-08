@@ -40,6 +40,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/**
+ * Miscellaneous utilities
+ */
 public class Utils {
 
     private static final Logger logger = Logger.getLogger(Utils.class);

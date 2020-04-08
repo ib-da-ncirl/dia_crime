@@ -27,6 +27,9 @@ import org.apache.hadoop.shaded.org.apache.http.util.TextUtils;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.PROPERTY_SEPARATOR;
 
+/**
+ * Configuration property manipulation
+ */
 public class PropertyWrangler {
 
     private String root;

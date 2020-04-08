@@ -41,12 +41,13 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.Value.*;
 
 /**
- * Reducer to calculate standard deviation for NASDAQ Composite stock entries:
+ * Reducer for stock specific statistics, which accumulates values to output sum of values
  * - input key : stock id
  * - input value : StockEntryAvgWritable with average values and count
  * - output key : stock id
  * - input value : text with
  */
+@Deprecated
 public class StockStatsReducer extends AbstractReducer<Text, MapWritable, Text, Text> implements IStats {
 
     private Counters.ReducerCounter counter;

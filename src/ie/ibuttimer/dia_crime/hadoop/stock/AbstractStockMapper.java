@@ -28,7 +28,6 @@ import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.ConfigReader;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
@@ -39,7 +38,7 @@ import java.util.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 /**
- * Mapper for a stock entry:
+ * Base Mapper for a stock entry:
  * - input key : csv file line number
  * - input value : csv file line text
  * - output key : date or stock id
@@ -62,7 +61,7 @@ public abstract class AbstractStockMapper<VO>
 
     private IAbstractStockMapper mapperHelper;
 
-    private Text keyOut = new Text();
+    private final Text keyOut = new Text();
 
     private Text id;
     private StockMapperKey keyOutType;
@@ -81,13 +80,14 @@ public abstract class AbstractStockMapper<VO>
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        super.setup(context, STOCK_PROPERTY_INDICES);
+        super.initIndices(context, STOCK_PROPERTY_INDICES);
 
         indices = getIndices();
         maxIndex = getMaxIndex();
 
         counter = getCounter(context);
 
+        // read list of factors to apply to property values
         factors = new HashMap<>();
         ConfigReader cfgReader = new ConfigReader(getEntryMapperCfg());
         Map<String, String> factorSetting =
@@ -174,17 +174,22 @@ public abstract class AbstractStockMapper<VO>
         }
     }
 
+    /**
+     * Get factors to apply to property values
+     * @return
+     */
     protected Map<String, Double> getFactors() {
         return factors;
     }
 
     protected abstract Counters.MapperCounter getCounter(Context context);
 
-    public static class StockEntryMapperCfg extends AbstractCsvEntryMapperCfg {
+    // configuration object
+    public static class StockMapperCfg extends AbstractCsvMapperCfg {
 
         private static Property tagProp = Property.of(STOCK_TAG_PROP, "stock tag", "");
 
-        public StockEntryMapperCfg(String propertyRoot) {
+        public StockMapperCfg(String propertyRoot) {
             super(propertyRoot);
         }
 

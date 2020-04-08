@@ -32,6 +32,10 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Crime combiner - currently not used
+ */
+@Deprecated
 public class CrimeCombiner extends Reducer<Text, CrimeWritable, Text, SortedMapWritable<Text>> {
 
     /**

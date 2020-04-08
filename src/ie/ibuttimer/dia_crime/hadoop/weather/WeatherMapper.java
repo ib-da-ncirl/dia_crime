@@ -23,24 +23,21 @@
 
 package ie.ibuttimer.dia_crime.hadoop.weather;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.List;
 
 /**
- * Mapper for a crime entry:
+ * Mapper for a weather entry:
  * - input key : csv file line number
  * - input value : csv file line text
  * - output key : date
  * - output value : MapWritable<date, WeatherWritable>
  */
 public class WeatherMapper extends AbstractWeatherMapper<MapWritable> {
-
-    public static final List<String> WEATHER_PROPERTY_INDICES = WeatherWritable.FIELDS;
 
     private MapWritable mapOut = new MapWritable();
 
@@ -59,8 +56,8 @@ public class WeatherMapper extends AbstractWeatherMapper<MapWritable> {
         setLogger(getClass());
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
-        return AbstractWeatherMapper.getCsvEntryMapperCfg();
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
+        return AbstractWeatherMapper.getClsCsvMapperCfg();
     }
 }
 

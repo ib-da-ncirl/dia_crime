@@ -34,7 +34,10 @@ import java.util.List;
 import static ie.ibuttimer.dia_crime.misc.Constants.IN_PATH_PROP;
 import static ie.ibuttimer.dia_crime.misc.Constants.OUT_PATH_PROP;
 
-public interface ICsvEntryMapperCfg extends ITagger {
+/**
+ * Interface to be implemented by Mapper configurations
+ */
+public interface ICsvMapperCfg extends ITagger {
 
     /**
      * Get the property names and their default values
@@ -70,18 +73,35 @@ public interface ICsvEntryMapperCfg extends ITagger {
     }
 
     /**
-     * Return a list of the names of properties
+     * Return a list of the names of indices properties
      * @return List of names
      */
     List<String> getPropertyIndices();
 
+    /**
+     * Return the property root, i.e. the configuration file section
+     * @return
+     */
     String getPropertyRoot();
 
+    /**
+     * Construct a full property path for the specified name
+     * @param propertyName
+     * @return
+     */
     String getPropertyPath(String propertyName);
 
+    /**
+     * Dump the configuration using the specified logger
+     * @param logger
+     * @param conf
+     */
     void dumpConfiguration(Logger logger, Configuration conf);
 
 
+    /**
+     * Property details
+     */
     class Property {
         String name;
         String description;

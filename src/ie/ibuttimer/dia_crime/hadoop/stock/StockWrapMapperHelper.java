@@ -31,11 +31,14 @@ import org.apache.hadoop.io.Writable;
 
 import java.util.List;
 
+/**
+ * Mapper helper for stocks for merge job
+ */
 public class StockWrapMapperHelper extends StockMapperHelper {
 
     private CSWWrapperWritable wrapOut = new CSWWrapperWritable();
 
-    public StockWrapMapperHelper(String id, StockWritable.StockEntryWritableBuilder builder) {
+    public StockWrapMapperHelper(String id, StockWritable.StockWritableBuilder builder) {
         super(id, builder);
     }
 

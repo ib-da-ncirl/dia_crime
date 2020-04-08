@@ -31,6 +31,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
+/**
+ * Date filter, parsing date text and providing a filter result
+ */
 public class DateFilter {
 
     private LocalDate startDate;

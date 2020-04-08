@@ -26,6 +26,9 @@ package ie.ibuttimer.dia_crime.hadoop.crime;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Interface for crime reducers
+ */
 public interface ICrimeReducer {
 
     Map<String,Class<?>> getOutputTypeMap();

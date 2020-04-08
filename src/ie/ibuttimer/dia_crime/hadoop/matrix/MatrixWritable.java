@@ -33,6 +33,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * Custom writable for matrix multiplication
+ */
 public class MatrixWritable implements Writable {
 
     private String id;

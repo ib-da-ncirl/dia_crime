@@ -44,6 +44,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Reducer for statistics, which accumulates values to output sum of values
+ * - input key : property name plus specific identifier for squared value etc.
+ * - input value : value
+ * - output key : property name plus specific identifier for the statistic
+ * - output value : value
+ */
 public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> implements IStats {
 
     private Counters.ReducerCounter counter;
@@ -64,7 +71,7 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> imple
         statsOutCounter = getCounter(context, CountersEnum.STATS_REDUCER_GROUP_OUT_COUNT);
 
         Configuration conf = context.getConfiguration();
-        StatsConfigReader cfgReader = new StatsConfigReader(StatsMapper.getCsvEntryMapperCfg());
+        StatsConfigReader cfgReader = new StatsConfigReader(StatsMapper.getClsCsvMapperCfg());
 
         variables = cfgReader.readVariables(conf);
         outputTypes = cfgReader.readOutputTypes(conf);

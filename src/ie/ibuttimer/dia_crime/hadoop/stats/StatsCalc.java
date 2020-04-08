@@ -38,8 +38,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static ie.ibuttimer.dia_crime.hadoop.stats.AbstractStatsCalc.Stat.STDDEV;
-import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Statistics calculations
+ */
 public class StatsCalc extends AbstractStatsCalc implements IStats {
 
     private static final Logger logger = Logger.getLogger(StatsCalc.class.getSimpleName());
@@ -55,6 +57,14 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
         fields.forEach(f -> zero.put(f, Value.of(BigDecimal.ZERO)));
     }
 
+    /**
+     * Calculate the basic statistics for a variable
+     * @param id        Variable id
+     * @param stats     Statistics to calculate
+     * @param fields
+     * @return
+     * @throws IOException
+     */
     @Override
     public Result.Set calcStat(String id, List<Stat> stats, List<String> fields) throws IOException {
         Result.Set resultSet = new Result.Set();

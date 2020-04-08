@@ -33,6 +33,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Hadoop file utility class
+ */
 public class FileUtil {
 
     private Path path;
@@ -141,12 +144,13 @@ public class FileUtil {
         return contents;
     }
 
-
     public void close() throws IOException {
         fileSystem.close();
     }
 
-
+    /**
+     * Hadoop file writer class
+     */
     public static class FileWriter {
 
         private FileUtil fileUtil;

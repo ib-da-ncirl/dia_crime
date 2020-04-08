@@ -39,7 +39,9 @@ import java.util.*;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
-
+/**
+ * Hadoop driver class for matrix related jobs
+ */
 public class MatrixDriver extends AbstractDriver {
 
     private static final Logger logger = Logger.getLogger(MatrixDriver.class);

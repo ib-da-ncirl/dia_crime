@@ -25,6 +25,11 @@ package ie.ibuttimer.dia_crime.hadoop.merge;
 
 import org.apache.commons.lang3.tuple.Pair;
 
+/**
+ * Decorator interface for key/values
+ * @param <K> Key class
+ * @param <V> Value class
+ */
 public interface IDecorator<K, V> {
 
     enum DecorMode { NONE, DECORATE, TRANSFORM, DECORATE_TRANSFORM;
@@ -38,23 +43,48 @@ public interface IDecorator<K, V> {
         }
     }
 
+    /**
+     * Decorate the specified key
+     * @param key
+     * @return
+     */
     default K decorateKey(K key) {
         return key;
     }
 
+    /**
+     * Transform the specified key to a new object
+     * @param key
+     * @return
+     */
     default Object transformKey(K key) {
         return key;
     }
 
+    /**
+     * Decorate the specified value
+     * @param value
+     * @return
+     */
     default V decorateValue(V value) {
         return value;
     }
 
+    /**
+     * Transform the specified value to a new object
+     * @param value
+     * @return
+     */
     default Object transformValue(V value) {
         return value;
     }
 
 
+    /**
+     * Interface for classes which may decorate key/values
+     * @param <K>
+     * @param <V>
+     */
     interface IDecoratable<K, V> {
 
         DecorMode getMode();
@@ -88,12 +118,17 @@ public interface IDecorator<K, V> {
     }
 
 
-    abstract class AbstractValueDecorator<K, V> implements IDecoratable<K, V> {
+    /**
+     * Base class for IDecoratable classes
+     * @param <K>
+     * @param <V>
+     */
+    abstract class AbstractDecoratable<K, V> implements IDecoratable<K, V> {
 
         private IDecorator<K, V> decorator;
         private IDecorator.DecorMode decoratorMode;
 
-        public AbstractValueDecorator() {
+        public AbstractDecoratable() {
             setDecorator(null, decoratorMode);
         }
 

@@ -23,10 +23,9 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
 import org.apache.hadoop.io.MapWritable;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 
@@ -57,12 +56,12 @@ public class NasdaqStockStatsMapper extends AbstractNasdaqStockMapper<BigStockWr
     }
 
     @Override
-    public ICsvEntryMapperCfg getEntryMapperCfg() {
-        return NasdaqStockStatsMapper.getCsvEntryMapperCfg();
+    public ICsvMapperCfg getEntryMapperCfg() {
+        return NasdaqStockStatsMapper.getClsCsvMapperCfg();
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
-        return AbstractNasdaqStockBaseMapper.getCsvEntryMapperCfg();
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
+        return AbstractNasdaqStockBaseMapper.getClsCsvMapperCfg();
     }
 }
 

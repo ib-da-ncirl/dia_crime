@@ -23,7 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvEntryMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
 import org.apache.hadoop.io.MapWritable;
 
@@ -56,13 +56,13 @@ public class DowJonesStockStatsMapper extends AbstractDowJonesStockMapper<BigSto
     }
 
     @Override
-    public ICsvEntryMapperCfg getEntryMapperCfg() {
-        return DowJonesStockStatsMapper.getCsvEntryMapperCfg();
+    public ICsvMapperCfg getEntryMapperCfg() {
+        return DowJonesStockStatsMapper.getClsCsvMapperCfg();
     }
 
-    public static ICsvEntryMapperCfg getCsvEntryMapperCfg() {
+    public static ICsvMapperCfg getClsCsvMapperCfg() {
         // YUCK
-        return DowJonesStockMapper.getCsvEntryMapperCfg();
+        return DowJonesStockMapper.getClsCsvMapperCfg();
     }
 }
 
