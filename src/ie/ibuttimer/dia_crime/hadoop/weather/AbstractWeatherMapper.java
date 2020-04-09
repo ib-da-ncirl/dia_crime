@@ -121,7 +121,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
                     counter.increment();
 
                     // file contains hourly entries, but just use date as the key
-                    keyOut.set(dateTime.toLocalDate().toString());
+                    keyOut.set(getDateOutKey(dateTime.toLocalDate()));
 
                     // return the day as the key and the crime entry as the value
                     writeOutput(context, keyOut, entry);

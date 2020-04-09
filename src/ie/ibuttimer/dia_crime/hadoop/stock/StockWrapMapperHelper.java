@@ -29,6 +29,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -36,7 +37,7 @@ import java.util.List;
  */
 public class StockWrapMapperHelper extends StockMapperHelper {
 
-    private CSWWrapperWritable wrapOut = new CSWWrapperWritable();
+    private final CSWWrapperWritable wrapOut = new CSWWrapperWritable();
 
     public StockWrapMapperHelper(String id, StockWritable.StockWritableBuilder builder) {
         super(id, builder);
@@ -45,12 +46,13 @@ public class StockWrapMapperHelper extends StockMapperHelper {
     @Override
     public List<Pair<String, Writable>> getWriteOutput(AbstractBaseWritable<?> entry, Text id,
                                                        AbstractStockMapper.StockMapperKey keyOutType,
-                                                       IStockEntryKeyGenerator keyGenerator) {
+                                                       IStockEntryKeyGenerator keyGenerator,
+                                                       DateTimeFormatter keyOutFormatter) {
         if (entry instanceof StockWritable) {
             wrapOut.setStock((StockWritable)entry);
         }
 
-        String key = keyGenerator.getWriteKey(entry, id, keyOutType);
+        String key = keyGenerator.getWriteKey(entry, id, keyOutType, keyOutFormatter);
 
         return List.of(Pair.of(key, wrapOut));
     }

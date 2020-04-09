@@ -34,6 +34,8 @@ import org.apache.http.util.TextUtils;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -50,13 +52,30 @@ public class ConfigReader {
         this.propertyWrangler = new PropertyWrangler(mapperCfg.getPropertyRoot());
     }
 
-    public String getConfigProperty(Configuration conf, String name) {
-        boolean required = mapperCfg.getRequiredProps().stream().anyMatch(p -> p.getName().equals(name));
-        String value = conf.get(propertyWrangler.getPropertyPath(name), "");
+    public ConfigReader(String section) {
+        this.mapperCfg = null;
+        this.propertyWrangler = new PropertyWrangler(section);
+    }
+
+    public void setSection(String section) {
+        this.mapperCfg = null;
+        this.propertyWrangler.setRoot(section);
+    }
+
+    public String getConfigProperty(Configuration conf, String name, String dfltValue) {
+        boolean required = false;
+        if (mapperCfg != null) {
+            required = mapperCfg.getRequiredProps().stream().anyMatch(p -> p.getName().equals(name));
+        }
+        String value = conf.get(propertyWrangler.getPropertyPath(name), dfltValue);
         if (required && TextUtils.isEmpty(value)) {
-            throw new  IllegalStateException("Missing required configuration parameter: " + name);
+            throw new IllegalStateException("Missing required configuration parameter: " + name);
         }
         return value;
+    }
+
+    public String getConfigProperty(Configuration conf, String name) {
+        return getConfigProperty(conf, name, "");
     }
 
     public String getPropertyPath(String propertyName) {
@@ -129,4 +148,24 @@ public class ConfigReader {
         return outputTypes;
     }
 
+    /**
+     * Read a date time formatter property
+     * @param conf
+     * @param property
+     * @param dflt      Default, if property not specified
+     * @return
+     */
+    public DateTimeFormatter getDateTimeFormatter(Configuration conf, String property, DateTimeFormatter dflt) {
+        DateTimeFormatter formatter;
+        String dateTimeFmt = conf.get(getPropertyPath(property), "");
+        if (TextUtils.isEmpty(dateTimeFmt)) {
+            formatter = dflt;
+        } else {
+            formatter = new DateTimeFormatterBuilder()
+                .parseCaseInsensitive()
+                .appendPattern(dateTimeFmt)
+                .toFormatter();
+        }
+        return formatter;
+    }
 }

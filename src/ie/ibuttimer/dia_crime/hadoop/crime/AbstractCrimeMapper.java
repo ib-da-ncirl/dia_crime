@@ -112,7 +112,7 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
 
                     counter.increment();
 
-                    keyOut.set(dateTime.toLocalDate().toString());
+                    keyOut.set(getDateOutKey(dateTime.toLocalDate()));
 
                     // return the day as the key and the crime entry as the value
                     writeOutput(context, keyOut, entry);

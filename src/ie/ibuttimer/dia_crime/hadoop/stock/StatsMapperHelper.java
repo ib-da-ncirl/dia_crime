@@ -31,6 +31,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
@@ -67,7 +68,7 @@ public class StatsMapperHelper implements IStats, IAbstractStockMapper {
     @Override
     public List<Pair<String, Writable>> getWriteOutput(AbstractBaseWritable<?> entry, Text id,
                                                        AbstractStockMapper.StockMapperKey keyOutType,
-                                                       IStockEntryKeyGenerator keyGenerator) {
+                                                       IStockEntryKeyGenerator keyGenerator, DateTimeFormatter keyOutFormatter) {
 
         List<Pair<String, Writable>> output = new ArrayList<>();
 

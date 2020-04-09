@@ -30,6 +30,7 @@ import org.apache.hadoop.io.Writable;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -51,15 +52,18 @@ public interface IAbstractStockMapper {
      * @param id            Id for mapper
      * @param keyOutType    Key type to output
      * @param keyGenerator
+     * @param keyOutFormatter
      * @throws IOException
      * @throws InterruptedException
      * @return
      */
     List<Pair<String, Writable>> getWriteOutput(AbstractBaseWritable<?> entry,
-                                                Text id, AbstractStockMapper.StockMapperKey keyOutType, IStockEntryKeyGenerator keyGenerator);
+                                                Text id, AbstractStockMapper.StockMapperKey keyOutType,
+                                                IStockEntryKeyGenerator keyGenerator, DateTimeFormatter keyOutFormatter);
 
     interface IStockEntryKeyGenerator {
-        String getWriteKey(AbstractBaseWritable<?> entry, Text id, AbstractStockMapper.StockMapperKey keyOutType);
+        String getWriteKey(AbstractBaseWritable<?> entry, Text id, AbstractStockMapper.StockMapperKey keyOutType,
+                           DateTimeFormatter dateTimeFormatter);
     }
 
 }

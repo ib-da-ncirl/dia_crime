@@ -32,6 +32,7 @@ import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.stock.StockWritable;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherReducer;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherWritable;
+import ie.ibuttimer.dia_crime.misc.ConfigReader;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Utils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -42,7 +43,6 @@ import org.apache.hadoop.io.Text;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.util.*;
 
 import static ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer.saveOutputTypes;
@@ -59,10 +59,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
 
     private Map<String, Class<?>> categorySet;
 
-    private final DateTimeFormatter dateTimeFormatter = new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("uuuu-MM-dd")
-        .toFormatter();
+    private DateTimeFormatter keyOutDateTimeFormatter;
 
     protected static ValueCache<
             Long,                           // key: epoch day
@@ -95,7 +92,9 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
         putOutputTypes(new WeatherWritable().toMap());
 
         // add stock fields for individual stocks to categories
-        String idList = getConfigProperty(context, STOCK_PROP_SECTION, ID_LIST_PROP, "");
+        ConfigReader cfgReader = new ConfigReader(STOCK_PROP_SECTION);
+        Configuration conf = context.getConfiguration();
+        String idList = cfgReader.getConfigProperty(conf, ID_LIST_PROP, "");
         Arrays.asList(idList.split(",")).forEach(s -> {
             StockWritable sw = new StockWritable();
             sw.setId(s);
@@ -105,6 +104,11 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
                     putOutputType(genStockOutputKey(s, es.getKey()), es.getValue().getClass());
                 });
         });
+
+        /* set date time formatter for output key, could use any weather/crime/stock section */
+        cfgReader.setSection(WEATHER_PROP_SECTION);
+        keyOutDateTimeFormatter = cfgReader.getDateTimeFormatter(conf,
+                                        OUT_KEY_DATE_FORMAT_PROP, DateTimeFormatter.ISO_LOCAL_DATE);
 
         counter = getCounter(context, CountersEnum.MERGE_REDUCER_COUNT);
         dayInCounter = getCounter(context, CountersEnum.MERGE_REDUCER_GROUP_IN_COUNT);
@@ -257,12 +261,12 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
     }
 
     protected Long getValueCacheKey(String date) {
-        LocalDate valueDate = Utils.getDate(date, dateTimeFormatter, getLogger());
+        LocalDate valueDate = Utils.getDate(date, keyOutDateTimeFormatter, getLogger());
         return valueDate.toEpochDay();
     }
 
     protected Text getOutKey(Long cacheKey) {
         LocalDate valueDate = LocalDate.ofEpochDay(cacheKey);
-        return new Text(valueDate.format(dateTimeFormatter));
+        return new Text(valueDate.format(keyOutDateTimeFormatter));
     }
 }

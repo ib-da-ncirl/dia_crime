@@ -31,6 +31,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -68,11 +69,12 @@ public class StockMapperHelper implements IStats, IAbstractStockMapper {
     @Override
     public List<Pair<String, Writable>> getWriteOutput(AbstractBaseWritable<?> entry, Text id,
                                                        AbstractStockMapper.StockMapperKey keyOutType,
-                                                       IStockEntryKeyGenerator keyGenerator) {
+                                                       IStockEntryKeyGenerator keyGenerator,
+                                                       DateTimeFormatter keyOutFormatter) {
         mapOut.clear();
         mapOut.put(id, entry);
 
-        String key = keyGenerator.getWriteKey(entry, id, keyOutType);
+        String key = keyGenerator.getWriteKey(entry, id, keyOutType, keyOutFormatter);
 
         return List.of(Pair.of(key, mapOut));
     }

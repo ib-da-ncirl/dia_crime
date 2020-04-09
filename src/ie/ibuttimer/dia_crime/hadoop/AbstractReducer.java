@@ -27,8 +27,6 @@ import ie.ibuttimer.dia_crime.hadoop.merge.IDecorator;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.DebugLevel;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.log4j.Logger;
 
@@ -45,8 +43,6 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  */
 public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO, VO>
     implements IDecorator.IDecoratable<KO, VO>, ITagger, DebugLevel.Debuggable {
-
-    public static final String CLASS_VAL_SEPARATOR = ":-";
 
     private IDecorator<KO, VO> decorator;
     private IDecorator.DecorMode decoratorMode;
@@ -111,14 +107,6 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
             Pair<Object, Object> transformed = transform(decorated.getLeft(), decorated.getRight());
             getLogger().info(transformed.getLeft().toString() + " " + transformed.getRight().toString());
         }
-    }
-
-    protected String getConfigProperty(Configuration conf, String section, String property, String defaultValue) {
-        return conf.get(generatePropertyName(section, property), defaultValue);
-    }
-
-    protected String getConfigProperty(Context context, String section, String property, String defaultValue) {
-        return getConfigProperty(context.getConfiguration(), section, property, defaultValue);
     }
 
     public DebugLevel getDebugLevel() {

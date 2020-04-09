@@ -60,7 +60,10 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
     /** Number of columns in csv file */
     private int numIndices = 0;
 
+    // date time formatter for reading input
     private DateTimeFormatter dateTimeFormatter;
+    // date time formatter for outputting date keys
+    private DateTimeFormatter keyOutDateTimeFormatter;
 
     public static final List<String> DATE_FILTER_PROPS = Arrays.asList(
         FILTER_START_DATE_PROP, FILTER_END_DATE_PROP
@@ -68,7 +71,7 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
 
     private DateFilter dateFilter = null;
 
-    private Map<String, Integer> indices = new HashMap<>();
+    private final Map<String, Integer> indices = new HashMap<>();
     private int maxIndex = -1;
 
     @Override
@@ -82,16 +85,10 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
         hasHeader = conf.getBoolean(getPropertyPath(HAS_HEADER_PROP), DEFAULT_HAS_HEADER);
         numIndices = conf.getInt(getPropertyPath(NUM_INDICES_PROP), 0);
 
-        /* java.time.format.DateTimeFormatter pattern for format of dates */
-        String dateTimeFmt = conf.get(getPropertyPath(DATE_FORMAT_PROP), "");
-        if (TextUtils.isEmpty(dateTimeFmt)) {
-            dateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-        } else {
-            dateTimeFormatter = new DateTimeFormatterBuilder()
-                .parseCaseInsensitive()
-                .appendPattern(dateTimeFmt)
-                .toFormatter();
-        }
+        /* set date time formatter properties */
+        ConfigReader cfgReader = new ConfigReader(getEntryMapperCfg());
+        dateTimeFormatter = cfgReader.getDateTimeFormatter(conf, DATE_FORMAT_PROP, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        keyOutDateTimeFormatter = cfgReader.getDateTimeFormatter(conf, OUT_KEY_DATE_FORMAT_PROP, DateTimeFormatter.ISO_LOCAL_DATE);
 
         // get date filter
         dateFilter = new DateFilter(conf.get(getPropertyPath(FILTER_START_DATE_PROP), ""),
@@ -108,10 +105,8 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
      * Initialise property indices
      * @param context
      * @param propertyIndices
-     * @throws IOException
-     * @throws InterruptedException
      */
-    protected void initIndices(Context context, List<String> propertyIndices) throws IOException, InterruptedException {
+    protected void initIndices(Context context, List<String> propertyIndices) {
         Configuration conf = context.getConfiguration();
 
         // read the element indices from the configuration
@@ -189,6 +184,14 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
     }
 
     /**
+     * Get the DateTimeFormatter pattern for format of date output keys
+     * @return DateTimeFormatter
+     */
+    public DateTimeFormatter getKeyOutDateTimeFormatter() {
+        return keyOutDateTimeFormatter;
+    }
+
+    /**
      * Get the zoned date and time
      * @param dateTime  String of the date and time
      * @param formatter Formatter to use
@@ -262,6 +265,15 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
     }
 
     /**
+     * Return the text to use as an output key
+     * @param date
+     * @return
+     */
+    public String getDateOutKey(LocalDate date) {
+        return date.format(keyOutDateTimeFormatter);
+    }
+
+    /**
      * Read a separated string to a list
      * @param value     String to split
      * @param separator Separator to use
@@ -282,9 +294,9 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
      */
     public abstract static class AbstractCsvMapperCfg implements ICsvMapperCfg {
 
-        private PropertyWrangler propertyWrangler;
+        private final PropertyWrangler propertyWrangler;
 
-        private String propertyRoot;
+        private final String propertyRoot;
 
         public AbstractCsvMapperCfg(String propertyRoot) {
             this.propertyRoot = propertyRoot;
@@ -312,6 +324,7 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
             propDefault.put(DATE_FORMAT_PROP, "");
             propDefault.put(NUM_INDICES_PROP, "0");
             DATE_FILTER_PROPS.forEach((p -> propDefault.put(p, "")));
+            propDefault.put(OUT_KEY_DATE_FORMAT_PROP, "");
             getPropertyIndices().forEach(p -> propDefault.put(p, "-1"));
             getRequiredProps().forEach(p -> propDefault.put(p.name, p.defaultValue));
             getAdditionalProps().forEach(p -> propDefault.put(p.name, p.defaultValue));

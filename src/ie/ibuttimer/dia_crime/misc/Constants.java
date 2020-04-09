@@ -68,6 +68,8 @@ public class Constants {
     public static final String FILTER_START_DATE_PROP = "filter_start_date";
     public static final String FILTER_END_DATE_PROP = "filter_end_date";
 
+    public static final String OUT_KEY_DATE_FORMAT_PROP = "out_key_date_format";
+
     public static final String DATE_FORMAT_PROP = "date_format";
     public static final String DATE_PROP = "date";
 
@@ -127,6 +129,8 @@ public class Constants {
     public static final String SPEC_PROP = "spec";
     public static final String SPEC_OTHER_PROP = "spec_other";
 
+    // normalisation specific properties
+//    public static final String VARIABLES_PROP = "variables";
 
 
     public static final int ECODE_CONFIG_ERROR = -1;

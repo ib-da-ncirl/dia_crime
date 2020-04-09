@@ -191,10 +191,10 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
     }
 
     // mapper config
-    private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(STATS_PROP_SECTION) {
+    private static final ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(STATS_PROP_SECTION) {
 
-        private Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
-        private Property varsProp = Property.of(VARIABLES_PROP, "list of variables to use", "");
+        private final Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
+        private final Property varsProp = Property.of(VARIABLES_PROP, "list of variables to use", "");
 
         @Override
         public List<Property> getAdditionalProps() {
@@ -207,7 +207,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
 
         @Override
         public List<Property> getRequiredProps() {
-            List<Property> list = super.getRequiredProps();
+            List<Property> list = new ArrayList<>(super.getRequiredProps());
             list.add(typesPathProp);
             list.add(varsProp);
             return list;

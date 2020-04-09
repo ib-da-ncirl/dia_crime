@@ -33,6 +33,7 @@ import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
@@ -64,7 +65,7 @@ public abstract class AbstractStockMapper<VO>
     private final Text keyOut = new Text();
 
     private Text id;
-    private StockMapperKey keyOutType;
+    private final StockMapperKey keyOutType;
 
     private Map<String, Double> factors;
 
@@ -138,21 +139,31 @@ public abstract class AbstractStockMapper<VO>
 
     public void writeOutput(Context context, AbstractBaseWritable<?> entry, Text keyOut, Text id,
                             StockMapperKey keyOutType) {
-        mapperHelper.getWriteOutput(entry, id, keyOutType, this).forEach(pair -> {
-            try {
-                keyOut.set(pair.getLeft());
-                write(context, keyOut, (VO) pair.getRight());
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-            }
-        });
+        mapperHelper.getWriteOutput(entry, id, keyOutType, this, getKeyOutDateTimeFormatter())
+            .forEach(pair -> {
+                try {
+                    keyOut.set(pair.getLeft());
+                    write(context, keyOut, (VO) pair.getRight());
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                }
+            });
     }
 
-    public String getWriteKey(AbstractBaseWritable<?> entry, Text id, StockMapperKey keyOutType) {
+    /**
+     * Generate the output key
+     * @param entry
+     * @param id
+     * @param keyOutType
+     * @param dateTimeFormatter
+     * @return
+     */
+    public String getWriteKey(AbstractBaseWritable<?> entry, Text id, StockMapperKey keyOutType,
+                              DateTimeFormatter dateTimeFormatter) {
         String key;
         switch (keyOutType) {
-            case DATE:      key = entry.getLocalDate().toString();    break;
-            case STOCK_ID:  key = id.toString();                      break;
+            case DATE:      key = entry.getLocalDate().format(dateTimeFormatter);   break;
+            case STOCK_ID:  key = id.toString();                                    break;
             default:        throw new RuntimeException("Unknown 'keyOutType':" + keyOutType);
         };
         return key;
