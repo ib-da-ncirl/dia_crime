@@ -111,15 +111,10 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
             if (skipComment(value)) {
                 // verify parameters specified in input file
                 ICsvMapperCfg cfg = getEntryMapperCfg();
-                Configuration conf = context.getConfiguration();
-                String section = cfg.getPropertyRoot();
                 Pair<String, String> hKeyVal = hadoopKeyVal.destringifyElement(value.toString());
 
-                if (cfg.isDateRangeString(hKeyVal.getRight())) {
-                    cfg.verifyDateRangeTag(conf, section, cfg, hKeyVal.getRight());
-                } else if (cfg.isFactorsString(hKeyVal.getRight())) {
-                    cfg.verifyFactorsTag(conf, section, cfg, hKeyVal.getRight());
-                }
+                cfg.verifyTags(context.getConfiguration(), cfg, hKeyVal.getRight());
+
                 return;
             }
 

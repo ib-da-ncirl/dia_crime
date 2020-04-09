@@ -28,6 +28,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -41,7 +42,14 @@ public interface ITagger {
 
     String DATE_RANGE_TAG = "Date range: ";
     String FACTORS_TAG = "Factors: ";
+    String TIMESTAMP_TAG = "Date: ";
 
+    /**
+     * Get the configured filter date range
+     * @param conf
+     * @param section
+     * @return
+     */
     default Pair<LocalDate, LocalDate> getDateRange(Configuration conf, String section) {
         PropertyWrangler wrangler = PropertyWrangler.of(section);
         Pair<LocalDate, LocalDate> result;
@@ -57,6 +65,12 @@ public interface ITagger {
         return result;
     }
 
+    /**
+     * Get the configured filter date range
+     * @param conf
+     * @param section
+     * @return
+     */
     default String getDateRangeString(Configuration conf, String section) {
         PropertyWrangler wrangler = PropertyWrangler.of(section);
         return DATE_RANGE_TAG + conf.get(wrangler.getPropertyPath(FILTER_START_DATE_PROP), "") +
@@ -68,6 +82,11 @@ public interface ITagger {
         return text.startsWith(DATE_RANGE_TAG);
     }
 
+    /**
+     * Convert the 'text' to a date range
+     * @param text
+     * @return
+     */
     default Pair<LocalDate, LocalDate> decodeDateRange(String text) {
         Pair<LocalDate, LocalDate> result = null;
 
@@ -89,6 +108,12 @@ public interface ITagger {
         return result;
     }
 
+    /**
+     * Get the configured factors setting
+     * @param conf
+     * @param section
+     * @return
+     */
     default String getFactorsString(Configuration conf, String section) {
         PropertyWrangler wrangler = PropertyWrangler.of(section);
         return FACTORS_TAG + conf.get(wrangler.getPropertyPath(FACTOR_PROP), "");
@@ -98,16 +123,37 @@ public interface ITagger {
         return text.startsWith(FACTORS_TAG);
     }
 
+    /**
+     * Get timestamp tag
+     * @return
+     */
+    default String getFactorsString() {
+        return TIMESTAMP_TAG + LocalDateTime.now().toString();
+    }
+
+    /**
+     * Get all tag string for the configuration
+     * @param conf
+     * @param section
+     * @return
+     */
     default List<String> getTagStrings(Configuration conf, String section) {
         return List.of(
             getDateRangeString(conf, section),
-            getFactorsString(conf, section)
+            getFactorsString(conf, section),
+            getFactorsString()
         );
     }
 
-
-    default boolean verifyDateRangeTag(Configuration conf, String section, ICsvMapperCfg cfg, String inputTag) {
-        Pair<LocalDate, LocalDate> cfgDates = cfg.getDateRange(conf, section);
+    /**
+     * Verify the specified input tag text matches the configured filter date range
+     * @param conf
+     * @param cfg
+     * @param inputTag
+     * @return
+     */
+    default boolean verifyDateRangeTag(Configuration conf, ICsvMapperCfg cfg, String inputTag) {
+        Pair<LocalDate, LocalDate> cfgDates = cfg.getDateRange(conf, cfg.getPropertyRoot());
         Pair<LocalDate, LocalDate> inDates = cfg.decodeDateRange(inputTag);
         if (!cfgDates.getLeft().equals(inDates.getLeft()) || !cfgDates.getRight().equals(inDates.getRight())) {
             throw new IllegalStateException("Input dates [" + inDates.getLeft() + "/" + inDates.getRight() +
@@ -116,12 +162,36 @@ public interface ITagger {
         return true;
     }
 
-    default boolean verifyFactorsTag(Configuration conf, String section, ICsvMapperCfg cfg, String inputTag) {
-        String cfgFactors = getFactorsString(conf, section);
+    /**
+     * Verify the specified input tag text matches the configured factors
+     * @param conf
+     * @param cfg
+     * @param inputTag
+     * @return
+     */
+    default boolean verifyFactorsTag(Configuration conf, ICsvMapperCfg cfg, String inputTag) {
+        String cfgFactors = getFactorsString(conf, cfg.getPropertyRoot());
         if (!cfgFactors.equals(inputTag)) {
             throw new IllegalStateException("Input factors [" + inputTag +
                 "] do not match configured factors [" + cfgFactors + "]");
         }
         return true;
+    }
+
+    /**
+     * Verify the specified input tag text matches the configured factors
+     * @param conf
+     * @param cfg
+     * @param inputTag
+     * @return
+     */
+    default boolean verifyTags(Configuration conf, ICsvMapperCfg cfg, String inputTag) {
+        boolean ok = true;
+        if (cfg.isDateRangeString(inputTag)) {
+            ok = cfg.verifyDateRangeTag(conf, cfg, inputTag);
+        } else if (cfg.isFactorsString(inputTag)) {
+            ok = cfg.verifyFactorsTag(conf, cfg, inputTag);
+        }
+        return ok;
     }
 }
