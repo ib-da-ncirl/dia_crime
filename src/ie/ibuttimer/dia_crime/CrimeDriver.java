@@ -68,9 +68,9 @@ public class CrimeDriver extends AbstractDriver {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());;
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
+            Map<String, SectionCfg> sections = new HashMap<>();
 
-            sections.put(CRIME_PROP_SECTION, CrimeMapper.class);
+            sections.put(CRIME_PROP_SECTION, SectionCfg.of(CrimeMapper.class));
 
             job = initJob("Crime", conf, sections);
 
@@ -108,4 +108,8 @@ public class CrimeDriver extends AbstractDriver {
         return resultCode;
     }
 
+    @Override
+    protected Logger getLogger() {
+        return logger;
+    }
 }

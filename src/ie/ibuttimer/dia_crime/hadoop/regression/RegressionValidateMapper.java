@@ -23,51 +23,55 @@
 
 package ie.ibuttimer.dia_crime.hadoop.regression;
 
-import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.hadoop.stats.NameTag;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
-import org.apache.commons.lang3.tuple.Pair;
+import ie.ibuttimer.dia_crime.misc.DateFilter;
+import ie.ibuttimer.dia_crime.misc.DebugLevel;
+import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
-import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
-public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable<?, ?>> {
+/**
+ * Mapper for regression validation
+ * - input key : csv file line number
+ * - input value : csv file line text
+ * - output key : dependent variable
+ * - output value : RegressionWritable containing values for y and y-hat
+ */
+public class RegressionValidateMapper extends AbstractRegressionMapper<Text, String, Value> {
 
     private Counters.MapperCounter counter;
 
-    private MapStringifier.ElementStringify hadoopKeyVal = new MapStringifier.ElementStringify("\t");
-    private MapStringifier.ElementStringify commaStringify = new MapStringifier.ElementStringify(",");
+    private DateFilter validateFilter = null;
 
-    private Map<String, Class<?>> outputTypes;
-
-    private List<String> independents;
-    private String dependent;
+    private Text keyOut;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        super.initIndices(context, sCfgChk.getPropertyIndices());
 
         counter = getCounter(context, CountersEnum.REGRESSION_MAPPER_COUNT);
-
-        setLogger(getClass());
 
         Configuration conf = context.getConfiguration();
         StatsConfigReader cfgReader = new StatsConfigReader(getEntryMapperCfg());
 
-        outputTypes = cfgReader.readOutputTypes(conf);
-        independents = cfgReader.readCommaSeparatedProperty(conf, INDEPENDENTS_PROP);
-        dependent = getConfigProperty(conf, DEPENDENT_PROP);
+        // use dependent as out key
+        keyOut = new Text(dependent);
+
+        // get validate date filter
+        validateFilter = new DateFilter(conf.get(getPropertyPath(VALIDATE_START_DATE_PROP), ""),
+            conf.get(getPropertyPath(VALIDATE_END_DATE_PROP), ""));
     }
 
     /**
@@ -81,7 +85,8 @@ public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 
-        if (!skip(key, value)) {
+        FilterResult filterRes = filterDate(key, value, context);
+        if (filterRes.pass) {
             /* 2001-01-02	02:3, 03:35, 04A:15, 04B:21, 05:68, 06:221, 07:65, 08A:51, 08B:122, 10:9, 11:65, 12:2, 13:2,
                 14:118, 15:9, 16:11, 17:7, 18:156, 19:1, 20:3, 22:2, 24:2, 26:155, DJI_adjclose:10646.150391,
                 DJI_close:10646.150391, DJI_date:2001-01-02, DJI_high:10797.019531, DJI_low:10585.360352,
@@ -94,58 +99,60 @@ public class RegressionMapper extends AbstractCsvMapper<Text, RegressionWritable
                 total:1143, weather_description:sky is clear, weather_id:800, weather_main:Clear, wind_deg:277,
                 wind_speed:4.224999
              */
-            Pair<String, String> hKeyVal = hadoopKeyVal.destringifyElement(value.toString());
-            Pair<Boolean, LocalDate> filterRes = getDateAndFilter(hKeyVal.getLeft());
-            if (filterRes.getLeft()) {
-                Map<String, String> map = MapStringifier.mapify(hKeyVal.getRight());
+            // filter validation set
+            if (validateFilter.filter(filterRes.date)) {
 
-                throw new UnsupportedOperationException("fix regression");
-//                RegressionWritable<String, Object> entry = new RegressionWritable<>();
-//
-//                outputTypes.forEach((name, cls) -> {
-//
-//                    boolean required = independents.stream().anyMatch(name::equals);
-//                    if (required) {
-//                        String readValue = map.getOrDefault(name, "");
-//
-//                        Value wrapped = Value.of(readValue, cls, getDateTimeFormatter());
-//
-//                        wrapped.addTo(entry, name);
-//                    }
-//                });
-//
-//                counter.increment();
-//
-//                write(context, new Text(key.toString()), entry);
+                // collect the value for each property
+                RegressionWritable<String, Value> entry = collectValues(filterRes.value);
+
+                double yi = entry.getProperty(dependent).doubleValue();
+                entry.put(dependent, Value.of(yi));
+
+                independents.forEach(indo -> {
+                    double xi = entry.getProperty(indo).doubleValue();
+
+                    double yhati = regressor.predict(xi);
+
+                    // there'll only be one predicted value
+                    entry.put(NameTag.YHAT.getKeyTag(dependent), Value.of(yhati));
+
+                    if (show(DebugLevel.HIGH)) {
+                        StringBuffer sb = new StringBuffer();
+                        entry.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey())
+                            .forEach(es -> {
+                                if (sb.length() > 0) {
+                                    sb.append(',');
+                                }
+                                sb.append(es.getKey()).append('=').append(es.getValue().doubleValue());
+                            });
+                        getLogger().info(keyOut + " " + sb.toString());
+                    }
+                });
+
+                try {
+                    context.write(keyOut, entry);
+
+                    counter.increment();
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
 
+    // configuration object
+    private static final ICsvMapperCfg sCfgChk = new RegressionMapperCfg(VERIFICATION_PROP_SECTION)  {
 
-
-    private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(REGRESSION_PROP_SECTION) {
-
-        private Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
-        private Property indoProp = Property.of(INDEPENDENTS_PROP, "list of independent variables to use", "");
-        private Property depProp = Property.of(DEPENDENT_PROP, "dependent variable to use", "");
+        private final Property startProp = Property.of(VALIDATE_START_DATE_PROP, "verification start date", "");
+        private final Property endProp = Property.of(VALIDATE_END_DATE_PROP, "verification end date", "");
+        private final Property modelProp = Property.of(VALIDATE_MODEL_PATH_PROP, "model path", "");
 
         @Override
         public List<Property> getAdditionalProps() {
-            return List.of(typesPathProp, indoProp, depProp);
-        }
-
-        @Override
-        public List<Property> getRequiredProps() {
-            List<Property> list = super.getRequiredProps();
-            list.add(typesPathProp);
-            list.add(indoProp);
-            list.add(depProp);
-            return list;
-        }
-
-        @Override
-        public List<String> getPropertyIndices() {
-            return List.of();
+            List<Property> properties = new ArrayList<>(super.getAdditionalProps());
+            properties.addAll(List.of(startProp, endProp, modelProp));
+            return properties;
         }
     };
 

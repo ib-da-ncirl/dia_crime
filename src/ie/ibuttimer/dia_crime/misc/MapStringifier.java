@@ -36,7 +36,7 @@ import java.util.Map;
  */
 public class MapStringifier<K, V> {
 
-    public static final String KVP_SEPARATOR = ", ";
+    public static final String KVP_SEPARATOR = ",";
     public static final String KV_SEPARATOR = ":";
 
     private Map<K, V> map;
@@ -94,6 +94,9 @@ public class MapStringifier<K, V> {
      * Separated key/value manipulation
      */
     public static class ElementStringify {
+
+        public static final ElementStringify HADOOP_KEY_VAL = new ElementStringify("\t");
+        public static final ElementStringify COMMA = new ElementStringify(",");
 
         private String separator;
         private String regex;

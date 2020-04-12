@@ -23,6 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop;
 
+import ie.ibuttimer.dia_crime.misc.IPropertyWrangler;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
@@ -47,11 +48,10 @@ public interface ITagger {
     /**
      * Get the configured filter date range
      * @param conf
-     * @param section
+     * @param wrangler
      * @return
      */
-    default Pair<LocalDate, LocalDate> getDateRange(Configuration conf, String section) {
-        PropertyWrangler wrangler = PropertyWrangler.of(section);
+    default Pair<LocalDate, LocalDate> getDateRange(Configuration conf, IPropertyWrangler wrangler) {
         Pair<LocalDate, LocalDate> result;
         try {
             LocalDate start = LocalDate.parse(
@@ -71,11 +71,30 @@ public interface ITagger {
      * @param section
      * @return
      */
-    default String getDateRangeString(Configuration conf, String section) {
-        PropertyWrangler wrangler = PropertyWrangler.of(section);
+    default Pair<LocalDate, LocalDate> getDateRange(Configuration conf, String section) {
+        return getDateRange(conf, PropertyWrangler.of(section));
+    }
+
+    /**
+     * Get the configured filter date range
+     * @param conf
+     * @param wrangler
+     * @return
+     */
+    default String getDateRangeString(Configuration conf, IPropertyWrangler wrangler) {
         return DATE_RANGE_TAG + conf.get(wrangler.getPropertyPath(FILTER_START_DATE_PROP), "") +
             " to " +
             conf.get(wrangler.getPropertyPath(FILTER_END_DATE_PROP), "");
+    }
+
+    /**
+     * Get the configured filter date range
+     * @param conf
+     * @param section
+     * @return
+     */
+    default String getDateRangeString(Configuration conf, String section) {
+        return getDateRangeString(conf, PropertyWrangler.of(section));
     }
 
     default boolean isDateRangeString(String text) {
@@ -111,12 +130,21 @@ public interface ITagger {
     /**
      * Get the configured factors setting
      * @param conf
+     * @param wrangler
+     * @return
+     */
+    default String getFactorsString(Configuration conf, IPropertyWrangler wrangler) {
+        return FACTORS_TAG + conf.get(wrangler.getPropertyPath(FACTOR_PROP), "");
+    }
+
+    /**
+     * Get the configured factors setting
+     * @param conf
      * @param section
      * @return
      */
     default String getFactorsString(Configuration conf, String section) {
-        PropertyWrangler wrangler = PropertyWrangler.of(section);
-        return FACTORS_TAG + conf.get(wrangler.getPropertyPath(FACTOR_PROP), "");
+        return getFactorsString(conf, PropertyWrangler.of(section));
     }
 
     default boolean isFactorsString(String text) {
@@ -127,8 +155,22 @@ public interface ITagger {
      * Get timestamp tag
      * @return
      */
-    default String getFactorsString() {
+    default String getTimestampString() {
         return TIMESTAMP_TAG + LocalDateTime.now().toString();
+    }
+
+    /**
+     * Get all tag string for the configuration
+     * @param conf
+     * @param wrangler
+     * @return
+     */
+    default List<String> getTagStrings(Configuration conf, IPropertyWrangler wrangler) {
+        return List.of(
+            getDateRangeString(conf, wrangler),
+            getFactorsString(conf, wrangler),
+            getTimestampString()
+        );
     }
 
     /**
@@ -141,7 +183,7 @@ public interface ITagger {
         return List.of(
             getDateRangeString(conf, section),
             getFactorsString(conf, section),
-            getFactorsString()
+            getTimestampString()
         );
     }
 
@@ -152,12 +194,19 @@ public interface ITagger {
      * @param inputTag
      * @return
      */
-    default boolean verifyDateRangeTag(Configuration conf, ICsvMapperCfg cfg, String inputTag) {
+    default boolean verifyDateRangeTag(Configuration conf, ICsvMapperCfg cfg, String inputTag, DateRangeMode mode) {
         Pair<LocalDate, LocalDate> cfgDates = cfg.getDateRange(conf, cfg.getPropertyRoot());
         Pair<LocalDate, LocalDate> inDates = cfg.decodeDateRange(inputTag);
-        if (!cfgDates.getLeft().equals(inDates.getLeft()) || !cfgDates.getRight().equals(inDates.getRight())) {
-            throw new IllegalStateException("Input dates [" + inDates.getLeft() + "/" + inDates.getRight() +
-                "] do not match configured dates [" + cfgDates.getLeft() + "/" + cfgDates.getRight() + "]");
+        if (mode == DateRangeMode.EXACT) {
+            if (!cfgDates.getLeft().equals(inDates.getLeft()) || !cfgDates.getRight().equals(inDates.getRight())) {
+                throw new IllegalStateException("Input dates [" + inDates.getLeft() + "/" + inDates.getRight() +
+                    "] do not match configured dates [" + cfgDates.getLeft() + "/" + cfgDates.getRight() + "]");
+            }
+        } else if (mode == DateRangeMode.WITHIN) {
+            if (inDates.getLeft().isBefore(cfgDates.getLeft()) || cfgDates.getRight().isBefore(inDates.getRight())) {
+                throw new IllegalStateException("Input dates [" + inDates.getLeft() + "/" + inDates.getRight() +
+                    "] outside of configured dates [" + cfgDates.getLeft() + "/" + cfgDates.getRight() + "]");
+            }
         }
         return true;
     }
@@ -178,6 +227,26 @@ public interface ITagger {
         return true;
     }
 
+    enum DateRangeMode { EXACT, WITHIN }
+
+    /**
+     * Verify the specified input tag text matches the configured factors
+     * @param conf
+     * @param cfg
+     * @param inputTag
+     * @param mode
+     * @return
+     */
+    default boolean verifyTags(Configuration conf, ICsvMapperCfg cfg, String inputTag, DateRangeMode mode) {
+        boolean ok = true;
+        if (cfg.isDateRangeString(inputTag)) {
+            ok = cfg.verifyDateRangeTag(conf, cfg, inputTag, mode);
+        } else if (cfg.isFactorsString(inputTag)) {
+            ok = cfg.verifyFactorsTag(conf, cfg, inputTag);
+        }
+        return ok;
+    }
+
     /**
      * Verify the specified input tag text matches the configured factors
      * @param conf
@@ -186,12 +255,6 @@ public interface ITagger {
      * @return
      */
     default boolean verifyTags(Configuration conf, ICsvMapperCfg cfg, String inputTag) {
-        boolean ok = true;
-        if (cfg.isDateRangeString(inputTag)) {
-            ok = cfg.verifyDateRangeTag(conf, cfg, inputTag);
-        } else if (cfg.isFactorsString(inputTag)) {
-            ok = cfg.verifyFactorsTag(conf, cfg, inputTag);
-        }
-        return ok;
+        return verifyTags(conf, cfg, inputTag, DateRangeMode.EXACT);
     }
 }

@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
 /**
  * Base class for statistics calculation
  */
-public abstract class AbstractStatsCalc implements IStats {
+public abstract class AbstractStatsCalc {
 
     public enum Stat {
         STDDEV,     // standard deviation

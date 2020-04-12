@@ -86,13 +86,13 @@ public class StockDriver extends AbstractDriver {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
+            Map<String, SectionCfg> sections = new HashMap<>();
 
             addStockSpecificsToConfig(conf);
 
-            sections.put(NASDAQ_PROP_SECTION, NasdaqStockMapper.class);
-            sections.put(DOWJONES_PROP_SECTION, DowJonesStockMapper.class);
-            sections.put(SP500_PROP_SECTION, SP500StockMapper.class);
+            sections.put(NASDAQ_PROP_SECTION, SectionCfg.of(NasdaqStockMapper.class));
+            sections.put(DOWJONES_PROP_SECTION, SectionCfg.of(DowJonesStockMapper.class));
+            sections.put(SP500_PROP_SECTION, SectionCfg.of(SP500StockMapper.class));
 
             job = initJob("Stocks", conf, sections);
 
@@ -139,12 +139,12 @@ public class StockDriver extends AbstractDriver {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
+            Map<String, SectionCfg> sections = new HashMap<>();
             Map<String, String> tags = new HashMap<>();
 
-            sections.put(NASDAQ_PROP_SECTION, NasdaqStockStatsMapper.class);
-            sections.put(DOWJONES_PROP_SECTION, DowJonesStockStatsMapper.class);
-            sections.put(SP500_PROP_SECTION, SP500StockStatsMapper.class);
+            sections.put(NASDAQ_PROP_SECTION, SectionCfg.of(NasdaqStockStatsMapper.class));
+            sections.put(DOWJONES_PROP_SECTION, SectionCfg.of(DowJonesStockStatsMapper.class));
+            sections.put(SP500_PROP_SECTION, SectionCfg.of(SP500StockStatsMapper.class));
             tags.put(NASDAQ_PROP_SECTION, NASDAQ_ID);
             tags.put(DOWJONES_PROP_SECTION, DOWJONES_ID);
             tags.put(SP500_PROP_SECTION, SP500_ID);
@@ -233,5 +233,8 @@ public class StockDriver extends AbstractDriver {
         return resultCode;
     }
 
-
+    @Override
+    protected Logger getLogger() {
+        return logger;
+    }
 }

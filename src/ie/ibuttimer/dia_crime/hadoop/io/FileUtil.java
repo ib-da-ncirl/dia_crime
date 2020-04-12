@@ -67,25 +67,36 @@ public class FileUtil {
         return fileExists("_SUCCESS");
     }
 
-    public FSDataInputStream fileReadOpen(String filename) throws IOException {
-        FSDataInputStream stream = null;
-        Path filePath = new Path(path, filename);
-        if (fileExists(filename)) {
-            stream = fileSystem.open(filePath);
-        } else {
-            throw new FileNotFoundException("File not found: " + filename);
-        }
-        return stream;
-    }
-
-    public FSDataInputStream fileReadOpen() throws IOException {
-        FSDataInputStream stream = null;
+    public FSDataInputStream fileReadOpen(Path path) throws IOException {
+        FSDataInputStream stream;
         if (fileExists(path)) {
             stream = fileSystem.open(path);
         } else {
             throw new FileNotFoundException("File not found: " + path);
         }
         return stream;
+    }
+
+    public FSDataInputStream fileReadOpen(String filename) throws IOException {
+        return fileReadOpen(new Path(path, filename));
+    }
+
+    public FSDataInputStream fileReadOpen() throws IOException {
+        FSDataInputStream stream;
+        if (fileExists(path)) {
+            stream = fileSystem.open(path);
+        } else {
+            throw new FileNotFoundException("File not found: " + path);
+        }
+        return stream;
+    }
+
+    public FSDataOutputStream fileAppendOpen(Path filePath, boolean overwrite) throws IOException {
+        if (fileExists(filePath) && !overwrite) {
+            throw new InvalidRequestException("Unable to create '" + filePath + "' as it already exists. " +
+                    "Specify 'overwrite' as true to overwrite");
+        }
+        return fileSystem.create(filePath, overwrite);
     }
 
     public FSDataOutputStream fileWriteOpen(Path filePath, boolean overwrite) throws IOException {
@@ -146,93 +157,6 @@ public class FileUtil {
 
     public void close() throws IOException {
         fileSystem.close();
-    }
-
-    /**
-     * Hadoop file writer class
-     */
-    public static class FileWriter {
-
-        private FileUtil fileUtil;
-        private FSDataOutputStream stream;
-        private OutputStreamWriter outputStreamWriter;
-        private BufferedWriter bufferedWriter;
-
-        public FileWriter(Path path, Configuration conf) {
-            fileUtil = new FileUtil(path, conf);
-        }
-
-        public FileWriter open(Path filePath, boolean overwrite) {
-            try {
-                stream = fileUtil.fileWriteOpen(filePath, overwrite);
-            } catch (IOException e) {
-                e.printStackTrace();
-                close();
-            }
-            return this;
-        }
-
-        public FileWriter open(String filename, boolean overwrite) {
-            try {
-                stream = fileUtil.fileWriteOpen(filename, overwrite);
-            } catch (IOException e) {
-                e.printStackTrace();
-                close();
-            }
-            return this;
-        }
-
-        public FileWriter write(List<String> lines) {
-            if (fileUtil == null) {
-                throw new IllegalStateException("Writer is closed");
-            }
-            if (outputStreamWriter == null) {
-                outputStreamWriter = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
-                bufferedWriter = new BufferedWriter(outputStreamWriter);
-            }
-
-            try {
-                lines.forEach(l -> {
-                    try {
-                        bufferedWriter.write(l);
-                        bufferedWriter.newLine();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
-            } catch (Exception e) {
-                e.printStackTrace();
-                close();
-            }
-            return this;
-        }
-
-        public FileWriter write(String line) {
-            return write(Collections.singletonList(line));
-        }
-
-        public FileWriter newline() {
-            return write(Collections.singletonList(""));
-        }
-
-        public void close() {
-            try {
-                if (bufferedWriter != null) {
-                    bufferedWriter.close();
-                }
-                if (outputStreamWriter != null) {
-                    outputStreamWriter.close();
-                }
-                if (stream != null) {
-                    stream.close();
-                }
-                if (fileUtil != null) {
-                    fileUtil.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
 }

@@ -24,7 +24,6 @@
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
-import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
@@ -40,7 +39,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
 /**
  * Mapper helper for stocks
  */
-public class StockMapperHelper implements IStats, IAbstractStockMapper {
+public class StockMapperHelper implements IAbstractStockMapper {
 
     private String id;
     private StockWritable.StockWritableBuilder builder;

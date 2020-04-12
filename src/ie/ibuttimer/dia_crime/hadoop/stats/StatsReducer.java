@@ -51,7 +51,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : property name plus specific identifier for the statistic
  * - output value : value
  */
-public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> implements IStats {
+public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> {
 
     private Counters.ReducerCounter counter;
     private Counters.ReducerCounter statsInCounter;
@@ -98,7 +98,7 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> imple
         statsInCounter.increment();
 
         String keyStr = key.toString();
-        Triple<Optional<String>, Optional<String>, Optional<String>> keySplit = split(keyStr);
+        Triple<Optional<String>, Optional<String>, Optional<String>> keySplit = NameTag.split(keyStr);
 
         keySplit.getLeft().ifPresent(key1 -> {
 
@@ -109,7 +109,7 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> imple
             AtomicLong entryCount = new AtomicLong(0);
             List<Pair<Text, Value>> outputList = new ArrayList<>();
 
-            if (isStandardKey(keyStr)) {
+            if (NameTag.isStandardKey(keyStr)) {
                 Value minimiser = collectors.getMiddle();
                 Value maximiser = collectors.getRight();
 
@@ -125,8 +125,8 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> imple
                     <key>-MAX - max value
                  */
                 outputList.addAll(List.of(
-                    Pair.of(new Text(getMinKeyTag(keyStr)), minimiser),
-                    Pair.of(new Text(getMaxKeyTag(keyStr)), maximiser)
+                    Pair.of(new Text(NameTag.MIN.getKeyTag(keyStr)), minimiser),
+                    Pair.of(new Text(NameTag.MAX.getKeyTag(keyStr)), maximiser)
                 ));
             } else {
                 // slight duplication but min/min not required for squared/product values and it'll be quicker
@@ -142,12 +142,17 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> imple
                 <key>-SUM - sum of values
                 <key>-CNT - count of values
                 <key>-ZERO - count of zero values
+                <key>-MEAN - mean value
              */
-            // write count to file
+            Value count = Value.of(entryCount.get());
+            Value mean = summer.copyOf();
+            mean.divide(count);
+
             outputList.addAll(List.of(
-                Pair.of(new Text(getSumKeyTag(keyStr)), summer),
-                Pair.of(new Text(getCountKeyTag(keyStr)), Value.of(entryCount.get())),
-                Pair.of(new Text(getZeroKeyTag(keyStr)), zeroCnt)
+                Pair.of(new Text(NameTag.SUM.getKeyTag(keyStr)), summer),
+                Pair.of(new Text(NameTag.CNT.getKeyTag(keyStr)), count),
+                Pair.of(new Text(NameTag.ZERO.getKeyTag(keyStr)), zeroCnt),
+                Pair.of(new Text(NameTag.MEAN.getKeyTag(keyStr)), mean)
             ));
 
             writeOutput(context, outputList);

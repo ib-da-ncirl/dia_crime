@@ -34,7 +34,6 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -257,11 +256,21 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
     /**
      * Get the date and check if it is filtered
      * @param date  String of the date and time
+     * @param dateFilter Date filter to use
+     * @return  Pair of filter result (TRUE if passes filter) and converted date and time
+     */
+    public Pair<Boolean, LocalDate> getDateAndFilter(String date, DateFilter dateFilter) {
+        LocalDate ld = getDate(date);
+        return Pair.of(dateFilter.filter(ld), ld);
+    }
+
+    /**
+     * Get the date and check if it is filtered
+     * @param date  String of the date and time
      * @return  Pair of filter result (TRUE if passes filter) and converted date and time
      */
     public Pair<Boolean, LocalDate> getDateAndFilter(String date) {
-        LocalDate ld = getDate(date);
-        return Pair.of(dateFilter.filter(ld), ld);
+        return getDateAndFilter(date, dateFilter);
     }
 
     /**
@@ -346,14 +355,36 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
             }
 
             // check for date filtering
+            Pair<Integer, List<String>> dateRes = checkDatePairConfiguration(
+                                                    conf, FILTER_START_DATE_PROP, FILTER_END_DATE_PROP);
+            if (dateRes.getLeft() != ECODE_SUCCESS) {
+                errors.addAll(dateRes.getRight());
+                resultCode = dateRes.getLeft();
+            }
+
+            // check property indices
+            for (String key : getPropertyIndices()) {
+                if (conf.getInt(getPropertyPath(key), -1) < 0) {
+                    errors.add("Error: '" + key + "' not specified.");
+                    resultCode = ECODE_CONFIG_ERROR;
+                }
+            }
+
+            return Pair.of(resultCode, errors);
+        }
+
+        public Pair<Integer, List<String>> checkDatePairConfiguration(Configuration conf, String start, String end) {
+            int resultCode = ECODE_SUCCESS;
+            List<String> errors = new ArrayList<>();
+
             LocalDate startDate = null;
             LocalDate endDate = null;
-            for (String key : DATE_FILTER_PROPS) {
+            for (String key : List.of(start, end)) {
                 String dateStr = conf.get(getPropertyPath(key), "");
                 if (!TextUtils.isEmpty(dateStr)) {
                     try {
                         LocalDate date = LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
-                        if (key.equals(FILTER_START_DATE_PROP)) {
+                        if (key.equals(start)) {
                             startDate = date;
                         } else {
                             endDate = date;
@@ -368,20 +399,11 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
                 if ((startDate != null) && (endDate != null)) {
                     Period period = Period.between(startDate, endDate.plusDays(1)); // start inclusive, end exclusive
                     if (period.isZero() || period.isNegative()) {
-                        errors.add("Error: '" + FILTER_END_DATE_PROP + "' before '" + FILTER_START_DATE_PROP + "'");
+                        errors.add("Error: '" + start + "' before '" + end + "'");
                         resultCode = ECODE_CONFIG_ERROR;
                     }
                 }
             }
-
-            // check property indices
-            for (String key : getPropertyIndices()) {
-                if (conf.getInt(getPropertyPath(key), -1) < 0) {
-                    errors.add("Error: '" + key + "' not specified.");
-                    resultCode = ECODE_CONFIG_ERROR;
-                }
-            }
-
             return Pair.of(resultCode, errors);
         }
 

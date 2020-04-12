@@ -79,15 +79,15 @@ public class MergeDriver extends AbstractDriver {
         });
 
         if (resultCode.get() == ECODE_SUCCESS) {
-            Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
+            Map<String, SectionCfg> sections = new HashMap<>();
 
             addStockSpecificsToConfig(conf);
 
-            sections.put(NASDAQ_PROP_SECTION, NasdaqStockWrapMapper.class);
-            sections.put(DOWJONES_PROP_SECTION, DowJonesStockWrapMapper.class);
-            sections.put(SP500_PROP_SECTION, SP500StockWrapMapper.class);
-            sections.put(CRIME_PROP_SECTION, CrimeWrapMapper.class);
-            sections.put(WEATHER_PROP_SECTION, WeatherWrapMapper.class);
+            sections.put(NASDAQ_PROP_SECTION, SectionCfg.of(NasdaqStockWrapMapper.class));
+            sections.put(DOWJONES_PROP_SECTION, SectionCfg.of(DowJonesStockWrapMapper.class));
+            sections.put(SP500_PROP_SECTION, SectionCfg.of(SP500StockWrapMapper.class));
+            sections.put(CRIME_PROP_SECTION, SectionCfg.of(CrimeWrapMapper.class));
+            sections.put(WEATHER_PROP_SECTION, SectionCfg.of(WeatherWrapMapper.class));
 
             job = initJob("Merge", conf, sections);
 
@@ -125,4 +125,8 @@ public class MergeDriver extends AbstractDriver {
         return resultCode;
     }
 
+    @Override
+    protected Logger getLogger() {
+        return logger;
+    }
 }

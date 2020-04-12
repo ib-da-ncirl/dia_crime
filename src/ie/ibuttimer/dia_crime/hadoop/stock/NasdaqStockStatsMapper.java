@@ -24,7 +24,6 @@
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
-import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
 import org.apache.hadoop.io.MapWritable;
 
 import java.io.IOException;
@@ -36,8 +35,7 @@ import java.io.IOException;
  * - output key : stock id
  * - output value : MapWritable<id, StockWritable>
  */
-public class NasdaqStockStatsMapper extends AbstractNasdaqStockMapper<BigStockWritable, MapWritable>
-                    implements IStats {
+public class NasdaqStockStatsMapper extends AbstractNasdaqStockMapper<BigStockWritable, MapWritable> {
 
     public NasdaqStockStatsMapper() {
         // use stock id as the key

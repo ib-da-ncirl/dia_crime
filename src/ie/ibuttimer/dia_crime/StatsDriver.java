@@ -24,7 +24,7 @@
 package ie.ibuttimer.dia_crime;
 
 import ie.ibuttimer.dia_crime.hadoop.ITagger;
-import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
+import ie.ibuttimer.dia_crime.hadoop.io.FileWriter;
 import ie.ibuttimer.dia_crime.hadoop.stats.*;
 import ie.ibuttimer.dia_crime.misc.DebugLevel;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
@@ -77,9 +77,9 @@ public class StatsDriver extends AbstractDriver implements ITagger {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == ECODE_SUCCESS) {
-            Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
+            Map<String, SectionCfg> sections = new HashMap<>();
 
-            sections.put(STATS_PROP_SECTION, StatsMapper.class);
+            sections.put(STATS_PROP_SECTION, SectionCfg.of(StatsMapper.class));
 
             job = initJob("Stats", conf, sections);
 
@@ -141,7 +141,7 @@ public class StatsDriver extends AbstractDriver implements ITagger {
             StatsCalc statsCalc = new StatsCalc(outDir, conf, "part-r-00000");
             String outPath = conf.get(propertyWrangler.getPropertyPath(STATS_PATH_PROP), section + "_stats.txt");
             String dependent = conf.get(propertyWrangler.getPropertyPath(DEPENDENT_PROP), "");
-            FileUtil.FileWriter writer = new FileUtil.FileWriter(outDir, conf);
+            FileWriter writer = new FileWriter(outDir, conf);
 
             writer.open(outPath, true);
 
@@ -250,12 +250,12 @@ public class StatsDriver extends AbstractDriver implements ITagger {
                         .filter(id2 ->
                             // reversed properties are not in skip list
                             skipList.stream()
-                                .noneMatch(statsCalc.getKeyPair(id1, id2)::equals)
+                                .noneMatch(NameTag.getKeyPair(id1, id2)::equals)
                         )
                         .forEach(id2 -> {
 
-                            String leftRightPair = statsCalc.getKeyPair(id1, id2);
-                            String rightLeftPair = statsCalc.getKeyPair(id2, id1);
+                            String leftRightPair = NameTag.getKeyPair(id1, id2);
+                            String rightLeftPair = NameTag.getKeyPair(id2, id1);
 
                             // no need to calc right-left as its the same as left-right
                             skipList.add(rightLeftPair);
@@ -268,7 +268,7 @@ public class StatsDriver extends AbstractDriver implements ITagger {
                                 .filter(e -> e.getKey().equals(leftRightPair) || e.getKey().equals(rightLeftPair))
                                 .findFirst()
                                 .ifPresent(e -> {
-                                    Pair<String, String> keyPair = statsCalc.splitKeyPair(e.getKey());
+                                    Pair<String, String> keyPair = NameTag.splitKeyPair(e.getKey());
                                     int idx1 = sortedNumerics.indexOf(keyPair.getLeft());
                                     int idx2 = sortedNumerics.indexOf(keyPair.getRight());
                                     e.getValue().getCorrelation().ifPresent(v -> {
@@ -394,4 +394,8 @@ public class StatsDriver extends AbstractDriver implements ITagger {
         }
     }
 
+    @Override
+    protected Logger getLogger() {
+        return logger;
+    }
 }

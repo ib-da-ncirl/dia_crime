@@ -30,7 +30,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.PROPERTY_SEPARATOR;
 /**
  * Configuration property manipulation
  */
-public class PropertyWrangler {
+public class PropertyWrangler implements IPropertyWrangler {
 
     private String root;
 
@@ -87,4 +87,5 @@ public class PropertyWrangler {
         }
         return name;
     }
+
 }

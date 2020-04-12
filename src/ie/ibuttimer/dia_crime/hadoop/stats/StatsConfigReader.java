@@ -44,8 +44,6 @@ public class StatsConfigReader extends ConfigReader {
     private static List<Class<?>> CLASSES = List.of(Integer.class, Long.class, Float.class, Double.class, String.class,
         LocalDate.class);
 
-    private ConfigReader cfgReader;
-
     private Map<String, Class<?>> outputTypes;
 
     private List<String> variables;
@@ -56,7 +54,10 @@ public class StatsConfigReader extends ConfigReader {
 
     public StatsConfigReader(ICsvMapperCfg mapperCfg) {
         super(mapperCfg);
-        this.cfgReader = new ConfigReader(mapperCfg);
+    }
+
+    public StatsConfigReader(String section) {
+        super(section);
     }
 
     private Configuration getConf(Configuration conf) {
@@ -80,15 +81,15 @@ public class StatsConfigReader extends ConfigReader {
     public List<String> readVariables(Configuration conf) {
         Configuration confLocal = getConf(conf);
 
-        String setting = cfgReader.getConfigProperty(confLocal, VARIABLES_PROP);
+        String setting = getConfigProperty(confLocal, VARIABLES_PROP);
         if (setting.equals(VARIABLES_NUMERIC)) {
 
             // not the most efficient way of handing 'numeric' but ...
-            outputTypes = readOutputTypes(confLocal, true, null);
+            outputTypes = readOutputTypes(confLocal, OutputType.NUMERIC, null);
 
             variables = new ArrayList<>(outputTypes.keySet());
         } else {
-            variables = cfgReader.readCommaSeparatedProperty(confLocal, VARIABLES_PROP);
+            variables = readCommaSeparatedProperty(confLocal, VARIABLES_PROP);
             if (variables.size() == 0) {
                 throw new IllegalStateException("No variables specified");
             }
@@ -108,31 +109,30 @@ public class StatsConfigReader extends ConfigReader {
             readVariables(confLocal);
         }
 
-        outputTypes = readOutputTypes(confLocal, false, variables);
+        outputTypes = readOutputTypes(confLocal, OutputType.CFG, variables);
 
         return outputTypes;
     }
 
+    enum OutputType { CFG, NUMERIC, ALL }
+
     /**
      * Read the output types configuration
      * @param conf
-     * @param allNumeric
+     * @param type
      * @param vars
      * @return
      */
-    private Map<String, Class<?>> readOutputTypes(Configuration conf, boolean allNumeric, List<String> vars) {
+    private Map<String, Class<?>> readOutputTypes(Configuration conf, OutputType type, List<String> vars) {
         outputTypes = new HashMap<>();
 
-        Predicate<? super Map.Entry<String, Class<?>>> predicate = e -> {
-            boolean required;
-            if (allNumeric) {
-                required = isNumericClass(e.getValue());
-            } else {
-                required = vars.stream().anyMatch(e.getKey()::equals);
-            }
-            return required;
-        };
-        cfgReader.readOutputTypeClasses(conf, OUTPUTTYPES_PATH_PROP, CLASSES).entrySet().stream()
+        Predicate<? super Map.Entry<String, Class<?>>> predicate;
+        switch (type) {
+            case CFG:       predicate = e -> vars.stream().anyMatch(e.getKey()::equals);    break;
+            case NUMERIC:   predicate = e -> isNumericClass(e.getValue());                  break;
+            default:        predicate = e -> true;                                          break;
+        }
+        readOutputTypeClasses(conf, OUTPUTTYPES_PATH_PROP, CLASSES).entrySet().stream()
             .filter(predicate)
             .forEach(entry -> {
                 outputTypes.put(entry.getKey(), entry.getValue());

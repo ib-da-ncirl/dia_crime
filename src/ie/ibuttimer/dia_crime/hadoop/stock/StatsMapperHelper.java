@@ -24,7 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
-import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
+import ie.ibuttimer.dia_crime.hadoop.stats.NameTag;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
@@ -41,7 +41,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.VOLUME_PROP;
  * Mapper helper for stock specific statistics calculations
  */
 @Deprecated
-public class StatsMapperHelper implements IStats, IAbstractStockMapper {
+public class StatsMapperHelper implements IAbstractStockMapper {
 
     private BigStockWritable.BigStockEntryWritableBuilder builder;
 
@@ -93,7 +93,7 @@ public class StatsMapperHelper implements IStats, IAbstractStockMapper {
             sqMapOut.clear();
             sqMapOut.put(id, sqEntry);
 
-            output.add(Pair.of(getSquareKeyTag(id.toString()), sqMapOut));
+            output.add(Pair.of(NameTag.SQ.getKeyTag(id.toString()), sqMapOut));
         }
         return output;
     }

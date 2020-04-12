@@ -199,6 +199,8 @@ public abstract class AbstractStockMapper<VO>
     public static class StockMapperCfg extends AbstractCsvMapperCfg {
 
         private static Property tagProp = Property.of(STOCK_TAG_PROP, "stock tag", "");
+        private static Property statsProp = Property.of(STATS_PATH_PROP, "path for stats output", "");
+        private static Property factorsProp = Property.of(FACTOR_PROP, "list of factors to apply to values", "");
 
         public StockMapperCfg(String propertyRoot) {
             super(propertyRoot);
@@ -206,9 +208,7 @@ public abstract class AbstractStockMapper<VO>
 
         @Override
         public List<Property> getAdditionalProps() {
-            return List.of(tagProp,
-                Property.of(STATS_PATH_PROP, "path for stats output", ""),
-                Property.of(FACTOR_PROP, "list of factors to apply to values", ""));
+            return List.of(tagProp, statsProp, factorsProp);
         }
 
         @Override

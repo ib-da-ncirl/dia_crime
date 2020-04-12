@@ -26,16 +26,14 @@ package ie.ibuttimer.dia_crime;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeMapper;
 import ie.ibuttimer.dia_crime.hadoop.matrix.MatrixMapper;
-import ie.ibuttimer.dia_crime.hadoop.regression.RegressionMapper;
+import ie.ibuttimer.dia_crime.hadoop.regression.RegressionTrainMapper;
+import ie.ibuttimer.dia_crime.hadoop.regression.RegressionValidateMapper;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.DowJonesStockMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.NasdaqStockMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.SP500StockMapper;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherMapper;
-import ie.ibuttimer.dia_crime.misc.Constants;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
-import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
-import ie.ibuttimer.dia_crime.misc.Utils;
+import ie.ibuttimer.dia_crime.misc.*;
 import org.apache.commons.cli.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -71,7 +69,8 @@ public class DiaCrimeMain {
         propDefaults.put(SP500_PROP_SECTION, SP500StockMapper.getClsCsvMapperCfg());
         propDefaults.put(WEATHER_PROP_SECTION, WeatherMapper.getClsCsvMapperCfg());
         propDefaults.put(STATS_PROP_SECTION, StatsMapper.getClsCsvMapperCfg());
-        propDefaults.put(REGRESSION_PROP_SECTION, RegressionMapper.getClsCsvMapperCfg());
+        propDefaults.put(REGRESSION_PROP_SECTION, RegressionTrainMapper.getClsCsvMapperCfg());
+        propDefaults.put(VERIFICATION_PROP_SECTION, RegressionValidateMapper.getClsCsvMapperCfg());
         propDefaults.put(MATRIX_PROP_1_SECTION, MatrixMapper.MatrixMapper1.getClsCsvMapperCfg());
         propDefaults.put(MATRIX_PROP_2_SECTION, MatrixMapper.MatrixMapper2.getClsCsvMapperCfg());
     }
@@ -94,6 +93,7 @@ public class DiaCrimeMain {
         -j merge -c config.properties;merge.properties
         -j stats -c config.properties;stats.properties
         -j linear_regression -c config.properties;regression.properties
+        -j regression_verify -c config.properties;regression.properties;verification.properties
         -j matrix_multiply -c config.properties;matrix.properties
         -m <path to file>
 
@@ -109,6 +109,7 @@ public class DiaCrimeMain {
     private static final String JOB_MERGE = "merge";
     private static final String JOB_STATS = "stats";
     private static final String JOB_LINEAR_REGRESSION = "linear_regression";
+    private static final String JOB_VERIFY_REGRESSION = "verify_regression";
     private static final String JOB_MATRIX_MULTIPLY = "matrix_multiply";
     private static final List<Triple<String, String, String>> jobList;
     private static final String jobListFmt;
@@ -121,6 +122,7 @@ public class DiaCrimeMain {
         jobList.add(Triple.of(JOB_MERGE, "merge crime, stocks & weather to a single file", "Merge Job"));
         jobList.add(Triple.of(JOB_STATS, "perform basic statistics analysis", "Statistics Job"));
         jobList.add(Triple.of(JOB_LINEAR_REGRESSION, "perform a linear regression on merged crime, stocks & weather data", "Linear Regression Job"));
+        jobList.add(Triple.of(JOB_VERIFY_REGRESSION, "verify a linear regression on merged crime, stocks & weather data", "Regression Verification Job"));
         jobList.add(Triple.of(JOB_MATRIX_MULTIPLY, "perform a matrix multiplication", "Matrix Multiplication Job"));
 
         OptionalInt width = jobList.stream().map(Triple::getLeft).mapToInt(String::length).max();
@@ -247,6 +249,9 @@ public class DiaCrimeMain {
                             case JOB_LINEAR_REGRESSION:
                                 resultCode = LinearRegressionDriver.of(this).runLinearRegressionJob(jobCfg);
                                 break;
+                            case JOB_VERIFY_REGRESSION:
+                                resultCode = LinearRegressionDriver.of(this).runRegressionValidationJob(jobCfg);
+                                break;
                             case JOB_MATRIX_MULTIPLY:
                                 resultCode = MatrixDriver.of(this).runMatrixJob(jobCfg);
                                 break;
@@ -282,10 +287,11 @@ public class DiaCrimeMain {
 
 
     /**
-     * @param conf
-     * @param properties
-     * @param main
-     * @param supplementary
+     * Load configuration for specified MapReduce.
+     * @param conf          Configuration to populate
+     * @param properties    Properties
+     * @param main          Main section used as key for ICsvMapperCfg
+     * @param supplementary Property sections to be added after main
      * @return
      */
     public int setupJob(Configuration conf, Properties properties, String main, List<String> supplementary) {
@@ -297,6 +303,13 @@ public class DiaCrimeMain {
         }
 
         getConfiguration(conf, properties, main, allSections);
+
+        if (DebugLevel.getSetting(conf, main).showMe(DebugLevel.HIGH)) {
+            Map<String, String> map = conf.getPropsWithPrefix(main);
+            map.forEach((key, val) -> {
+                logger.info(String.format("%s%s - [%s]", main, key, val));
+            });
+        }
 
         int resultCode = checkConfiguration(conf, main);
 
@@ -335,7 +348,9 @@ public class DiaCrimeMain {
     }
 
     /**
-     * Load configuration for specified MapReduce
+     * Load configuration for specified MapReduce.
+     * Config sections are loaded in the following order they appear in <code>sections</code>, and are added under
+     * <code>main</code>.
      * @param properties    Property object to read
      * @param main          Main section used as key for ICsvMapperCfg
      * @param sections      Property sections for MapReduce

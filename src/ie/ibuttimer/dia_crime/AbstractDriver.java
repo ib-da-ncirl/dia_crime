@@ -23,6 +23,9 @@
 
 package ie.ibuttimer.dia_crime;
 
+import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
+import ie.ibuttimer.dia_crime.misc.DebugLevel;
+import ie.ibuttimer.dia_crime.misc.IPropertyWrangler;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
@@ -33,6 +36,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.log4j.Logger;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -54,8 +58,9 @@ public abstract class AbstractDriver {
         return app;
     }
 
+
     public Job initJob(String name, Configuration conf,
-                       Map<String, Class<? extends Mapper<?, ?, ?, ?>>> sections) throws Exception {
+                       Map<String, SectionCfg> sections) throws Exception {
 
         if (sections.size() == 0) {
             throw new IllegalArgumentException("No sections specified");
@@ -71,11 +76,20 @@ public abstract class AbstractDriver {
         if (sections.size() > 1) {
             // multiple inputs
             Map<String, String> outputPaths = new HashMap<>();
-            sections.forEach((section, cls) -> {
+            sections.forEach((section, cfg) -> {
                 propertyWrangler.setRoot(section);
 
+                String inPathProp = propertyWrangler.getPropertyPath(cfg.inPath);
+                String inPath = conf.get(inPathProp);
                 MultipleInputs.addInputPath(job,
-                    new Path(conf.get(propertyWrangler.getPropertyPath(IN_PATH_PROP))), TextInputFormat.class, cls);
+                    new Path(inPath), TextInputFormat.class, cfg.mapper);
+
+                if (!cfg.inPath.equals(SectionCfg.DEFAULT_IN_PATH)) {
+                    if (DebugLevel.getSetting(conf, section).showMe(DebugLevel.HIGH)) {
+                        getLogger().info(String.format("!! Non-standard mapper input path: %s - [%s] %s",
+                            inPathProp, inPath, cfg.mapper.getSimpleName()));
+                    }
+                }
 
                 outputPaths.put(section, conf.get(propertyWrangler.getPropertyPath(OUT_PATH_PROP)));
             });
@@ -94,11 +108,11 @@ public abstract class AbstractDriver {
             assert sections.size() == 1;
 
             AtomicReference<String> singleOutPath = new AtomicReference<>();
-            sections.forEach((section, cls) -> {
+            sections.forEach((section, cfg) -> {
                 propertyWrangler.setRoot(section);
                 singleOutPath.set(conf.get(propertyWrangler.getPropertyPath(OUT_PATH_PROP)));
 
-                job.setMapperClass(cls);
+                job.setMapperClass(cfg.mapper);
             });
 
             outPath = singleOutPath.get();
@@ -115,6 +129,14 @@ public abstract class AbstractDriver {
         return job;
     }
 
+    /**
+     * Load configuration for specified MapReduce.
+     * @param conf          Configuration to populate
+     * @param properties    Properties
+     * @param sections      Main sections used as key for ICsvMapperCfg
+     * @param commonSection Property sections to be added after each main
+     * @return
+     */
     protected int readConfigs(Configuration conf, Properties properties, List<String> sections, List<String> commonSection) {
 
         // There is duplication of common property reading for stocks, unnecessary but convenient
@@ -165,6 +187,28 @@ public abstract class AbstractDriver {
         });
     }
 
+    private void updateConfiguration(Configuration conf, String setting, String value, boolean log) {
+        conf.set(setting, value);
+        if (log) {
+            getLogger().info(String.format("!! Configuration updated %s - [%s]", setting, value));
+        }
+    }
+
+    protected void updateConfiguration(Configuration conf, String setting, String value, ICsvMapperCfg sCfgChk) {
+        updateConfiguration(conf, setting, value, DebugLevel.getSetting(conf, sCfgChk).showMe(DebugLevel.HIGH));
+    }
+
+    protected void updateConfiguration(Configuration conf, String setting, String value, String section) {
+        updateConfiguration(conf, setting, value, DebugLevel.getSetting(conf, section).showMe(DebugLevel.HIGH));
+    }
+
+    protected void updateConfiguration(Configuration conf, String setting, String value, IPropertyWrangler wrangler) {
+        updateConfiguration(conf, setting, value, DebugLevel.getSetting(conf, wrangler).showMe(DebugLevel.HIGH));
+    }
+
+
+    protected abstract Logger getLogger();
+
     public static class JobConfig {
 
         Properties properties;
@@ -189,4 +233,26 @@ public abstract class AbstractDriver {
             return new JobConfig(properties);
         }
     }
+
+    public static class SectionCfg {
+
+        static final String DEFAULT_IN_PATH = IN_PATH_PROP;
+
+        Class<? extends Mapper<?, ?, ?, ?>> mapper;
+        String inPath;  // in path property name
+
+        public SectionCfg(Class<? extends Mapper<?, ?, ?, ?>> mapper, String inPath) {
+            this.mapper = mapper;
+            this.inPath = inPath;
+        }
+
+        static SectionCfg of(Class<? extends Mapper<?, ?, ?, ?>> mapper, String inPath) {
+            return new SectionCfg(mapper, inPath);
+        }
+
+        static SectionCfg of(Class<? extends Mapper<?, ?, ?, ?>> mapper) {
+            return new SectionCfg(mapper, DEFAULT_IN_PATH);
+        }
+    }
+
 }

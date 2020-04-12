@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.HADOOP_KEY_VAL;
 
 /**
  * Statistics mapper that outputs property value, property value squared and, property product values
@@ -51,11 +52,9 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : property name plus specific identifier for squared value etc.
  * - output value : value
  */
-public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStats {
+public class StatsMapper extends AbstractCsvMapper<Text, Value> {
 
     private Counters.MapperCounter counter;
-
-    private MapStringifier.ElementStringify hadoopKeyVal = new MapStringifier.ElementStringify("\t");
 
     private Map<String, Class<?>> outputTypes;
 
@@ -111,7 +110,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
             if (skipComment(value)) {
                 // verify parameters specified in input file
                 ICsvMapperCfg cfg = getEntryMapperCfg();
-                Pair<String, String> hKeyVal = hadoopKeyVal.destringifyElement(value.toString());
+                Pair<String, String> hKeyVal = HADOOP_KEY_VAL.destringifyElement(value.toString());
 
                 cfg.verifyTags(context.getConfiguration(), cfg, hKeyVal.getRight());
 
@@ -130,7 +129,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
                 total:1143, weather_description:sky is clear, weather_id:800, weather_main:Clear, wind_deg:277,
                 wind_speed:4.224999
              */
-            Pair<String, String> hKeyVal = hadoopKeyVal.destringifyElement(value.toString());
+            Pair<String, String> hKeyVal = HADOOP_KEY_VAL.destringifyElement(value.toString());
             Pair<Boolean, LocalDate> filterRes = getDateAndFilter(hKeyVal.getLeft());
             if (filterRes.getLeft()) {
                 Map<String, String> map = MapStringifier.mapify(hKeyVal.getRight());
@@ -145,7 +144,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
                     squared.pow(2);
 
                     valuesOut.put(name, wrapped);
-                    valuesOut.put(getSquareKeyTag(name), squared);
+                    valuesOut.put(NameTag.SQ.getKeyTag(name), squared);
 
                     // collect the product value with each other property
                     outputTypes.entrySet().stream()
@@ -153,21 +152,21 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> implements IStat
                         .filter(es ->
                             // reversed properties are not in skip list
                             skipList.stream()
-                                .noneMatch(getKeyPair(name, es.getKey())::equals)
+                                .noneMatch(NameTag.getKeyPair(name, es.getKey())::equals)
                         )
                         .forEach(es -> {
                             String propName = es.getKey();
-                            String leftRight = getKeyPair(name, propName);
+                            String leftRight = NameTag.getKeyPair(name, propName);
 
                             // no need to calc right-left as its the same as left-right
-                            skipList.add(getKeyPair(propName, name));
+                            skipList.add(NameTag.getKeyPair(propName, name));
 
                             String readPropValue = map.getOrDefault(propName, "");
 
                             Value wrappedProduct = Value.of(readPropValue, es.getValue(), getDateTimeFormatter());
                             wrappedProduct.multiply(wrapped);
 
-                            valuesOut.put(getProductKeyTag(leftRight), wrappedProduct);
+                            valuesOut.put(NameTag.PRD.getKeyTag(leftRight), wrappedProduct);
                         });
 
                 });

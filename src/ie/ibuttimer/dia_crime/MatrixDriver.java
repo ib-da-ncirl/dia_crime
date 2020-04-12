@@ -68,11 +68,11 @@ public class MatrixDriver extends AbstractDriver {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
+            Map<String, SectionCfg> sections = new HashMap<>();
             Map<String, String> tags = new HashMap<>();
 
-            sections.put(MATRIX_PROP_1_SECTION, MatrixMapper.MatrixMapper1.class);
-            sections.put(MATRIX_PROP_2_SECTION, MatrixMapper.MatrixMapper2.class);
+            sections.put(MATRIX_PROP_1_SECTION, SectionCfg.of(MatrixMapper.MatrixMapper1.class));
+            sections.put(MATRIX_PROP_2_SECTION, SectionCfg.of(MatrixMapper.MatrixMapper2.class));
 
             job = initJob("Matrix", conf, sections);
 
@@ -109,4 +109,8 @@ public class MatrixDriver extends AbstractDriver {
         return resultCode;
     }
 
+    @Override
+    protected Logger getLogger() {
+        return logger;
+    }
 }

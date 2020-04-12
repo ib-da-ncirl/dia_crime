@@ -52,6 +52,7 @@ public class Constants {
     public static final String SP500_PROP_SECTION = "sp500";
     public static final String WEATHER_PROP_SECTION = "weather";
     public static final String REGRESSION_PROP_SECTION = "regression";
+    public static final String VERIFICATION_PROP_SECTION = "verification";
     public static final String STATS_PROP_SECTION = "stats";
     public static final String MATRIX_PROP_1_SECTION = "matrix1";
     public static final String MATRIX_PROP_2_SECTION = "matrix2";
@@ -119,6 +120,22 @@ public class Constants {
     // regression specific properties
     public static final String INDEPENDENTS_PROP = "independents";
     public static final String DEPENDENT_PROP = "dependent";
+    public static final String TRAIN_OUTPUT_PATH_PROP = "train_output_path";
+    public static final String STATS_INPUT_PATH_PROP = "stats_input_path";
+    public static final String LEARNING_RATE_PROP = "learning_rate";
+    public static final String EPOCH_LIMIT_PROP = "epoch_limit";
+    public static final String TARGET_COST_PROP = "target_cost";
+    public static final String STEADY_TARGET_PROP = "steady_target";
+    public static final String STEADY_LIMIT_PROP = "steady_limit";
+    public static final String WEIGHT_PROP = "weight";
+    public static final String BIAS_PROP = "bias";
+    public static final String CURRENT_EPOCH_PROP = "current_epoch";
+
+    public static final String TRAIN_START_DATE_PROP = "train_start_date";
+    public static final String TRAIN_END_DATE_PROP = "train_end_date";
+    public static final String VALIDATE_START_DATE_PROP = "validate_start_date";
+    public static final String VALIDATE_END_DATE_PROP = "validate_end_date";
+    public static final String VALIDATE_MODEL_PATH_PROP = "model_path";
 
     // stats specific properties
     public static final String VARIABLES_PROP = "variables";
@@ -130,7 +147,6 @@ public class Constants {
     public static final String SPEC_OTHER_PROP = "spec_other";
 
     // normalisation specific properties
-//    public static final String VARIABLES_PROP = "variables";
 
 
     public static final int ECODE_CONFIG_ERROR = -1;

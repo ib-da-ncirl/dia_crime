@@ -51,8 +51,6 @@ public abstract class MatrixMapper extends AbstractCsvMapper<CoordinateWritable,
 
     private Counters.MapperCounter counter;
 
-    private MapStringifier.ElementStringify hadoopKeyVal = new MapStringifier.ElementStringify("\t");
-
     private EqElement mode;
     private Spec specThis;
     private Spec specOther;

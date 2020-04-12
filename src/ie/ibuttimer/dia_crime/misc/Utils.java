@@ -192,17 +192,32 @@ public class Utils {
         return getDate(date, formatter, logger);
     }
 
-
+    /**
+     * Get a banner line
+     * @param length
+     * @param chr
+     * @return
+     */
     public static String banner(int length, char chr) {
         char[] line = new char[length];
         Arrays.fill(line, chr);
         return new String(line);
     }
 
+    /**
+     * Get an underlined header
+     * @param heading
+     * @return
+     */
     public static String heading(String heading) {
         return String.format("%s%n%s%n", heading, banner(heading.length(), '-'));
     }
 
+    /**
+     * Get a multiline text dialog with banner above and below
+     * @param lines
+     * @return
+     */
     public static String getDialog(List<String> lines) {
         AtomicInteger maxLen = new AtomicInteger(25);
         lines.stream().mapToInt(String::length).max().ifPresent(maxLen::set);
@@ -210,12 +225,35 @@ public class Utils {
         String ls = System.getProperty("line.separator");
         StringBuilder sb = new StringBuilder(ls);
         sb.append(banner).append(ls);
-        lines.forEach(sb::append);
-        sb.append(ls).append(banner).append(ls);
+        lines.forEach(l -> sb.append(l).append(ls));
+        sb.append(banner);
         return sb.toString();
     }
 
+    /**
+     * Get a text dialog with banner above and below
+     * @return
+     */
     public static String getDialog(String line) {
         return getDialog(Collections.singletonList(line));
+    }
+    /**
+     * Get a multiline text dialog with space above and below
+     * @param lines
+     * @return
+     */
+    public static String getSpacedDialog(List<String> lines) {
+        String ls = System.getProperty("line.separator");
+        StringBuilder sb = new StringBuilder(ls).append(ls);
+        lines.forEach(l -> sb.append(l).append(ls));
+        return sb.toString();
+    }
+
+    /**
+     * Get a text dialog with space above and below
+     * @return
+     */
+    public static String getSpacedDialog(String line) {
+        return getSpacedDialog(Collections.singletonList(line));
     }
 }

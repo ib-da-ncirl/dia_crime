@@ -27,7 +27,9 @@ import ie.ibuttimer.dia_crime.hadoop.merge.IDecorator;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.DebugLevel;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -58,6 +60,18 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
     public AbstractReducer(IDecorator<KO, VO> decorator, IDecorator.DecorMode decoratorMode) {
         setDecorator(decorator, decoratorMode);
         setDebugLevel(DebugLevel.OFF);
+    }
+
+    @Override
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+
+        // set debug level
+        Configuration conf = context.getConfiguration();
+        String section = conf.get(CONF_PROPERTY_ROOT, "");
+        if (!TextUtils.isEmpty(section)) {
+            setDebugLevel(DebugLevel.getSetting(conf, section));
+        }
     }
 
     @Override

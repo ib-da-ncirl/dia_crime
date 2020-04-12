@@ -44,7 +44,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * Stocks specific statistics calculation
  */
 @Deprecated
-public class StockStatsCalc extends AbstractStatsCalc implements IStats {
+public class StockStatsCalc extends AbstractStatsCalc {
 
     private static final Logger logger = Logger.getLogger(StockStatsCalc.class.getSimpleName());
 
@@ -57,22 +57,27 @@ public class StockStatsCalc extends AbstractStatsCalc implements IStats {
         Result.Set resultSet = new Result.Set();
         List<String> lines = getLines(id);
         if (lines != null) {
-            Set<String> req = new HashSet<>();
+            Set<NameTag> req = new HashSet<>();
             stats.forEach(stat -> {
                 switch (stat) {
                     case STDDEV:
                     case VARIANCE:
-                        req.add(SQUARE_KEY_TAG);
+                        req.add(NameTag.SQ);
                         // fall thru
                     case MEAN:
-                        req.add(SUM_KEY_TAG);
-                        req.add(COUNT_KEY_TAG);
+                        req.add(NameTag.SUM);
+                        // fall thru
+                    case COUNT:
+                        req.add(NameTag.CNT);
                         break;
                     case MIN:
-                        req.add(MIN_KEY_TAG);
+                        req.add(NameTag.MIN);
                         break;
                     case MAX:
-                        req.add(MAX_KEY_TAG);
+                        req.add(NameTag.MAX);
+                        break;
+                    case ZERO_COUNT:
+                        req.add(NameTag.ZERO);
                         break;
                 }
             });
@@ -82,13 +87,13 @@ public class StockStatsCalc extends AbstractStatsCalc implements IStats {
             BigStockWritable min = null;
             BigStockWritable max = null;
             long count = -1;
-            for (String key : req) {
+            for (NameTag key : req) {
                 switch (key) {
-                    case SQUARE_KEY_TAG:    sumOfSq = readBigStock(lines, getSquareKeyTag(id));         break;
-                    case SUM_KEY_TAG:       sum = readBigStock(lines, getSumKeyTag(id));                break;
-                    case COUNT_KEY_TAG:     count = readLong(lines, getCountKeyTag(id), COUNT_PROP);    break;
-                    case MIN_KEY_TAG:       min = readBigStock(lines, getMinKeyTag(id));                break;
-                    case MAX_KEY_TAG:       max = readBigStock(lines, getMaxKeyTag(id));                break;
+                    case SQ:    sumOfSq = readBigStock(lines, key.getKeyTag(id));       break;
+                    case SUM:   sum = readBigStock(lines, key.getKeyTag(id));           break;
+                    case CNT:   count = readLong(lines, key.getKeyTag(id), COUNT_PROP); break;
+                    case MIN:   min = readBigStock(lines, key.getKeyTag(id));           break;
+                    case MAX:   max = readBigStock(lines, key.getKeyTag(id));           break;
                 }
             }
 

@@ -45,6 +45,11 @@ public enum DebugLevel {
         return DebugLevel.valueOf(setting);
     }
 
+    public static DebugLevel getSetting(Configuration conf, IPropertyWrangler wrangler) {
+        String setting = conf.get(wrangler.getPropertyPath(DEBUG_PROP), OFF.name());
+        return DebugLevel.valueOf(setting);
+    }
+
     public static boolean show(DebugLevel setting, DebugLevel level) {
         return (setting != OFF) && (level.ordinal() <= setting.ordinal());
     }

@@ -42,7 +42,7 @@ import static ie.ibuttimer.dia_crime.hadoop.stats.AbstractStatsCalc.Stat.STDDEV;
 /**
  * Statistics calculations
  */
-public class StatsCalc extends AbstractStatsCalc implements IStats {
+public class StatsCalc extends AbstractStatsCalc {
 
     private static final Logger logger = Logger.getLogger(StatsCalc.class.getSimpleName());
 
@@ -73,28 +73,27 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
 
         List<String> lines = getLines(id);
         if (lines != null) {
-            Set<String> req = new HashSet<>();
+            Set<NameTag> req = new HashSet<>();
             stats.forEach(stat -> {
                 switch (stat) {
                     case STDDEV:
                     case VARIANCE:
-                        req.add(SQUARE_KEY_TAG);
+                        req.add(NameTag.SQ);
                         // fall thru
                     case MEAN:
-                        req.add(SUM_KEY_TAG);
-                        req.add(COUNT_KEY_TAG);
+                        req.add(NameTag.SUM);
+                        // fall thru
+                    case COUNT:
+                        req.add(NameTag.CNT);
                         break;
                     case MIN:
-                        req.add(MIN_KEY_TAG);
+                        req.add(NameTag.MIN);
                         break;
                     case MAX:
-                        req.add(MAX_KEY_TAG);
-                        break;
-                    case COUNT:
-                        req.add(COUNT_KEY_TAG);
+                        req.add(NameTag.MAX);
                         break;
                     case ZERO_COUNT:
-                        req.add(ZERO_KEY_TAG);
+                        req.add(NameTag.ZERO);
                         break;
                 }
             });
@@ -105,14 +104,14 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
             AtomicReference<Value> max = new AtomicReference<>();
             AtomicReference<Value> count = new AtomicReference<>();
             AtomicReference<Value> zero = new AtomicReference<>();
-            for (String key : req) {
+            for (NameTag key : req) {
                 switch (key) {
-                    case SQUARE_KEY_TAG:    readEntry(lines, getSquareKeyTag(id)).ifPresent(sumOfSq::set);  break;
-                    case SUM_KEY_TAG:       readEntry(lines, getSumKeyTag(id)).ifPresent(sum::set);         break;
-                    case COUNT_KEY_TAG:     readEntry(lines, getCountKeyTag(id)).ifPresent(count::set);     break;
-                    case MIN_KEY_TAG:       readEntry(lines, getMinKeyTag(id)).ifPresent(min::set);         break;
-                    case MAX_KEY_TAG:       readEntry(lines, getMaxKeyTag(id)).ifPresent(max::set);         break;
-                    case ZERO_KEY_TAG:      readEntry(lines, getZeroKeyTag(id)).ifPresent(zero::set);       break;
+                    case SQ:    readEntry(lines, key.getKeyTag(id)).ifPresent(sumOfSq::set);    break;
+                    case SUM:   readEntry(lines, key.getKeyTag(id)).ifPresent(sum::set);        break;
+                    case CNT:   readEntry(lines, key.getKeyTag(id)).ifPresent(count::set);      break;
+                    case MIN:   readEntry(lines, key.getKeyTag(id)).ifPresent(min::set);        break;
+                    case MAX:   readEntry(lines, key.getKeyTag(id)).ifPresent(max::set);        break;
+                    case ZERO:  readEntry(lines, key.getKeyTag(id)).ifPresent(zero::set);       break;
                 }
             }
 
@@ -168,8 +167,8 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
     public Result.Set calcStat(String idX, String idY, List<Stat> stats, List<String> fields) throws IOException {
         Result.Set resultSet = new Result.Set();
 
-        String keyPairXY = getKeyPair(idX, idY);
-        String keyPairYX = getKeyPair(idY, idX);
+        String keyPairXY = NameTag.getKeyPair(idX, idY);
+        String keyPairYX = NameTag.getKeyPair(idY, idX);
         List<String> lines = new ArrayList<>();
         lines.addAll(getLines(idX));
         lines.addAll(getLines(idY));
@@ -193,25 +192,25 @@ public class StatsCalc extends AbstractStatsCalc implements IStats {
                     List.of(Pair.of(keyPairXY, SUMOFPRODUCT_XY),
                             Pair.of(keyPairYX, SUMOFPRODUCT_YX))
                         .forEach(pair -> {
-                            String tag = getSumKeyTag(getProductKeyTag(pair.getLeft()));
+                            String tag = NameTag.getKeyTagChain(pair.getLeft(), List.of(NameTag.PRD, NameTag.SUM));
                             corTags.put(pair.getRight(), tag);
                             req.add(tag);
                         });
 
                     Consumer<? super Pair<String, String>> consumer = p -> {
-                        String ftag = getSumKeyTag(getSquareKeyTag(p.getRight()));
+                        String ftag = NameTag.getKeyTagChain(p.getRight(), List.of(NameTag.SQ, NameTag.SUM));
                         corTags.put(p.getLeft(), ftag);
                         req.add(ftag);
                     };
                     List.of(Pair.of(SUMOFXSQ, idX), Pair.of(SUMOFYSQ, idY)).forEach(consumer);
                     consumer = p -> {
-                        String ftag = getSumKeyTag(p.getRight());
+                        String ftag = NameTag.SUM.getKeyTag(p.getRight());
                         corTags.put(p.getLeft(), ftag);
                         req.add(ftag);
                     };
                     List.of(Pair.of(SUMOFX, idX), Pair.of(SUMOFY, idY)).forEach(consumer);
 
-                    String tag = getCountKeyTag(idX);
+                    String tag = NameTag.CNT.getKeyTag(idX);
                     corTags.put(COUNTOFXY, tag);
                     req.add(tag);
                 }

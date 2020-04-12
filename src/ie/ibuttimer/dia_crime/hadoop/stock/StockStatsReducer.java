@@ -26,7 +26,7 @@ package ie.ibuttimer.dia_crime.hadoop.stock;
 import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
-import ie.ibuttimer.dia_crime.hadoop.stats.IStats;
+import ie.ibuttimer.dia_crime.hadoop.stats.NameTag;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.MapWritable;
@@ -48,7 +48,7 @@ import static ie.ibuttimer.dia_crime.misc.Value.*;
  * - input value : text with
  */
 @Deprecated
-public class StockStatsReducer extends AbstractReducer<Text, MapWritable, Text, Text> implements IStats {
+public class StockStatsReducer extends AbstractReducer<Text, MapWritable, Text, Text> {
 
     private Counters.ReducerCounter counter;
 
@@ -76,7 +76,7 @@ public class StockStatsReducer extends AbstractReducer<Text, MapWritable, Text, 
         BigStockWritable maximiser = new BigStockWritable(
                 MIN_BIG_DECIMAL, MIN_BIG_DECIMAL, MIN_BIG_DECIMAL, MIN_BIG_DECIMAL, MIN_BIG_DECIMAL, MIN_BIG_INTEGER, "");
 
-        if (isStandardKey(key.toString())) {
+        if (NameTag.isStandardKey(key.toString())) {
             values.forEach(stock -> {
                 stock.forEach((stockKey, stockEntry) -> {
                     summer.add((BigStockWritable) stockEntry);
@@ -86,9 +86,9 @@ public class StockStatsReducer extends AbstractReducer<Text, MapWritable, Text, 
                 });
             });
             writeOutput(context, Stream.of(
-                Pair.of(summer, new Text(getSumKeyTag(key.toString()))),
-                Pair.of(minimiser, new Text(getMinKeyTag(key.toString()))),
-                Pair.of(maximiser, new Text(getMaxKeyTag(key.toString())))
+                Pair.of(summer, new Text(NameTag.SUM.getKeyTag(key.toString()))),
+                Pair.of(minimiser, new Text(NameTag.MIN.getKeyTag(key.toString()))),
+                Pair.of(maximiser, new Text(NameTag.MAX.getKeyTag(key.toString())))
             ));
         } else {
             // slight duplication but min/min not required for squared values and it'll be quicker
@@ -106,7 +106,7 @@ public class StockStatsReducer extends AbstractReducer<Text, MapWritable, Text, 
         // write count to file
         counter.getCount().ifPresent(c -> {
             Map<String, String> map = Map.of(COUNT_PROP, Long.toString(c));
-            writeOutput(context, new Text(getCountKeyTag(key.toString())), new Text(MapStringifier.stringify(map)));
+            writeOutput(context, new Text(NameTag.CNT.getKeyTag(key.toString())), new Text(MapStringifier.stringify(map)));
         });
     }
 

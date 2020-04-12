@@ -67,10 +67,10 @@ public class WeatherDriver extends AbstractDriver {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, Class<? extends Mapper<?,?,?,?>>> sections = new HashMap<>();
+            Map<String, SectionCfg> sections = new HashMap<>();
             Map<String, String> tags = new HashMap<>();
 
-            sections.put(WEATHER_PROP_SECTION, WeatherMapper.class);
+            sections.put(WEATHER_PROP_SECTION, SectionCfg.of(WeatherMapper.class));
 
             job = initJob("Weather", conf, sections);
 
@@ -107,4 +107,8 @@ public class WeatherDriver extends AbstractDriver {
         return resultCode;
     }
 
+    @Override
+    protected Logger getLogger() {
+        return logger;
+    }
 }

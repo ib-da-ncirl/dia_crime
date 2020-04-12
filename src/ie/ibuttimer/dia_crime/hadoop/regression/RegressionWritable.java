@@ -39,6 +39,11 @@ import java.util.Set;
 import static ie.ibuttimer.dia_crime.misc.Functional.exceptionLoggingBiConsumer;
 import static ie.ibuttimer.dia_crime.misc.Utils.getLogger;
 
+/**
+ * Custom writable to store properties
+ * @param <K>   Class of key
+ * @param <V>   Class of value
+ */
 public class RegressionWritable<K, V extends Writable> extends AbstractBaseWritable<RegressionWritable<K, V>> implements Writable, Map<K, V> {
 
     private Map<K, V> properties;

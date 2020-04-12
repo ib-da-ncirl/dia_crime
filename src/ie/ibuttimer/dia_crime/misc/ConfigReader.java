@@ -37,12 +37,15 @@ import java.io.InputStreamReader;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.COMMA;
 
 /**
  * Hadoop configuration reader
  */
-public class ConfigReader {
+public class ConfigReader implements IPropertyWrangler {
 
     private ICsvMapperCfg mapperCfg;
     private PropertyWrangler propertyWrangler;
@@ -78,8 +81,29 @@ public class ConfigReader {
         return getConfigProperty(conf, name, "");
     }
 
+    public Number getConfigProperty(Configuration conf, String name, Number dfltValue) {
+        AtomicReference<Number> value = new AtomicReference<>(dfltValue);
+        String setting = getConfigProperty(conf, name, "");
+
+        if (!TextUtils.isEmpty(setting)) {
+            Value.of(setting, dfltValue.getClass()).ifPresent(v -> value.set((Number)v));
+        }
+        return value.get();
+    }
+
+    @Override
     public String getPropertyPath(String propertyName) {
         return propertyWrangler.getPropertyPath(propertyName);
+    }
+
+    @Override
+    public String getPropertyName(String propertyPath) {
+        return propertyWrangler.getPropertyName(propertyPath);
+    }
+
+    @Override
+    public String getRoot() {
+        return propertyWrangler.getRoot();
     }
 
     public List<String> readSeparatedProperty(Configuration conf, String name, String separator) {
@@ -117,7 +141,6 @@ public class ConfigReader {
 
     public Map<String, Class<?>> readOutputTypeClasses(Configuration conf, String property, List<Class<?>> classes) {
         Map<String, Class<?>> outputTypes = new HashMap<>();
-        MapStringifier.ElementStringify commaStringify = new MapStringifier.ElementStringify(",");
         String typesPath = getConfigProperty(conf, property);
 
         Map<String, String> entries = new HashMap<>();
@@ -128,7 +151,7 @@ public class ConfigReader {
              BufferedReader reader = new BufferedReader(inputStream)) {
 
             reader.lines()
-                .map(commaStringify::destringifyElement)
+                .map(COMMA::destringifyElement)
                 .filter(p -> !TextUtils.isEmpty(p.getLeft()) && !TextUtils.isEmpty(p.getRight()))
                 .forEach(p -> entries.put(p.getLeft(), p.getRight()));
 
