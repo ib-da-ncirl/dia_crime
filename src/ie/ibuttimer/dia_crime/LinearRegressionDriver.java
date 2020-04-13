@@ -25,11 +25,9 @@ package ie.ibuttimer.dia_crime;
 
 import ie.ibuttimer.dia_crime.hadoop.ITagger;
 import ie.ibuttimer.dia_crime.hadoop.io.FileReader;
+import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
 import ie.ibuttimer.dia_crime.hadoop.regression.*;
-import ie.ibuttimer.dia_crime.misc.ConfigReader;
-import ie.ibuttimer.dia_crime.misc.Constants;
-import ie.ibuttimer.dia_crime.misc.DebugLevel;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
+import ie.ibuttimer.dia_crime.misc.*;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -115,9 +113,11 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         double targetCost = 0;
         double steadyTarget = 0;
         int steadyLimit = 0;
+        int steadyDecimalPlaces = 0;
         double cost = Double.MAX_VALUE;
         int resultCode = ECODE_FAIL;
-
+        String terminateCondition = null;
+        boolean terminate = false;
         int steadyCount = 0;
         Map<String, Long> lastCoef = new HashMap<>();
         Map<String, Long> thisCoef = new HashMap<>();
@@ -125,42 +125,44 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         if (cfg.wait) {
             Map<String, String> epochSetting = null;
             do {
+                if (steadyTarget > 0 && steadyLimit > 0 && epochSetting != null) {
+                    double finalSteadyTarget = steadyTarget;
+                    epochSetting.forEach((key, value) -> {
+                        Double val = Double.parseDouble(value) * finalSteadyTarget;
+                        thisCoef.put(key, val.longValue());
+                    });
+                    AtomicInteger match = new AtomicInteger(0);
+                    thisCoef.forEach((key, value) -> {
+                        if (value.equals(lastCoef.get(key))) {
+                            match.incrementAndGet();
+                        }
+                        lastCoef.put(key, value);
+                    });
+                    if (match.get() == thisCoef.keySet().size()) {
+                        ++steadyCount;
+                        if (steadyCount == steadyLimit) {
+                            terminateCondition = String.format("Steady state condition satisfied at %d decimal places for %d epochs",
+                                steadyDecimalPlaces, steadyLimit);
+                            break;
+                        }
+                    } else {
+                        steadyCount = 0;
+                    }
+                }
+
                 Job job = getLinearRegressionJob(cfg.properties);
                 if (job != null) {
                     Configuration conf = job.getConfiguration();
                     if (epoch == 0) {
                         maxEpochs = cfgReader.getConfigProperty(conf, EPOCH_LIMIT_PROP, 0L).longValue();
                         targetCost = cfgReader.getConfigProperty(conf, TARGET_COST_PROP, 0.0).doubleValue();
-                        steadyTarget = cfgReader.getConfigProperty(conf, STEADY_TARGET_PROP, 0.0).doubleValue();
+                        steadyDecimalPlaces = cfgReader.getConfigProperty(conf, STEADY_TARGET_PROP, 0.0).intValue();
                         steadyLimit = cfgReader.getConfigProperty(conf, STEADY_LIMIT_PROP, 0).intValue();
 
-                        steadyTarget = Math.pow(10, steadyTarget);
+                        steadyTarget = Math.pow(10, steadyDecimalPlaces);
 
                         clearResults(job, cfgReader);
                     } else {
-                        if (steadyTarget > 0 && steadyLimit > 0) {
-                            double finalSteadyTarget = steadyTarget;
-                            epochSetting.forEach((key, value) -> {
-                                Double val = Double.parseDouble(value) * finalSteadyTarget;
-                                thisCoef.put(key, val.longValue());
-                            });
-                            AtomicInteger match = new AtomicInteger(0);
-                            thisCoef.forEach((key, value) -> {
-                                if (value.equals(lastCoef.get(key))) {
-                                    match.incrementAndGet();
-                                }
-                                lastCoef.put(key, value);
-                            });
-                            if (match.get() == thisCoef.keySet().size()) {
-                                ++steadyCount;
-                                if (steadyCount == steadyLimit) {
-                                    break;
-                                }
-                            } else {
-                                steadyCount = 0;
-                            }
-                        }
-
                         // update settings
                         epochSetting.forEach((key, value) -> conf.set(cfgReader.getPropertyPath(key), value));
                     }
@@ -182,7 +184,23 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
                     break;
                 }
 
-            } while ((epoch < maxEpochs) && (cost > targetCost));
+                terminate = true;
+                if (cost <= targetCost) {
+                    terminateCondition = String.format("Target cost condition satisfied at %f", cost);
+                } else if (epoch >= maxEpochs) {
+                    terminateCondition = String.format("Max epoch condition satisfied at %d", epoch);
+                } else {
+                    terminate = false;
+                }
+            } while (!terminate);
+
+            if (terminateCondition != null) {
+                List<String> msg = List.of("Regression Complete", terminateCondition,
+                    epochSetting.toString()
+                );
+                logger.info(Utils.getDialog(msg));
+
+            }
         } else {
             Job job = getLinearRegressionJob(cfg.properties);
             if (job != null) {
@@ -205,6 +223,15 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         Path outDir = new Path(conf.get(cfgReader.getPropertyPath(OUT_PATH_PROP)));
         FileReader reader = new FileReader(outDir, conf);
 
+        // may take a moment for filesystem to catch up, so if not 'wasSuccess' wait a tick
+        if (!reader.wasSuccess()) {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
         if (reader.wasSuccess()) {
             // read result
             reader.open("part-r-00000");
@@ -222,6 +249,7 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
                         rawLines.add(String.format("%s : %s", p, setting));
                     });
                 rawLines.forEach(l -> linesPlus.add(String.format("%s %s", COMMENT_PREFIX, l)));
+                linesPlus.addAll(lines);
                 lines = linesPlus;
             }
 
@@ -230,8 +258,9 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
                 StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 
             // update config for next epoch
-            lines.stream().findFirst().ifPresent(l -> {
-                if (!l.startsWith(COMMENT_PREFIX)) {
+            lines.stream()
+                .filter(l -> !l.startsWith(COMMENT_PREFIX))
+                .findFirst().ifPresent(l -> {
                     Pair<String, String> keyVal = HADOOP_KEY_VAL.destringifyElement(l);
 
                     logger.info(getSpacedDialog(String.format("Epoch %s - %s", keyVal.getLeft(), keyVal.getRight())));
@@ -241,8 +270,7 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
                     List.of(WEIGHT_PROP, BIAS_PROP).forEach(prop -> {
                         result.put(prop, map.get(prop));
                     });
-                }
-            });
+                });
         }
         return result;
     }

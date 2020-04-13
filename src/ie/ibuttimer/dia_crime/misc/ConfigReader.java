@@ -48,7 +48,7 @@ import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.COMMA;
 public class ConfigReader implements IPropertyWrangler {
 
     private ICsvMapperCfg mapperCfg;
-    private PropertyWrangler propertyWrangler;
+    private final PropertyWrangler propertyWrangler;
 
     public ConfigReader(ICsvMapperCfg mapperCfg) {
         this.mapperCfg = mapperCfg;

@@ -27,6 +27,7 @@ import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateTimeWritable;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -45,7 +46,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : date
  * @param <VO>  output value
  */
-public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, VO> {
+public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<DateTimeWritable, VO> {
 
     private WeatherWritable.WeatherWritableBuilder builder;
 
@@ -54,7 +55,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
 
     public static final List<String> WEATHER_PROPERTY_INDICES = WeatherWritable.FIELDS;
 
-    private Text keyOut = new Text();
+    private DateTimeWritable keyOut = new DateTimeWritable();
 
     private Counters.MapperCounter counter;
 
@@ -121,7 +122,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
                     counter.increment();
 
                     // file contains hourly entries, but just use date as the key
-                    keyOut.set(getDateOutKey(dateTime.toLocalDate()));
+                    keyOut.setLocalDateTime(dateTime);
 
                     // return the day as the key and the crime entry as the value
                     writeOutput(context, keyOut, entry);
@@ -132,7 +133,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<Text, 
         }
     }
 
-    protected abstract void writeOutput(Context context, Text key, WeatherWritable value) throws IOException, InterruptedException;
+    protected abstract void writeOutput(Context context, DateTimeWritable key, WeatherWritable value) throws IOException, InterruptedException;
 
     private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(WEATHER_PROP_SECTION) {
         @Override

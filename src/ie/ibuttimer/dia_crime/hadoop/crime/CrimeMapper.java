@@ -28,6 +28,12 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import static ie.ibuttimer.dia_crime.misc.Constants.CRIME_PROP_SECTION;
+import static ie.ibuttimer.dia_crime.misc.Constants.OUTPUTTYPES_FILE_PROP;
 
 /**
  * Mapper for a crime entry. Parses input line and generates a custom writable.
@@ -55,8 +61,35 @@ public class CrimeMapper extends AbstractCrimeMapper<MapWritable> {
         write(context, key, mapOut);
     }
 
+    private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(CRIME_PROP_SECTION) {
+
+        @Override
+        public List<Property> getAdditionalProps() {
+            List<Property> list = new ArrayList<>(super.getAdditionalProps());
+            list.addAll(getPropertyList(Collections.singletonList(OUTPUTTYPES_FILE_PROP)));
+            return list;
+        }
+
+        @Override
+        public List<Property> getRequiredProps() {
+            List<Property> list = new ArrayList<>(super.getRequiredProps());
+            list.addAll(getAdditionalProps());
+            return list;
+        }
+
+        @Override
+        public List<String> getPropertyIndices() {
+            return CRIME_PROPERTY_INDICES;
+        }
+    };
+
+    @Override
+    public ICsvMapperCfg getEntryMapperCfg() {
+        return getClsCsvMapperCfg();
+    }
+
     public static ICsvMapperCfg getClsCsvMapperCfg() {
-        return AbstractCrimeMapper.getClsCsvMapperCfg();
+        return sCfgChk;
     }
 }
 

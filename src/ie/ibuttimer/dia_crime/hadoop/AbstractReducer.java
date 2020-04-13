@@ -147,6 +147,13 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
     }
 
 
+    /**
+     * Add a tags header to the output
+     * @param context           Current context
+     * @param counter           Counter to test
+     * @param additionalTags    Parameter tags to add values for
+     * @param rawStrings        Raw text to add
+     */
     protected void addOutputHeader(Context context, Counters.ReducerCounter counter, List<String> additionalTags,
                                    List<String> rawStrings) {
         Optional<Long> inCount = counter.getCount();
@@ -156,10 +163,7 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
                 ConfigReader cfgReader = new ConfigReader(getSection());
                 List<String> tags = new ArrayList<>(getTagStrings(conf, getSection()));
 
-                List<String> props = new ArrayList<>(List.of(INDEPENDENTS_PROP, DEPENDENT_PROP));
-                props.addAll(additionalTags);
-
-                props.forEach(p -> tags.add(
+                additionalTags.forEach(p -> tags.add(
                     String.format("%s : %s", p, cfgReader.getConfigProperty(conf, p, ""))));
 
                 tags.addAll(rawStrings);

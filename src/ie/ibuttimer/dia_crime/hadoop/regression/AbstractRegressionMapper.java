@@ -205,18 +205,13 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
     protected static class RegressionMapperCfg extends AbstractCsvMapperCfg {
 
         private static final Property trainPathProp = Property.of(TRAIN_OUTPUT_PATH_PROP, "path to output training file", "");
-        private static final Property statsPathProp = Property.of(STATS_INPUT_PATH_PROP, "path to statistics file", "");
-        private static final Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
         private static final Property indoProp = Property.of(INDEPENDENTS_PROP, "list of independent variables to use", "");
-        private static final Property depProp = Property.of(DEPENDENT_PROP, "dependent variable to use", "");
         private static final Property learningProp = Property.of(LEARNING_RATE_PROP, "learning rate to use for gradient descent", "");
         private static final Property weightProp = Property.of(WEIGHT_PROP, "weight for regression calculation", "");
         private static final Property biasProp = Property.of(BIAS_PROP, "bias for regression calculation", "");
-        private static final Property factorsProp = Property.of(FACTOR_PROP, "list of factors to apply to values", "");
 
-        private static final List<Property> required = List.of(trainPathProp, statsPathProp, typesPathProp, indoProp, depProp, learningProp,
+        private static final List<Property> required = List.of(trainPathProp, indoProp, learningProp,
                                                                 weightProp, biasProp);
-        private static final List<Property> notRequired = List.of(factorsProp);
 
         public RegressionMapperCfg(String propertyRoot) {
             super(propertyRoot);
@@ -225,13 +220,14 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
         @Override
         public List<Property> getAdditionalProps() {
             List<Property> list = new ArrayList<>(required);
-            list.addAll(notRequired);
+            list.addAll(getPropertyList(List.of(FACTOR_PROP)));
             return list;
         }
 
         @Override
         public List<Property> getRequiredProps() {
             List<Property> list = new ArrayList<>(super.getRequiredProps());
+            list.addAll(getPropertyList(List.of(STATS_INPUT_PATH_PROP, OUTPUTTYPES_PATH_PROP, DEPENDENT_PROP)));
             list.addAll(required);
             return list;
         }

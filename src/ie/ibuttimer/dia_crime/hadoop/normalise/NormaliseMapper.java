@@ -29,6 +29,7 @@ import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.ITagger;
 import ie.ibuttimer.dia_crime.hadoop.io.FileReader;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionWritable;
 import ie.ibuttimer.dia_crime.hadoop.stats.NameTag;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
@@ -49,17 +50,12 @@ import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.HADOOP
 
 /**
  * Statistics mapper that outputs property value, property value squared and, property product values
- * - input key : csv file line number
- * - input value : csv file line text
- * - output key : property name plus specific identifier for squared value etc.
- * - output value : value
+ * - input key : file line number
+ * - input value : file line text
+ * - output key : date
+ * - output value : normalised file line text
  */
-public class NormaliseMapper extends AbstractCsvMapper<Text, RegressionWritable<String, Value>> {
-
-    public static final String NORM_OUTPUT_KEY = "norm_output_key";
-    public static final String NORM_OUTPUT_TYPES = "norm_output_types";
-    public static final String NORM_OUTPUT_HEADER = "norm_output_header";
-    public static final String NORM_OUTPUT_LINE = "norm_output_line";
+public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionWritable<String, Value>> {
 
     private Counters.MapperCounter counter;
 
@@ -70,15 +66,9 @@ public class NormaliseMapper extends AbstractCsvMapper<Text, RegressionWritable<
     private Map<String, Double> stats;
 
     private final RegressionWritable<String, Value> valuesOut = new RegressionWritable<>();
-    private final Map<Text, RegressionWritable<String, Value>> outputList = new TreeMap<>();
+    private final Map<DateWritable, RegressionWritable<String, Value>> outputList = new TreeMap<>();
 
     private boolean wroteTypes = false;
-
-    enum HeaderStatus { READ, PAST, WRITTEN }
-    private HeaderStatus headerStatus = HeaderStatus.READ;
-    private List<String> headerCache = new ArrayList<>();
-
-    private final Text LINE_KEY = new Text(NORM_OUTPUT_LINE);
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -97,7 +87,6 @@ public class NormaliseMapper extends AbstractCsvMapper<Text, RegressionWritable<
 
         stats = readStats(cfgReader.getConfigProperty(conf, STATS_INPUT_PATH_PROP), conf,
             List.of(NameTag.MIN, NameTag.MAX), variables);
-
     }
 
     /**
@@ -111,10 +100,6 @@ public class NormaliseMapper extends AbstractCsvMapper<Text, RegressionWritable<
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 
-        if (skipHeader(key) || skipComment(value)) {
-            headerCache.add(value.toString());
-        }
-
         if (!skipHeader(key)) {
             if (skipComment(value)) {
                 // verify parameters specified in input file
@@ -125,8 +110,6 @@ public class NormaliseMapper extends AbstractCsvMapper<Text, RegressionWritable<
 
                 return;
             }
-
-            headerStatus = HeaderStatus.PAST;
 
             /* 2001-01-02	02:3, 03:35, 04A:15, 04B:21, 05:68, 06:221, 07:65, 08A:51, 08B:122, 10:9, 11:65, 12:2, 13:2,
                 14:118, 15:9, 16:11, 17:7, 18:156, 19:1, 20:3, 22:2, 24:2, 26:155, DJI_adjclose:10646.150391,
@@ -149,7 +132,9 @@ public class NormaliseMapper extends AbstractCsvMapper<Text, RegressionWritable<
                 Map<String, String> map = MapStringifier.mapify(hKeyVal.getRight());
 
                 // load the result with current values
-                valuesOut.put(NORM_OUTPUT_KEY, Value.of(hKeyVal.getLeft()));
+
+                DateWritable outKey = DateWritable.ofDate(hKeyVal.getLeft(), getKeyOutDateTimeFormatter());
+
                 map.forEach((key1, value1) ->
                     outputTypes.entrySet().stream()
                         .filter(es -> es.getKey().equals(key1))
@@ -186,16 +171,16 @@ public class NormaliseMapper extends AbstractCsvMapper<Text, RegressionWritable<
 
                 counter.increment();
 
-                outputList.put(LINE_KEY, valuesOut);
+                outputList.put(outKey, valuesOut);
 
                 if (!wroteTypes) {
                     RegressionWritable<String, Value> types = new RegressionWritable<>();
 
-                    outputTypes.entrySet().stream()
-                        .filter(es -> !es.getKey().equals(NORM_OUTPUT_KEY))
+                    // set class names in 'types'
+                    outputTypes.entrySet()
                         .forEach(es -> types.put(es.getKey(), Value.of(es.getValue().getSimpleName())));
 
-                    outputList.put(new Text(NORM_OUTPUT_TYPES), types);
+                    outputList.put(DateWritable.MIN, types);
 
                     wroteTypes = true;
                 }
@@ -209,11 +194,6 @@ public class NormaliseMapper extends AbstractCsvMapper<Text, RegressionWritable<
                     }
                 });
             }
-        }
-
-        if (headerStatus == HeaderStatus.PAST) {
-
-            headerStatus = HeaderStatus.WRITTEN;
         }
     }
 
@@ -253,14 +233,10 @@ public class NormaliseMapper extends AbstractCsvMapper<Text, RegressionWritable<
     // mapper config
     private static final ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(NORMALISE_PROP_SECTION) {
 
-        private final Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
-        private final Property varsProp = Property.of(VARIABLES_PROP, "list of variables to normalise", "");
-        private final Property statsPathProp = Property.of(STATS_INPUT_PATH_PROP, "path to statistics file", "");
-        private final Property saveTypesPathProp = Property.of(OUTPUTTYPES_FILE_PROP, "file to save output types", "");
-
         @Override
         public List<Property> getAdditionalProps() {
-            return List.of(typesPathProp, varsProp, statsPathProp, saveTypesPathProp, saveTypesPathProp);
+            return new ArrayList<>(getPropertyList(
+                List.of(OUTPUTTYPES_PATH_PROP, OUTPUTTYPES_FILE_PROP, VARIABLES_PROP, STATS_INPUT_PATH_PROP, FACTOR_PROP)));
         }
 
         @Override

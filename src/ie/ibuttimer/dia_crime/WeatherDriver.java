@@ -23,6 +23,7 @@
 
 package ie.ibuttimer.dia_crime;
 
+import ie.ibuttimer.dia_crime.hadoop.misc.DateTimeWritable;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherMapper;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherReducer;
 import ie.ibuttimer.dia_crime.misc.Constants;
@@ -76,15 +77,15 @@ public class WeatherDriver extends AbstractDriver {
 
             job.setReducerClass(WeatherReducer.class);
 
-            job.setMapOutputKeyClass(Text.class);
+            job.setMapOutputKeyClass(DateTimeWritable.class);
             job.setMapOutputValueClass(MapWritable.class);
 
             /*
              * Input and Output types of a MapReduce job:
              * (input) <k1, v1> -> map -> <k2, v2> -> combine -> <k2, v2> -> reduce -> <k3, v3> (output)
-             * (input) <LongWritable, Text> -> map -> <Text, MapWritable> -> reduce -> <Text, Text> (output)
+             * (input) <LongWritable, Text> -> map -> <DateTimeWritable, MapWritable> -> reduce -> <DateTimeWritable, Text> (output)
              */
-            job.setOutputKeyClass(Text.class);
+            job.setOutputKeyClass(DateTimeWritable.class);
             job.setOutputValueClass(Text.class);
         }
 

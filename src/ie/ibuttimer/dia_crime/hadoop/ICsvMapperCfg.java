@@ -27,9 +27,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.IN_PATH_PROP;
 import static ie.ibuttimer.dia_crime.misc.Constants.OUT_PATH_PROP;
@@ -98,6 +96,23 @@ public interface ICsvMapperCfg extends ITagger {
      */
     void dumpConfiguration(Logger logger, Configuration conf);
 
+    /**
+     * Get common property objects
+     * @param propertyName
+     * @return
+     */
+    Optional<Property> getProperty(String propertyName);
+
+    /**
+     * Get a list of property objects
+     * @param names
+     * @return
+     */
+    default List<Property> getPropertyList(List<String> names) {
+        List<Property> list = new ArrayList<>();
+        names.forEach(name -> getProperty(name).ifPresent(list::add));
+        return list;
+    }
 
     /**
      * Property details
@@ -136,10 +151,10 @@ public interface ICsvMapperCfg extends ITagger {
 
             Property property = (Property) o;
 
-            if (name != null ? !name.equals(property.name) : property.name != null) return false;
-            if (description != null ? !description.equals(property.description) : property.description != null)
+            if (!Objects.equals(name, property.name)) return false;
+            if (!Objects.equals(description, property.description))
                 return false;
-            return defaultValue != null ? defaultValue.equals(property.defaultValue) : property.defaultValue == null;
+            return Objects.equals(defaultValue, property.defaultValue);
         }
 
         @Override

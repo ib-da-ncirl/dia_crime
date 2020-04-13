@@ -303,6 +303,19 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
      */
     public abstract static class AbstractCsvMapperCfg implements ICsvMapperCfg {
 
+        public static final Map<String, Property> COMMON_PROPERTIES;
+        static {
+            COMMON_PROPERTIES = new HashMap<>();
+            List.of(
+                Property.of(OUTPUTTYPES_PATH_PROP, "path to factor types input file", ""),
+                Property.of(OUTPUTTYPES_FILE_PROP, "file to save factor types to", ""),
+                Property.of(FACTOR_PROP, "list of factors to apply to values", ""),
+                Property.of(STATS_INPUT_PATH_PROP, "path to statistics file", ""),
+                Property.of(VARIABLES_PROP, "list of variables to use", ""),
+                Property.of(DEPENDENT_PROP, "dependent variable to use", "")
+            ).forEach(p -> COMMON_PROPERTIES.put(p.name, p));
+        }
+
         private final PropertyWrangler propertyWrangler;
 
         private final String propertyRoot;
@@ -406,6 +419,18 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
             }
             return Pair.of(resultCode, errors);
         }
+
+        @Override
+        public Optional<Property> getProperty(String propertyName) {
+            Optional<Property> property;
+            if (COMMON_PROPERTIES.containsKey(propertyName)) {
+                property = Optional.of(COMMON_PROPERTIES.get(propertyName));
+            } else {
+                property = Optional.empty();
+            }
+            return property;
+        }
+
 
         public void dumpConfiguration(Logger logger, Configuration conf) {
             // use info as its the default level

@@ -143,7 +143,8 @@ public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text>
      * @param otProduce
      * @param reducer
      */
-    public static void saveOutputTypes(Reducer<?,?,?,?>.Context context, IOutputType otProduce, AbstractReducer reducer) {
+    public static void saveOutputTypes(Reducer<?,?,?,?>.Context context, IOutputType otProduce,
+                                       AbstractReducer<?,?,?,?> reducer) {
         // TODO check this in case of multiple reducers
         if (context.getProgress() == 1.0) {
             Configuration conf = context.getConfiguration();

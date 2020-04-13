@@ -26,17 +26,22 @@ package ie.ibuttimer.dia_crime.hadoop.regression;
 import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
-import ie.ibuttimer.dia_crime.misc.ConfigReader;
 import ie.ibuttimer.dia_crime.misc.DebugLevel;
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
+/**
+ * Base regression reducer class
+ * @param <KI>  Reducer key input class
+ * @param <VI>  Reducer values input class
+ * @param <KO>  Reducer key output class
+ * @param <VO>  Reducer values output class
+ */
 public abstract class AbstractRegressionReducer<KI, VI, KO, VO> extends AbstractReducer<KI, VI, KO, VO> {
 
     protected List<String> independents;
@@ -69,6 +74,7 @@ public abstract class AbstractRegressionReducer<KI, VI, KO, VO> extends Abstract
         }
     }
 
+    @Override
     protected void addOutputHeader(Context context, Counters.ReducerCounter counter, List<String> additionalTags,
                                    List<String> rawStrings) {
 
@@ -77,35 +83,4 @@ public abstract class AbstractRegressionReducer<KI, VI, KO, VO> extends Abstract
 
         super.addOutputHeader(context, counter, additionalProps, rawStrings);
     }
-//    protected void addOutputHeader(Context context, Counters.ReducerCounter counter, List<String> additionalTags,
-//                                   List<String> rawStrings) {
-//        Optional<Long> inCount = counter.getCount();
-//        inCount.ifPresent(count -> {
-//            if (count == 0) {
-//                Configuration conf = context.getConfiguration();
-//                ConfigReader cfgReader = new ConfigReader(getSection());
-//                List<String> tags = new ArrayList<>(getTagStrings(conf, getSection()));
-//
-//                List<String> props = new ArrayList<>(List.of(INDEPENDENTS_PROP, DEPENDENT_PROP));
-//                props.addAll(additionalTags);
-//
-//                props.forEach(p -> tags.add(
-//                        String.format("%s : %s", p, cfgReader.getConfigProperty(conf, p, ""))));
-//
-//                tags.addAll(rawStrings);
-//
-//                tags.forEach(tagLine -> {
-//                    try {
-//                        context.write(newKey(COMMENT_PREFIX), newValue(tagLine));
-//                    } catch (IOException | InterruptedException e) {
-//                        e.printStackTrace();
-//                    }
-//                });
-//            }
-//        });
-//    }
-//
-//    protected abstract KO newKey(String key);
-//
-//    protected abstract VO newValue(String value);
 }

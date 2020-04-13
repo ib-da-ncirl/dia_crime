@@ -27,6 +27,7 @@ import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.ConfigReader;
+import org.apache.avro.generic.GenericData;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -199,8 +200,6 @@ public abstract class AbstractStockMapper<VO>
     public static class StockMapperCfg extends AbstractCsvMapperCfg {
 
         private static Property tagProp = Property.of(STOCK_TAG_PROP, "stock tag", "");
-        private static Property statsProp = Property.of(STATS_PATH_PROP, "path for stats output", "");
-        private static Property factorsProp = Property.of(FACTOR_PROP, "list of factors to apply to values", "");
 
         public StockMapperCfg(String propertyRoot) {
             super(propertyRoot);
@@ -208,7 +207,9 @@ public abstract class AbstractStockMapper<VO>
 
         @Override
         public List<Property> getAdditionalProps() {
-            return List.of(tagProp, statsProp, factorsProp);
+            List<Property> list = new ArrayList<>(getPropertyList(List.of(FACTOR_PROP)));
+            list.addAll(List.of(tagProp));
+            return list;
         }
 
         @Override

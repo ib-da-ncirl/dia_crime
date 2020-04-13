@@ -24,8 +24,8 @@
 package ie.ibuttimer.dia_crime.hadoop.weather;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateTimeWritable;
 import org.apache.hadoop.io.MapWritable;
-import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
 import java.util.List;
@@ -42,7 +42,13 @@ public class WeatherMapper extends AbstractWeatherMapper<MapWritable> {
     private MapWritable mapOut = new MapWritable();
 
     @Override
-    protected void writeOutput(Context context, Text key, WeatherWritable value) throws IOException, InterruptedException {
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        setLogger(getClass());
+    }
+
+    @Override
+    protected void writeOutput(Context context, DateTimeWritable key, WeatherWritable value) throws IOException, InterruptedException {
         mapOut.clear();
         mapOut.put(key, value);
 
@@ -50,11 +56,7 @@ public class WeatherMapper extends AbstractWeatherMapper<MapWritable> {
         write(context, key, mapOut);
     }
 
-    @Override
-    protected void setup(Context context) throws IOException, InterruptedException {
-        super.setup(context);
-        setLogger(getClass());
-    }
+
 
     public static ICsvMapperCfg getClsCsvMapperCfg() {
         return AbstractWeatherMapper.getClsCsvMapperCfg();

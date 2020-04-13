@@ -192,23 +192,18 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> {
     // mapper config
     private static final ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(STATS_PROP_SECTION) {
 
-        private final Property typesPathProp = Property.of(OUTPUTTYPES_PATH_PROP, "path to output types file", "");
-        private final Property varsProp = Property.of(VARIABLES_PROP, "list of variables to use", "");
-
         @Override
         public List<Property> getAdditionalProps() {
-            return List.of(typesPathProp, varsProp,
-                Property.of(STATS_PATH_PROP, "path for stats output", ""),
-                Property.of(FACTOR_PROP, "list of factors to apply to values", ""),
-                Property.of(DEPENDENT_PROP, "dependent variable", "")
-            );
+            List<Property> list = getPropertyList(List.of(OUTPUTTYPES_PATH_PROP, VARIABLES_PROP, FACTOR_PROP,
+                DEPENDENT_PROP));
+            list.add(Property.of(STATS_PATH_PROP, "path for stats output", ""));
+            return list;
         }
 
         @Override
         public List<Property> getRequiredProps() {
             List<Property> list = new ArrayList<>(super.getRequiredProps());
-            list.add(typesPathProp);
-            list.add(varsProp);
+            list.addAll(getPropertyList(List.of(OUTPUTTYPES_PATH_PROP, VARIABLES_PROP)));
             return list;
         }
 

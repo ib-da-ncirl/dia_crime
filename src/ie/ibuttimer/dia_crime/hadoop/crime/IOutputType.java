@@ -45,4 +45,6 @@ public interface IOutputType {
         Map<String,Class<?>> outputTypes = getOutputTypeMap();
         collection.forEach((key, value) -> outputTypes.put(key, value.getClass()));
     }
+
+    String getSection();
 }

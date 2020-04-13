@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime.hadoop.weather;
 import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateTimeWritable;
 import ie.ibuttimer.dia_crime.misc.Counter;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.commons.lang3.tuple.Triple;
@@ -48,7 +49,7 @@ import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
  * - output key : date
  * - output value : value string of <field>:<value> separated by ','
  */
-public class WeatherReducer extends AbstractReducer<Text, MapWritable, Text, Text> {
+public class WeatherReducer extends AbstractReducer<DateTimeWritable, MapWritable, DateTimeWritable, Text> {
 
     /**
      * Reduce the values for a key
@@ -59,7 +60,7 @@ public class WeatherReducer extends AbstractReducer<Text, MapWritable, Text, Tex
      * @throws InterruptedException
      */
     @Override
-    protected void reduce(Text key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
+    protected void reduce(DateTimeWritable key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
 
         Counters.ReducerCounter counter = getCounter(context, CountersEnum.WEATHER_REDUCER_COUNT);
 
@@ -122,8 +123,8 @@ public class WeatherReducer extends AbstractReducer<Text, MapWritable, Text, Tex
     }
 
     @Override
-    protected Text newKey(String key) {
-        return new Text(key);
+    protected DateTimeWritable newKey(String key) {
+        return new DateTimeWritable();
     }
 
     @Override

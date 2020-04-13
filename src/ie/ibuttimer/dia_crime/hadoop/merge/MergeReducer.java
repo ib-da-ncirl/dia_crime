@@ -119,6 +119,11 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
         return id + "_" + property;
     }
 
+    /* property section to use when getting dates & outputting type info;
+        could be any of crime/nasdaq/sp500/dowjones/weather section, they are all the same
+    */
+    private static final String ALT_SECTION = DOWJONES_PROP_SECTION;
+
     /**
      * Reduce the values for a key
      * @param key       Key value; date string
@@ -135,7 +140,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
             if (count == 0) {
                 Configuration conf = context.getConfiguration();
                 // get dates from crime/nasdaq/sp500/dowjones/weather section, they are all the same
-                getTagStrings(conf, DOWJONES_PROP_SECTION).forEach(tagLine -> {
+                getTagStrings(conf, ALT_SECTION).forEach(tagLine -> {
                     try {
                         context.write(new Text(COMMENT_PREFIX), new Text(tagLine));
                     } catch (IOException | InterruptedException e) {
@@ -234,6 +239,8 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
+
+        setSection(ALT_SECTION);    // just for type putput
         saveOutputTypes(context,this, this);
 
         if (context.getProgress() == 1.0) {

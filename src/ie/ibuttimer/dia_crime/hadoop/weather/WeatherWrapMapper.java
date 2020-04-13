@@ -25,7 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop.weather;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
-import org.apache.hadoop.io.Text;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateTimeWritable;
 
 import java.io.IOException;
 
@@ -41,7 +41,7 @@ public class WeatherWrapMapper extends AbstractWeatherMapper<CSWWrapperWritable>
     private CSWWrapperWritable wrapOut = new CSWWrapperWritable();
 
     @Override
-    protected void writeOutput(Context context, Text key, WeatherWritable value) throws IOException, InterruptedException {
+    protected void writeOutput(Context context, DateTimeWritable key, WeatherWritable value) throws IOException, InterruptedException {
         wrapOut.setWeather(value);
 
         // return the day as the key and the weather entry as the value

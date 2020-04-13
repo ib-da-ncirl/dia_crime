@@ -24,6 +24,7 @@
 package ie.ibuttimer.dia_crime;
 
 import ie.ibuttimer.dia_crime.hadoop.ITagger;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.hadoop.normalise.NormaliseMapper;
 import ie.ibuttimer.dia_crime.hadoop.normalise.NormaliseReducer;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionWritable;
@@ -75,15 +76,15 @@ public class NormaliseDriver extends AbstractDriver implements ITagger {
 
             job.setReducerClass(NormaliseReducer.class);
 
-            job.setMapOutputKeyClass(Text.class);
+            job.setMapOutputKeyClass(DateWritable.class);
             job.setMapOutputValueClass(RegressionWritable.class);
 
             /*
              * Input and Output types of a MapReduce job:
              * (input) <k1, v1> -> map -> <k2, v2> -> combine -> <k2, v2> -> reduce -> <k3, v3> (output)
-             * (input) <LongWritable, Text> -> map -> <Text, Value> -> reduce -> <Text, Text> (output)
+             * (input) <LongWritable, Text> -> map -> <DateWritable, RegressionWritable> -> reduce -> <DateWritable, Text> (output)
              */
-            job.setOutputKeyClass(Text.class);
+            job.setOutputKeyClass(DateWritable.class);
             job.setOutputValueClass(Text.class);
         }
 

@@ -27,30 +27,30 @@ import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.crime.IOutputType;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionWritable;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
-import ie.ibuttimer.dia_crime.hadoop.stats.StatsMapper;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Value;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import static ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer.saveOutputTypes;
-import static ie.ibuttimer.dia_crime.hadoop.normalise.NormaliseMapper.*;
-import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.Constants.NORMALISE_PROP_SECTION;
 
 /**
  * Reducer for statistics, which accumulates values to output sum of values
- * - input key : property name plus specific identifier for squared value etc.
- * - input value : value
- * - output key : property name plus specific identifier for the statistic
- * - output value : value
+ * - input key : date
+ * - input value : normalised file line text
+ * - output key : date
+ * - output value : normalised file line text
  */
-public class NormaliseReducer extends AbstractReducer<Text, RegressionWritable<String, Value>, Text, Text>
+public class NormaliseReducer extends AbstractReducer<DateWritable, RegressionWritable<String, Value>, DateWritable, Text>
                             implements IOutputType {
 
     private Counters.ReducerCounter counter;
@@ -70,43 +70,34 @@ public class NormaliseReducer extends AbstractReducer<Text, RegressionWritable<S
     }
 
     @Override
-    protected void reduce(Text key, Iterable<RegressionWritable<String, Value>> values, Context context) throws IOException, InterruptedException {
+    protected void reduce(DateWritable key, Iterable<RegressionWritable<String, Value>> values, Context context) throws IOException, InterruptedException {
 
         addOutputHeader(context, counter, List.of(), List.of());
 
-        values.forEach(value -> {
-            String valueType = key.toString();
-            if (valueType.equals(NORM_OUTPUT_LINE)) {
-                Text entryKey = new Text();
-                value.getProperty(NORM_OUTPUT_KEY).asString(entryKey::set);
+        counter.increment();
 
+        values.forEach(value -> {
+            if (!key.equals(DateWritable.MIN)) {
+                // standard line
                 Map<String, String> outMap = new TreeMap<>();
-                value.entrySet().stream()
-                    .filter(es -> !es.getKey().equals(NORM_OUTPUT_KEY))
-                    .forEach(es ->
-                        es.getValue().asString(s -> {
-                            outMap.put(es.getKey(), s);
-                        })
-                    );
+                value.forEach((key1, value1) -> value1.asString(s -> {
+                    outMap.put(key1, s);
+                }));
 
                 try {
-                    context.write(entryKey, new Text(MapStringifier.stringify(outMap)));
+                    context.write(key, new Text(MapStringifier.stringify(outMap)));
 
-                    counter.increment();
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                 }
-            } else if (valueType.equals(NORM_OUTPUT_TYPES)){
+            } else {    // output types
+                // TODO should really be a separate reducer
                 // load output type from input
                 StatsConfigReader cfgReader = new StatsConfigReader(getSection());
                 Map<String, String> map = new HashMap<>();
 
-                value.entrySet().stream()
-                    .filter(es -> !es.getKey().equals(NORM_OUTPUT_KEY))
-                    .forEach(es -> {
-                        es.getValue().asString(s -> map.put(es.getKey(), s));
-                    });
-                    outputTypes = cfgReader.convertOutputTypeClasses(map);
+                value.forEach((key1, value1) -> value1.asString(s -> map.put(key1, s)));
+                outputTypes = cfgReader.convertOutputTypeClasses(map);
             }
         });
     }
@@ -123,8 +114,8 @@ public class NormaliseReducer extends AbstractReducer<Text, RegressionWritable<S
     }
 
     @Override
-    protected Text newKey(String key) {
-        return new Text(key);
+    protected DateWritable newKey(String key) {
+        return DateWritable.COMMENT_KEY;
     }
 
     @Override
