@@ -99,15 +99,10 @@ public class DiaCrimeMain {
         -j regression_verify -c config.properties;regression.properties;verification.properties
         -j matrix_multiply -c config.properties;matrix.properties
         -m <path to file>
-
-        deprecated - disable for now
-        // TODO remove stock_stats job
-        -j stock_stats -c config.properties;stock_stats.properties
      */
 
     private static final String JOB_WEATHER = "weather";
     private static final String JOB_STOCKS = "stocks";
-//    private static final String JOB_STOCK_STATS = "stock_stats";
     private static final String JOB_CRIME = "crime";
     private static final String JOB_MERGE = "merge";
     private static final String JOB_STATS = "stats";
@@ -121,7 +116,6 @@ public class DiaCrimeMain {
         jobList = new ArrayList<>();
         jobList.add(Triple.of(JOB_WEATHER, "process the weather file", "Weather Job"));
         jobList.add(Triple.of(JOB_STOCKS, "process the stock files", "Stocks Job"));
-//        jobList.add(Triple.of(JOB_STOCK_STATS, "calculate stock statistics", "Stock Statistics Job"));
         jobList.add(Triple.of(JOB_CRIME, "process the crime file", "Crime Job"));
         jobList.add(Triple.of(JOB_MERGE, "merge crime, stocks & weather to a single file", "Merge Job"));
         jobList.add(Triple.of(JOB_STATS, "perform basic statistics analysis", "Statistics Job"));
@@ -228,9 +222,7 @@ public class DiaCrimeMain {
                         jobList.stream()
                             .filter(e -> e.getLeft().equals(name))
                             .findFirst()
-                            .ifPresent(t -> {
-                                logger.info(Utils.getDialog("Running " + t.getRight()));
-                            });
+                            .ifPresent(t -> logger.info(Utils.getDialog("Running " + t.getRight())));
 
                         switch (name) {
                             case JOB_WEATHER:
@@ -239,9 +231,6 @@ public class DiaCrimeMain {
                             case JOB_STOCKS:
                                 resultCode = StockDriver.of(this).runStockJob(jobCfg);
                                 break;
-//                            case JOB_STOCK_STATS:
-//                                resultCode = StockDriver.of(this).runStockStatsJob(properties);
-//                                break;
                             case JOB_CRIME:
                                 resultCode = CrimeDriver.of(this).runCrimeJob(jobCfg);
                                 break;
@@ -300,7 +289,7 @@ public class DiaCrimeMain {
      * @param properties    Properties
      * @param main          Main section used as key for ICsvMapperCfg
      * @param supplementary Property sections to be added after main
-     * @return
+     * @return Overall result code
      */
     public int setupJob(Configuration conf, Properties properties, String main, List<String> supplementary) {
 
@@ -314,9 +303,7 @@ public class DiaCrimeMain {
 
         if (DebugLevel.getSetting(conf, main).showMe(DebugLevel.HIGH)) {
             Map<String, String> map = conf.getPropsWithPrefix(main);
-            map.forEach((key, val) -> {
-                logger.info(String.format("%s%s - [%s]", main, key, val));
-            });
+            map.forEach((key, val) -> logger.info(String.format("%s%s - [%s]", main, key, val)));
         }
 
         int resultCode = checkConfiguration(conf, main);
