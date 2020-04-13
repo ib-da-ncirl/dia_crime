@@ -35,7 +35,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.*;
@@ -50,12 +49,14 @@ import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
  * - output key : date
  * - output value : value string of <category>:<count> separated by ','
  */
-public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text> implements ICrimeReducer {
+public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text> implements IOutputType {
 
     private Map<String, Class<?>> outputTypes;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
+        setSection(CRIME_PROP_SECTION);
+
         super.setup(context);
         setLogger(getClass());
         outputTypes = newOutputTypeMap();
@@ -88,7 +89,7 @@ public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text>
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
-        saveOutputTypes(context,this, getLogger());
+        saveOutputTypes(context,this, this);
     }
 
     /**
@@ -99,7 +100,7 @@ public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text>
      * @return
      */
     public static Map<String, Integer> reduceToTotalsPerCategory(
-        List<CrimeWritable> values, Counters.ReducerCounter counter, ICrimeReducer reducer) {
+        List<CrimeWritable> values, Counters.ReducerCounter counter, IOutputType reducer) {
 
         Map<String, Integer> counts = new HashMap<>();
 
@@ -139,29 +140,30 @@ public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text>
     /**
      * Save the types of the crime properties to file
      * @param context
+     * @param otProduce
      * @param reducer
-     * @param logger
      */
-    public static void saveOutputTypes(Reducer<?,?,?,?>.Context context, ICrimeReducer reducer, Logger logger) {
+    public static void saveOutputTypes(Reducer<?,?,?,?>.Context context, IOutputType otProduce, AbstractReducer reducer) {
         // TODO check this in case of multiple reducers
         if (context.getProgress() == 1.0) {
             Configuration conf = context.getConfiguration();
             String ls = System.getProperty("line.separator");
-            PropertyWrangler propertyWrangler = new PropertyWrangler(CRIME_PROP_SECTION);
-            Map<String,Class<?>> outputTypes = reducer.getOutputTypeMap();
+            PropertyWrangler propertyWrangler = new PropertyWrangler(reducer.getSection());
+            Map<String,Class<?>> outputTypes = otProduce.getOutputTypeMap();
 
             Path outDir = new Path(conf.get(propertyWrangler.getPropertyPath(OUT_PATH_PROP)));
-            String outPath = conf.get(OUTPUTTYPES_PATH_PROP, "output_types.txt");
+            String outPath = conf.get(OUTPUTTYPES_FILE_PROP, "output_types.txt");
             FileUtil fileUtil = new FileUtil(outDir, conf);
 
             try (FSDataOutputStream stream = fileUtil.fileWriteOpen(outPath, true)) {
                 StringBuilder sb = new StringBuilder();
                 outputTypes.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
                     .map(e -> e.getKey() + "," + e.getValue().getSimpleName() + ls)
                     .forEach(sb::append);
                 fileUtil.write(stream, sb.toString());
             } catch (IOException ioe) {
-                logger.warn("Unable to output categories file", ioe);
+                reducer.getLogger().warn("Unable to output categories file", ioe);
             } finally {
                 try {
                     fileUtil.close();
@@ -170,13 +172,23 @@ public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text>
                 }
             }
         } else {
-            logger.info("Skipping generation of output types file, job incomplete: " + context.getProgress());
+            reducer.getLogger().info("Skipping generation of output types file, job incomplete: " + context.getProgress());
         }
     }
 
     @Override
     public Map<String, Class<?>> getOutputTypeMap() {
         return outputTypes;
+    }
+
+    @Override
+    protected Text newKey(String key) {
+        return new Text(key);
+    }
+
+    @Override
+    protected Text newValue(String value) {
+        return new Text(value);
     }
 }
 

@@ -27,9 +27,9 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Interface for crime reducers
+ * Interface for output types producers
  */
-public interface ICrimeReducer {
+public interface IOutputType {
 
     Map<String,Class<?>> getOutputTypeMap();
 

@@ -228,6 +228,29 @@ public interface ITagger {
     }
 
     enum DateRangeMode { EXACT, WITHIN }
+    enum VerifyTags { ALL, DATE, FACTORS }
+
+    /**
+     * Verify the specified input tag text matches the configured factors
+     * @param conf
+     * @param cfg
+     * @param inputTag
+     * @param mode
+     * @return
+     */
+    default boolean verifyTags(Configuration conf, ICsvMapperCfg cfg, String inputTag, DateRangeMode mode, VerifyTags which) {
+        boolean ok = true;
+        if (cfg.isDateRangeString(inputTag)) {
+            if (which.equals(VerifyTags.ALL) || which.equals(VerifyTags.DATE)) {
+                ok = cfg.verifyDateRangeTag(conf, cfg, inputTag, mode);
+            }
+        } else if (cfg.isFactorsString(inputTag)) {
+            if (which.equals(VerifyTags.ALL) || which.equals(VerifyTags.FACTORS)) {
+                ok = cfg.verifyFactorsTag(conf, cfg, inputTag);
+            }
+        }
+        return ok;
+    }
 
     /**
      * Verify the specified input tag text matches the configured factors
@@ -238,13 +261,7 @@ public interface ITagger {
      * @return
      */
     default boolean verifyTags(Configuration conf, ICsvMapperCfg cfg, String inputTag, DateRangeMode mode) {
-        boolean ok = true;
-        if (cfg.isDateRangeString(inputTag)) {
-            ok = cfg.verifyDateRangeTag(conf, cfg, inputTag, mode);
-        } else if (cfg.isFactorsString(inputTag)) {
-            ok = cfg.verifyFactorsTag(conf, cfg, inputTag);
-        }
-        return ok;
+        return verifyTags(conf, cfg, inputTag, mode, VerifyTags.ALL);
     }
 
     /**
@@ -254,7 +271,17 @@ public interface ITagger {
      * @param inputTag
      * @return
      */
+    default boolean verifyTags(Configuration conf, ICsvMapperCfg cfg, String inputTag, VerifyTags which) {
+        return verifyTags(conf, cfg, inputTag, DateRangeMode.EXACT, which);
+    }
+    /**
+     * Verify the specified input tag text matches the configured factors
+     * @param conf
+     * @param cfg
+     * @param inputTag
+     * @return
+     */
     default boolean verifyTags(Configuration conf, ICsvMapperCfg cfg, String inputTag) {
-        return verifyTags(conf, cfg, inputTag, DateRangeMode.EXACT);
+        return verifyTags(conf, cfg, inputTag, DateRangeMode.EXACT, VerifyTags.ALL);
     }
 }

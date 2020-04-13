@@ -122,4 +122,14 @@ public class StockReducer extends AbstractReducer<Text, MapWritable, Text, Text>
 
         return map;
     }
+
+    @Override
+    protected Text newKey(String key) {
+        return new Text(key);
+    }
+
+    @Override
+    protected Text newValue(String value) {
+        return new Text(value);
+    }
 }

@@ -54,6 +54,7 @@ public class Constants {
     public static final String REGRESSION_PROP_SECTION = "regression";
     public static final String VERIFICATION_PROP_SECTION = "verification";
     public static final String STATS_PROP_SECTION = "stats";
+    public static final String NORMALISE_PROP_SECTION = "normalise";
     public static final String MATRIX_PROP_1_SECTION = "matrix1";
     public static final String MATRIX_PROP_2_SECTION = "matrix2";
 
@@ -84,7 +85,8 @@ public class Constants {
     public static final String FBICODE_PROP = "fbicode";
     public static final String TOTAL_PROP = "total";    // total count, generated from data
 
-    public static final String OUTPUTTYPES_PATH_PROP = "outputtypes_path";  // path for output types file
+    public static final String OUTPUTTYPES_FILE_PROP = "outputtypes_file";  // name of output types file (for output)
+    public static final String OUTPUTTYPES_PATH_PROP = "outputtypes_path";  // path for output types file (for input)
 
     // stock specific properties
     public static final String OPEN_PROP = "open";
@@ -141,6 +143,7 @@ public class Constants {
     public static final String VARIABLES_PROP = "variables";
 
     public static final String VARIABLES_NUMERIC = "numeric";
+    public static final String VARIABLES_ALL = "all";
 
     // matrix specific properties
     public static final String SPEC_PROP = "spec";

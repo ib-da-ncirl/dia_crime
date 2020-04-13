@@ -27,7 +27,7 @@ import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeWritable;
-import ie.ibuttimer.dia_crime.hadoop.crime.ICrimeReducer;
+import ie.ibuttimer.dia_crime.hadoop.crime.IOutputType;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.stock.StockWritable;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherReducer;
@@ -55,7 +55,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : date
  * - output value : value string of <property>:<value> separated by ','
  */
-public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text, Text> implements ICrimeReducer {
+public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text, Text> implements IOutputType {
 
     private Map<String, Class<?>> categorySet;
 
@@ -234,7 +234,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
-        saveOutputTypes(context,this, getLogger());
+        saveOutputTypes(context,this, this);
 
         if (context.getProgress() == 1.0) {
 
@@ -268,5 +268,15 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
     protected Text getOutKey(Long cacheKey) {
         LocalDate valueDate = LocalDate.ofEpochDay(cacheKey);
         return new Text(valueDate.format(keyOutDateTimeFormatter));
+    }
+
+    @Override
+    protected Text newKey(String key) {
+        return new Text(key);
+    }
+
+    @Override
+    protected Text newValue(String value) {
+        return new Text(value);
     }
 }

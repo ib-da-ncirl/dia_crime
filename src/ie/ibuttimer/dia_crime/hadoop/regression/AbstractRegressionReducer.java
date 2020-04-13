@@ -44,18 +44,16 @@ public abstract class AbstractRegressionReducer<KI, VI, KO, VO> extends Abstract
 
     protected LinearRegressor regressor;
 
-    private String section = null;
-
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
-        if (section == null) {
+        if (getSection() == null) {
             throw new IllegalStateException("Reducer 'section' not set");
         }
 
         super.setup(context);
 
         Configuration conf = context.getConfiguration();
-        StatsConfigReader cfgReader = new StatsConfigReader(section);
+        StatsConfigReader cfgReader = new StatsConfigReader(getSection());
 
         independents = cfgReader.readCommaSeparatedProperty(conf, INDEPENDENTS_PROP);
         dependent = cfgReader.getConfigProperty(conf, DEPENDENT_PROP);
@@ -71,43 +69,43 @@ public abstract class AbstractRegressionReducer<KI, VI, KO, VO> extends Abstract
         }
     }
 
-    public void setSection(String section) {
-        this.section = section;
-    }
-
-    public String getSection() {
-        return this.section;
-    }
-
     protected void addOutputHeader(Context context, Counters.ReducerCounter counter, List<String> additionalTags,
                                    List<String> rawStrings) {
-        Optional<Long> inCount = counter.getCount();
-        inCount.ifPresent(count -> {
-            if (count == 0) {
-                Configuration conf = context.getConfiguration();
-                ConfigReader cfgReader = new ConfigReader(getSection());
-                List<String> tags = new ArrayList<>(getTagStrings(conf, getSection()));
 
-                List<String> props = new ArrayList<>(List.of(INDEPENDENTS_PROP, DEPENDENT_PROP));
-                props.addAll(additionalTags);
+        List<String> additionalProps = new ArrayList<>(List.of(INDEPENDENTS_PROP, DEPENDENT_PROP));
+        additionalProps.addAll(additionalTags);
 
-                props.forEach(p -> tags.add(
-                        String.format("%s : %s", p, cfgReader.getConfigProperty(conf, p, ""))));
-
-                tags.addAll(rawStrings);
-
-                tags.forEach(tagLine -> {
-                    try {
-                        context.write(newKey(COMMENT_PREFIX), newValue(tagLine));
-                    } catch (IOException | InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                });
-            }
-        });
+        super.addOutputHeader(context, counter, additionalProps, rawStrings);
     }
-
-    protected abstract KO newKey(String key);
-
-    protected abstract VO newValue(String value);
+//    protected void addOutputHeader(Context context, Counters.ReducerCounter counter, List<String> additionalTags,
+//                                   List<String> rawStrings) {
+//        Optional<Long> inCount = counter.getCount();
+//        inCount.ifPresent(count -> {
+//            if (count == 0) {
+//                Configuration conf = context.getConfiguration();
+//                ConfigReader cfgReader = new ConfigReader(getSection());
+//                List<String> tags = new ArrayList<>(getTagStrings(conf, getSection()));
+//
+//                List<String> props = new ArrayList<>(List.of(INDEPENDENTS_PROP, DEPENDENT_PROP));
+//                props.addAll(additionalTags);
+//
+//                props.forEach(p -> tags.add(
+//                        String.format("%s : %s", p, cfgReader.getConfigProperty(conf, p, ""))));
+//
+//                tags.addAll(rawStrings);
+//
+//                tags.forEach(tagLine -> {
+//                    try {
+//                        context.write(newKey(COMMENT_PREFIX), newValue(tagLine));
+//                    } catch (IOException | InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
+//                });
+//            }
+//        });
+//    }
+//
+//    protected abstract KO newKey(String key);
+//
+//    protected abstract VO newValue(String value);
 }

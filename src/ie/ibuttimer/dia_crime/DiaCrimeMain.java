@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeMapper;
 import ie.ibuttimer.dia_crime.hadoop.matrix.MatrixMapper;
+import ie.ibuttimer.dia_crime.hadoop.normalise.NormaliseMapper;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionTrainMapper;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionValidateMapper;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsMapper;
@@ -69,6 +70,7 @@ public class DiaCrimeMain {
         propDefaults.put(SP500_PROP_SECTION, SP500StockMapper.getClsCsvMapperCfg());
         propDefaults.put(WEATHER_PROP_SECTION, WeatherMapper.getClsCsvMapperCfg());
         propDefaults.put(STATS_PROP_SECTION, StatsMapper.getClsCsvMapperCfg());
+        propDefaults.put(NORMALISE_PROP_SECTION, NormaliseMapper.getClsCsvMapperCfg());
         propDefaults.put(REGRESSION_PROP_SECTION, RegressionTrainMapper.getClsCsvMapperCfg());
         propDefaults.put(VERIFICATION_PROP_SECTION, RegressionValidateMapper.getClsCsvMapperCfg());
         propDefaults.put(MATRIX_PROP_1_SECTION, MatrixMapper.MatrixMapper1.getClsCsvMapperCfg());
@@ -92,6 +94,7 @@ public class DiaCrimeMain {
         -j crime
         -j merge -c config.properties;merge.properties
         -j stats -c config.properties;stats.properties
+        -j normalise -c config.properties;normalise.properties
         -j linear_regression -c config.properties;regression.properties
         -j regression_verify -c config.properties;regression.properties;verification.properties
         -j matrix_multiply -c config.properties;matrix.properties
@@ -108,6 +111,7 @@ public class DiaCrimeMain {
     private static final String JOB_CRIME = "crime";
     private static final String JOB_MERGE = "merge";
     private static final String JOB_STATS = "stats";
+    private static final String JOB_NORMALISE = "normalise";
     private static final String JOB_LINEAR_REGRESSION = "linear_regression";
     private static final String JOB_VERIFY_REGRESSION = "verify_regression";
     private static final String JOB_MATRIX_MULTIPLY = "matrix_multiply";
@@ -121,6 +125,7 @@ public class DiaCrimeMain {
         jobList.add(Triple.of(JOB_CRIME, "process the crime file", "Crime Job"));
         jobList.add(Triple.of(JOB_MERGE, "merge crime, stocks & weather to a single file", "Merge Job"));
         jobList.add(Triple.of(JOB_STATS, "perform basic statistics analysis", "Statistics Job"));
+        jobList.add(Triple.of(JOB_NORMALISE, "normalise numeric values", "Normalise Job"));
         jobList.add(Triple.of(JOB_LINEAR_REGRESSION, "perform a linear regression on merged crime, stocks & weather data", "Linear Regression Job"));
         jobList.add(Triple.of(JOB_VERIFY_REGRESSION, "verify a linear regression on merged crime, stocks & weather data", "Regression Verification Job"));
         jobList.add(Triple.of(JOB_MATRIX_MULTIPLY, "perform a matrix multiplication", "Matrix Multiplication Job"));
@@ -245,6 +250,9 @@ public class DiaCrimeMain {
                                 break;
                             case JOB_STATS:
                                 resultCode = StatsDriver.of(this).runStatsJob(jobCfg);
+                                break;
+                            case JOB_NORMALISE:
+                                resultCode = NormaliseDriver.of(this).runNormaliseJob(jobCfg);
                                 break;
                             case JOB_LINEAR_REGRESSION:
                                 resultCode = LinearRegressionDriver.of(this).runLinearRegressionJob(jobCfg);

@@ -88,6 +88,12 @@ public class StatsConfigReader extends ConfigReader {
             outputTypes = readOutputTypes(confLocal, OutputType.NUMERIC, null);
 
             variables = new ArrayList<>(outputTypes.keySet());
+        } else if (setting.equals(VARIABLES_ALL)) {
+
+            // not the most efficient way of handing 'all' but ...
+            outputTypes = readOutputTypes(confLocal, OutputType.ALL, null);
+
+            variables = new ArrayList<>(outputTypes.keySet());
         } else {
             variables = readCommaSeparatedProperty(confLocal, VARIABLES_PROP);
             if (variables.size() == 0) {
@@ -139,6 +145,10 @@ public class StatsConfigReader extends ConfigReader {
             });
 
         return outputTypes;
+    }
+
+    public Map<String, Class<?>> convertOutputTypeClasses(Map<String, String> map) {
+        return convertOutputTypeClasses(map, CLASSES);
     }
 
     public Map<String, Class<?>> getNumericOutputTypes(Configuration conf) {

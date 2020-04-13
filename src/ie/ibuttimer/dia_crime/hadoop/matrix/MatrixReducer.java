@@ -94,4 +94,13 @@ public class MatrixReducer extends AbstractReducer<CoordinateWritable, MatrixWri
         context.write(keyOut, valueOut);
     }
 
+    @Override
+    protected Text newKey(String key) {
+        return new Text(key);
+    }
+
+    @Override
+    protected DoubleWritable newValue(String value) {
+        return new DoubleWritable(Double.parseDouble(value));
+    }
 }

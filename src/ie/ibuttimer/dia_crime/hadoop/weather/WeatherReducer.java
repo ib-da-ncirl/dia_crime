@@ -120,4 +120,14 @@ public class WeatherReducer extends AbstractReducer<Text, MapWritable, Text, Tex
 
         return avgCalc.toMap();
     }
+
+    @Override
+    protected Text newKey(String key) {
+        return new Text(key);
+    }
+
+    @Override
+    protected Text newValue(String value) {
+        return new Text(value);
+    }
 }

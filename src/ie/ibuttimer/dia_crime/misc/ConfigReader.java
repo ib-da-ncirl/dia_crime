@@ -140,7 +140,6 @@ public class ConfigReader implements IPropertyWrangler {
     }
 
     public Map<String, Class<?>> readOutputTypeClasses(Configuration conf, String property, List<Class<?>> classes) {
-        Map<String, Class<?>> outputTypes = new HashMap<>();
         String typesPath = getConfigProperty(conf, property);
 
         Map<String, String> entries = new HashMap<>();
@@ -159,13 +158,19 @@ public class ConfigReader implements IPropertyWrangler {
             e.printStackTrace();
         }
 
-        entries.forEach((key, name) -> {
+        return convertOutputTypeClasses(entries, classes);
+    }
+
+    public Map<String, Class<?>> convertOutputTypeClasses(Map<String, String> map, List<Class<?>> classes) {
+        Map<String, Class<?>> outputTypes = new TreeMap<>();
+
+        map.forEach((key, name) -> {
             classes.stream()
                 .filter(cls -> name.equals(cls.getSimpleName()))
                 .findFirst()
                 .ifPresent(cls -> outputTypes.put(key, cls));
         });
-        if (outputTypes.size() != entries.size()) {
+        if (outputTypes.size() != map.size()) {
             throw new IllegalStateException("Unmatched output type class");
         }
         return outputTypes;

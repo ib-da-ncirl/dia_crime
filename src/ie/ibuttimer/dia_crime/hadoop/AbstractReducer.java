@@ -25,6 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop;
 
 import ie.ibuttimer.dia_crime.hadoop.merge.IDecorator;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.misc.ConfigReader;
 import ie.ibuttimer.dia_crime.misc.DebugLevel;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
@@ -33,6 +34,9 @@ import org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
@@ -49,9 +53,11 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
     private IDecorator<KO, VO> decorator;
     private IDecorator.DecorMode decoratorMode;
 
-    private static Logger logger = null;
+    private Logger logger = null;
 
     private DebugLevel debugLevel;  // current debug level
+
+    private String section = null;
 
     public AbstractReducer() {
         this(null, IDecorator.DecorMode.NONE);
@@ -74,6 +80,15 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
         }
     }
 
+    public void setSection(String section) {
+        this.section = section;
+    }
+
+    public String getSection() {
+        return this.section;
+    }
+
+
     @Override
     public void setDecorator(IDecorator<KO, VO> decorator, IDecorator.DecorMode decoratorMode) {
         this.decorator = decorator;
@@ -90,19 +105,19 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
         return decorator;
     }
 
-    public static Logger getLogger() {
+    public Logger getLogger() {
         if (logger == null) {
             setLogger(AbstractReducer.class);
         }
         return logger;
     }
 
-    public static void setLogger(Class<?> cls) {
+    public void setLogger(Class<?> cls) {
         setLogger(Logger.getLogger(cls));
     }
 
-    public static void setLogger(Logger logger) {
-        AbstractReducer.logger = logger;
+    public void setLogger(Logger logger) {
+        this.logger = logger;
     }
 
     protected Counters.ReducerCounter getCounter(Context context, String group, String name) {
@@ -132,4 +147,35 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
     }
 
 
+    protected void addOutputHeader(Context context, Counters.ReducerCounter counter, List<String> additionalTags,
+                                   List<String> rawStrings) {
+        Optional<Long> inCount = counter.getCount();
+        inCount.ifPresent(count -> {
+            if (count == 0) {
+                Configuration conf = context.getConfiguration();
+                ConfigReader cfgReader = new ConfigReader(getSection());
+                List<String> tags = new ArrayList<>(getTagStrings(conf, getSection()));
+
+                List<String> props = new ArrayList<>(List.of(INDEPENDENTS_PROP, DEPENDENT_PROP));
+                props.addAll(additionalTags);
+
+                props.forEach(p -> tags.add(
+                    String.format("%s : %s", p, cfgReader.getConfigProperty(conf, p, ""))));
+
+                tags.addAll(rawStrings);
+
+                tags.forEach(tagLine -> {
+                    try {
+                        context.write(newKey(COMMENT_PREFIX), newValue(tagLine));
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
+        });
+    }
+
+    protected abstract KO newKey(String key);
+
+    protected abstract VO newValue(String value);
 }

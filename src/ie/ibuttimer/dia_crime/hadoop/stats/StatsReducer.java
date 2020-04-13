@@ -234,4 +234,14 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> {
             });
         return Triple.of(summer.get(), minimiser.get(), maximiser.get());
     }
+
+    @Override
+    protected Text newKey(String key) {
+        return new Text(key);
+    }
+
+    @Override
+    protected Text newValue(String value) {
+        return new Text(value);
+    }
 }

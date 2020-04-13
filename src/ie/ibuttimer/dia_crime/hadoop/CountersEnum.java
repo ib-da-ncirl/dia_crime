@@ -56,6 +56,10 @@ public enum CountersEnum {
     MATRIX_MAPPER_COUNT,
     MATRIX_REDUCER_COUNT,
 
+    // Normalise
+    NORMALISE_MAPPER_COUNT,
+    NORMALISE_REDUCER_COUNT,
+
     // Stats
     STATS_MAPPER_COUNT,
     STATS_REDUCER_COUNT,
