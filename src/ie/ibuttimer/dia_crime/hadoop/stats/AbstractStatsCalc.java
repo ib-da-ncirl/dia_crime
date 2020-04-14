@@ -50,6 +50,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
+
 /**
  * Base class for statistics calculation
  */
@@ -335,7 +337,7 @@ public abstract class AbstractStatsCalc {
             .ifPresent(l -> {
                 String line = getValueFromLine(l);
                 if (!TextUtils.isEmpty(line)) {
-                    Map<String, String> map = MapStringifier.mapify(line);
+                    Map<String, String> map = MAP_STRINGIFIER.mapify(line);
                     value.set(Long.parseLong(map.getOrDefault(valueTag, "0")));
                 }
             });

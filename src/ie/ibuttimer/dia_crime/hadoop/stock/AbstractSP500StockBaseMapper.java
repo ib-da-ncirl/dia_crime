@@ -50,7 +50,7 @@ public abstract class AbstractSP500StockBaseMapper<VO> extends AbstractSP500Stoc
     private static ICsvMapperCfg sCfgChk = new StockMapperCfg(SP500_PROP_SECTION);
 
     @Override
-    public ICsvMapperCfg getEntryMapperCfg() {
+    public ICsvMapperCfg getMapperCfg() {
         return AbstractSP500StockBaseMapper.getClsCsvMapperCfg();
     }
 

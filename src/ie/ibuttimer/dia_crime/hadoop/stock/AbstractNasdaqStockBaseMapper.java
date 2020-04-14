@@ -50,7 +50,7 @@ public abstract class AbstractNasdaqStockBaseMapper<VO> extends AbstractNasdaqSt
     private static ICsvMapperCfg sCfgChk = new StockMapperCfg(NASDAQ_PROP_SECTION);
 
     @Override
-    public ICsvMapperCfg getEntryMapperCfg() {
+    public ICsvMapperCfg getMapperCfg() {
         return AbstractNasdaqStockBaseMapper.getClsCsvMapperCfg();
     }
 

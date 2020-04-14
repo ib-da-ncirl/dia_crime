@@ -26,7 +26,7 @@ package ie.ibuttimer.dia_crime.hadoop.weather;
 import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
-import ie.ibuttimer.dia_crime.hadoop.misc.DateTimeWritable;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.misc.Counter;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.commons.lang3.tuple.Triple;
@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
 
 /**
@@ -49,7 +50,7 @@ import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
  * - output key : date
  * - output value : value string of <field>:<value> separated by ','
  */
-public class WeatherReducer extends AbstractReducer<DateTimeWritable, MapWritable, DateTimeWritable, Text> {
+public class WeatherReducer extends AbstractReducer<DateWritable, MapWritable, DateWritable, Text> {
 
     /**
      * Reduce the values for a key
@@ -60,7 +61,7 @@ public class WeatherReducer extends AbstractReducer<DateTimeWritable, MapWritabl
      * @throws InterruptedException
      */
     @Override
-    protected void reduce(DateTimeWritable key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
+    protected void reduce(DateWritable key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
 
         Counters.ReducerCounter counter = getCounter(context, CountersEnum.WEATHER_REDUCER_COUNT);
 
@@ -72,7 +73,7 @@ public class WeatherReducer extends AbstractReducer<DateTimeWritable, MapWritabl
 
         // create value string of <field>:<value> separated by ','
         // e.g. 2001-01-01	date:2001-01-01, temp:-5.8541665, weather_id:804, snow_3h:0.0, weather_description:overcast clouds, rain_1h:0.0, snow_1h:0.0, clouds_all:47, rain_3h:0.0, pressure:1028, feels_like:-11.464583, temp_max:-2.777917, weather_main:Clouds, temp_min:-8.428333, wind_deg:270, humidity:71, wind_speed:3.619583
-        context.write(key, new Text(MapStringifier.stringify(map)));
+        context.write(key, new Text(MAP_STRINGIFIER.stringify(map)));
     }
 
     /**
@@ -123,8 +124,8 @@ public class WeatherReducer extends AbstractReducer<DateTimeWritable, MapWritabl
     }
 
     @Override
-    protected DateTimeWritable newKey(String key) {
-        return new DateTimeWritable();
+    protected DateWritable newKey(String key) {
+        return new DateWritable();
     }
 
     @Override

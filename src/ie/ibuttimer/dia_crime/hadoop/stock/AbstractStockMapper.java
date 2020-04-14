@@ -26,8 +26,8 @@ package ie.ibuttimer.dia_crime.hadoop.stock;
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.misc.ConfigReader;
-import org.apache.avro.generic.GenericData;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -47,7 +47,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output value : MapWritable<date/id, StockWritable>
  */
 public abstract class AbstractStockMapper<VO>
-        extends AbstractCsvMapper<Text, VO>
+        extends AbstractCsvMapper<DateWritable, VO>
         implements IAbstractStockMapper.IStockEntryKeyGenerator {
 
     public enum StockMapperKey { DATE, STOCK_ID };
@@ -63,7 +63,7 @@ public abstract class AbstractStockMapper<VO>
 
     private IAbstractStockMapper mapperHelper;
 
-    private final Text keyOut = new Text();
+    private final DateWritable keyOut = DateWritable.of();
 
     private Text id;
     private final StockMapperKey keyOutType;
@@ -91,12 +91,12 @@ public abstract class AbstractStockMapper<VO>
 
         // read list of factors to apply to property values
         factors = new HashMap<>();
-        ConfigReader cfgReader = new ConfigReader(getEntryMapperCfg());
+        ConfigReader cfgReader = new ConfigReader(getMapperCfg());
         Map<String, String> factorSetting =
             cfgReader.readCommaSeparatedKeyColonValueProperty(context.getConfiguration(), FACTOR_PROP);
 
         factorSetting.entrySet().stream()
-            .filter(es -> getEntryMapperCfg().getPropertyIndices().contains(es.getKey()))
+            .filter(es -> getMapperCfg().getPropertyIndices().contains(es.getKey()))
             .forEach(es -> {
                 factors.put(es.getKey(), Double.valueOf(es.getValue()));
             });
@@ -138,7 +138,7 @@ public abstract class AbstractStockMapper<VO>
         }
     }
 
-    public void writeOutput(Context context, AbstractBaseWritable<?> entry, Text keyOut, Text id,
+    public void writeOutput(Context context, AbstractBaseWritable<?> entry, DateWritable keyOut, Text id,
                             StockMapperKey keyOutType) {
         mapperHelper.getWriteOutput(entry, id, keyOutType, this, getKeyOutDateTimeFormatter())
             .forEach(pair -> {
@@ -159,12 +159,11 @@ public abstract class AbstractStockMapper<VO>
      * @param dateTimeFormatter
      * @return
      */
-    public String getWriteKey(AbstractBaseWritable<?> entry, Text id, StockMapperKey keyOutType,
+    public DateWritable getWriteKey(AbstractBaseWritable<?> entry, Text id, StockMapperKey keyOutType,
                               DateTimeFormatter dateTimeFormatter) {
-        String key;
+        DateWritable key;
         switch (keyOutType) {
-            case DATE:      key = entry.getLocalDate().format(dateTimeFormatter);   break;
-            case STOCK_ID:  key = id.toString();                                    break;
+            case DATE:      key = DateWritable.ofDate(entry.getLocalDate());    break;
             default:        throw new RuntimeException("Unknown 'keyOutType':" + keyOutType);
         };
         return key;

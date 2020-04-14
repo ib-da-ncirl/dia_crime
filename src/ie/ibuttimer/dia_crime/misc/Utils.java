@@ -70,8 +70,8 @@ public class Utils {
         return Integer.parseInt(version);
     }
 
+    @SuppressWarnings("deprecation")
     public static <T> Object getInstance(Class<T> cls) {
-        @SuppressWarnings("deprecation")
         Object instance = null;
         if (getJREVersion() <= 8) {
             try {

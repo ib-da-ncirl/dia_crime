@@ -27,6 +27,7 @@ import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -47,7 +48,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : date
  * @param <VO>  output value
  */
-public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO> {
+public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<DateWritable, VO> {
 
     private CrimeWritable.CrimeWritableBuilder builder;
 
@@ -59,7 +60,7 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
         DATE_PROP, PRIMARYTYPE_PROP, DESCRIPTION_PROP, LOCATIONDESCRIPTION_PROP, IUCR_PROP, FBICODE_PROP
     );
 
-    private final Text keyOut = new Text();
+    private final DateWritable keyOut = new DateWritable();
 
     private Counters.MapperCounter counter;
 
@@ -131,7 +132,7 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
      * @throws IOException
      * @throws InterruptedException
      */
-    protected abstract void writeOutput(Context context, Text key, CrimeWritable value) throws IOException, InterruptedException;
+    protected abstract void writeOutput(Context context, DateWritable key, CrimeWritable value) throws IOException, InterruptedException;
 
     // Configuration object
     private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(CRIME_PROP_SECTION) {
@@ -143,7 +144,7 @@ public abstract class AbstractCrimeMapper<VO> extends AbstractCsvMapper<Text, VO
     };
 
     @Override
-    public ICsvMapperCfg getEntryMapperCfg() {
+    public ICsvMapperCfg getMapperCfg() {
         return AbstractCrimeMapper.getClsCsvMapperCfg();
     }
 

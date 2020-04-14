@@ -27,6 +27,7 @@ import ie.ibuttimer.dia_crime.hadoop.merge.IDecorator;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.Constants;
 import ie.ibuttimer.dia_crime.misc.DebugLevel;
+import ie.ibuttimer.dia_crime.misc.IPropertyWrangler;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
@@ -132,17 +133,22 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
         super.setup(context);
 
         // set the property root path
-        setPropertyRoot(getEntryMapperCfg().getPropertyRoot());
+        setPropertyRoot(getMapperCfg().getRoot());
     }
 
 
-    protected String getConfigProperty(Configuration conf, String name) {
-        boolean required = getEntryMapperCfg().getRequiredProps().stream().anyMatch(p -> p.name.equals(name));
-        String value = conf.get(getPropertyPath(name), "");
+    protected static String getConfigProperty(Configuration conf, String name, ICsvMapperCfg mapperCfg,
+                                              IPropertyWrangler wrangler) {
+        boolean required = mapperCfg.getRequiredProps().stream().anyMatch(p -> p.name.equals(name));
+        String value = conf.get(wrangler.getPropertyPath(name), "");
         if (required && TextUtils.isEmpty(value)) {
             throw new  IllegalStateException("Missing required configuration parameter: " + name);
         }
         return value;
+    }
+
+    protected String getConfigProperty(Configuration conf, String name, IPropertyWrangler wrangler) {
+        return getConfigProperty(conf, name, getMapperCfg(), wrangler);
     }
 
 
@@ -150,7 +156,7 @@ public abstract class AbstractMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, 
      * Get mapper configuration
      * @return
      */
-    public abstract ICsvMapperCfg getEntryMapperCfg();
+    public abstract ICsvMapperCfg getMapperCfg();
 
 
     /**

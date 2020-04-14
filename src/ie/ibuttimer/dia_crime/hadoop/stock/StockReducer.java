@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime.hadoop.stock;
 import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -37,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
+
 /**
  * Reducer for a stock entries:
  * - input key : date
@@ -44,13 +47,13 @@ import java.util.TreeMap;
  * - output key : date
  * - output value : MapWritable<StockWritable>
  */
-public class StockReducer extends AbstractReducer<Text, MapWritable, Text, Text> {
+public class StockReducer extends AbstractReducer<DateWritable, MapWritable, DateWritable, Text> {
 
     private static final Log LOG = LogFactory.getLog(StockReducer.class);
 
     public static final String STOCK_ID_SEPARATOR = ">";
 
-    private MapStringifier.ElementStringify idValStringifier = MapStringifier.ElementStringify.of(STOCK_ID_SEPARATOR);
+    private final MapStringifier.ElementStringify idValStringifier = MapStringifier.ElementStringify.of(STOCK_ID_SEPARATOR);
 
     private Counters.ReducerCounter counter;
 
@@ -70,7 +73,7 @@ public class StockReducer extends AbstractReducer<Text, MapWritable, Text, Text>
      * @throws InterruptedException
      */
     @Override
-    protected void reduce(Text key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
+    protected void reduce(DateWritable key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
 
         // sort based on stock
         Map<String, String> map = new TreeMap<>();
@@ -88,7 +91,7 @@ public class StockReducer extends AbstractReducer<Text, MapWritable, Text, Text>
                     // e.g. 2001-01-02	DJI>adjclose:10646.150391, close:10646.150391, date:2001-01-02, high:10797.019531, low:10585.360352, open:10790.919922, volume:253300000
                     try {
                         write(context, key, new Text(
-                            idValStringifier.stringifyElement(stockKey.toString(), MapStringifier.stringify(map))
+                            idValStringifier.stringifyElement(stockKey.toString(), MAP_STRINGIFIER.stringify(map))
                         ));
 
                         counter.increment();
@@ -124,8 +127,8 @@ public class StockReducer extends AbstractReducer<Text, MapWritable, Text, Text>
     }
 
     @Override
-    protected Text newKey(String key) {
-        return new Text(key);
+    protected DateWritable newKey(String key) {
+        return DateWritable.ofDate(key);
     }
 
     @Override

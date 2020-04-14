@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeWrapMapper;
 import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
 import ie.ibuttimer.dia_crime.hadoop.merge.MergeReducer;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.hadoop.stock.DowJonesStockWrapMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.NasdaqStockWrapMapper;
 import ie.ibuttimer.dia_crime.hadoop.stock.SP500StockWrapMapper;
@@ -93,13 +94,13 @@ public class MergeDriver extends AbstractDriver {
 
             job.setReducerClass(MergeReducer.class);
 
-            job.setMapOutputKeyClass(Text.class);
+            job.setMapOutputKeyClass(DateWritable.class);
             job.setMapOutputValueClass(CSWWrapperWritable.class);
 
             /*
              * Input and Output types of a MapReduce job:
              * (input) <k1, v1> -> map -> <k2, v2> -> combine -> <k2, v2> -> reduce -> <k3, v3> (output)
-             * (input) <LongWritable, Text> -> map -> <Text, CSWWrapperWritable> -> reduce -> <Text, Text> (output)
+             * (input) <LongWritable, Text> -> map -> <DateWritable, CSWWrapperWritable> -> reduce -> <Text, Text> (output)
              */
             job.setOutputKeyClass(Text.class);
             job.setOutputValueClass(Text.class);

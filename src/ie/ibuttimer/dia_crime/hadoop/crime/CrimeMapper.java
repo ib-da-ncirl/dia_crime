@@ -24,6 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop.crime;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 
@@ -53,7 +54,7 @@ public class CrimeMapper extends AbstractCrimeMapper<MapWritable> {
     }
 
     @Override
-    protected void writeOutput(Context context, Text key, CrimeWritable value) throws IOException, InterruptedException {
+    protected void writeOutput(Context context, DateWritable key, CrimeWritable value) throws IOException, InterruptedException {
         mapOut.clear();
         mapOut.put(key, value);
 
@@ -84,7 +85,7 @@ public class CrimeMapper extends AbstractCrimeMapper<MapWritable> {
     };
 
     @Override
-    public ICsvMapperCfg getEntryMapperCfg() {
+    public ICsvMapperCfg getMapperCfg() {
         return getClsCsvMapperCfg();
     }
 

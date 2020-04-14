@@ -58,6 +58,10 @@ public class DateTimeWritable extends AbstractDateTimeWritable<DateTimeWritable>
         return instance;
     }
 
+    public static DateTimeWritable ofDateTime(String dateTime) {
+        return ofDateTime(dateTime, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+    }
+
     public static DateTimeWritable ofDate(String date, DateTimeFormatter formatter) {
         DateTimeWritable instance = new DateTimeWritable();
         instance.setLocalDate(getDate(date, formatter));

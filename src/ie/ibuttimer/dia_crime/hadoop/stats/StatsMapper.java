@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.HADOOP_KEY_VAL;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 
 /**
  * Statistics mapper that outputs property value, property value squared and, property product values
@@ -73,7 +74,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> {
         setLogger(getClass());
 
         Configuration conf = context.getConfiguration();
-        StatsConfigReader cfgReader = new StatsConfigReader(getEntryMapperCfg());
+        StatsConfigReader cfgReader = new StatsConfigReader(getMapperCfg());
 
         variables = cfgReader.readVariables(conf);
         outputTypes = cfgReader.readOutputTypes(conf);
@@ -109,7 +110,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> {
         if (!skipHeader(key)) {
             if (skipComment(value)) {
                 // verify parameters specified in input file
-                ICsvMapperCfg cfg = getEntryMapperCfg();
+                ICsvMapperCfg cfg = getMapperCfg();
                 Pair<String, String> hKeyVal = HADOOP_KEY_VAL.destringifyElement(value.toString());
 
                 cfg.verifyTags(context.getConfiguration(), cfg, hKeyVal.getRight());
@@ -132,7 +133,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> {
             Pair<String, String> hKeyVal = HADOOP_KEY_VAL.destringifyElement(value.toString());
             Pair<Boolean, LocalDate> filterRes = getDateAndFilter(hKeyVal.getLeft());
             if (filterRes.getLeft()) {
-                Map<String, String> map = MapStringifier.mapify(hKeyVal.getRight());
+                Map<String, String> map = MAP_STRINGIFIER.mapify(hKeyVal.getRight());
                 List<String> skipList = new ArrayList<>();
 
                 // collect the value and squared value for each property
@@ -214,7 +215,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> {
     };
 
     @Override
-    public ICsvMapperCfg getEntryMapperCfg() {
+    public ICsvMapperCfg getMapperCfg() {
         return getClsCsvMapperCfg();
     }
 

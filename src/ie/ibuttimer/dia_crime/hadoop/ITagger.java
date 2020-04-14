@@ -195,7 +195,7 @@ public interface ITagger {
      * @return
      */
     default boolean verifyDateRangeTag(Configuration conf, ICsvMapperCfg cfg, String inputTag, DateRangeMode mode) {
-        Pair<LocalDate, LocalDate> cfgDates = cfg.getDateRange(conf, cfg.getPropertyRoot());
+        Pair<LocalDate, LocalDate> cfgDates = cfg.getDateRange(conf, cfg.getRoot());
         Pair<LocalDate, LocalDate> inDates = cfg.decodeDateRange(inputTag);
         if (mode == DateRangeMode.EXACT) {
             if (!cfgDates.getLeft().equals(inDates.getLeft()) || !cfgDates.getRight().equals(inDates.getRight())) {
@@ -219,7 +219,7 @@ public interface ITagger {
      * @return
      */
     default boolean verifyFactorsTag(Configuration conf, ICsvMapperCfg cfg, String inputTag) {
-        String cfgFactors = getFactorsString(conf, cfg.getPropertyRoot());
+        String cfgFactors = getFactorsString(conf, cfg.getRoot());
         if (!cfgFactors.equals(inputTag)) {
             throw new IllegalStateException("Input factors [" + inputTag +
                 "] do not match configured factors [" + cfgFactors + "]");

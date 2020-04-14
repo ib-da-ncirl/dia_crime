@@ -24,6 +24,7 @@
 package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -57,13 +58,13 @@ public interface IAbstractStockMapper {
      * @throws InterruptedException
      * @return
      */
-    List<Pair<String, Writable>> getWriteOutput(AbstractBaseWritable<?> entry,
+    List<Pair<DateWritable, Writable>> getWriteOutput(AbstractBaseWritable<?> entry,
                                                 Text id, AbstractStockMapper.StockMapperKey keyOutType,
                                                 IStockEntryKeyGenerator keyGenerator, DateTimeFormatter keyOutFormatter);
 
     interface IStockEntryKeyGenerator {
-        String getWriteKey(AbstractBaseWritable<?> entry, Text id, AbstractStockMapper.StockMapperKey keyOutType,
-                           DateTimeFormatter dateTimeFormatter);
+        DateWritable getWriteKey(AbstractBaseWritable<?> entry, Text id, AbstractStockMapper.StockMapperKey keyOutType,
+                                     DateTimeFormatter dateTimeFormatter);
     }
 
 }

@@ -26,13 +26,15 @@ package ie.ibuttimer.dia_crime.hadoop.regression;
 import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
-import ie.ibuttimer.dia_crime.misc.DebugLevel;
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import static ie.ibuttimer.dia_crime.hadoop.regression.AbstractRegressionMapper.REGRESSOR;
+import static ie.ibuttimer.dia_crime.hadoop.regression.AbstractRegressionMapper.getRegressionSetup;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 /**
@@ -50,6 +52,7 @@ public abstract class AbstractRegressionReducer<KI, VI, KO, VO> extends Abstract
     protected LinearRegressor regressor;
 
     @Override
+    @SuppressWarnings("unchecked")
     protected void setup(Context context) throws IOException, InterruptedException {
         if (getSection() == null) {
             throw new IllegalStateException("Reducer 'section' not set");
@@ -60,18 +63,12 @@ public abstract class AbstractRegressionReducer<KI, VI, KO, VO> extends Abstract
         Configuration conf = context.getConfiguration();
         StatsConfigReader cfgReader = new StatsConfigReader(getSection());
 
-        independents = cfgReader.readCommaSeparatedProperty(conf, INDEPENDENTS_PROP);
-        dependent = cfgReader.getConfigProperty(conf, DEPENDENT_PROP);
+        Map<String, Object> regressionSetup = getRegressionSetup(conf, cfgReader,
+                                                RegressionTrainMapper.getClsCsvMapperCfg(), this);
 
-        double weight = cfgReader.getConfigProperty(conf, WEIGHT_PROP, (double) 0).doubleValue();
-        double bias = cfgReader.getConfigProperty(conf, BIAS_PROP, (double) 0).doubleValue();
-        double learningRate = cfgReader.getConfigProperty(conf, LEARNING_RATE_PROP, (double) 0).doubleValue();
-
-        regressor = new LinearRegressor(weight, bias, learningRate);
-
-        if (show(DebugLevel.HIGH)) {
-            getLogger().info(regressor.toString());
-        }
+        independents = (List<String>) regressionSetup.get(INDEPENDENTS_PROP);
+        dependent = (String) regressionSetup.get(DEPENDENT_PROP);
+        regressor = (LinearRegressor) regressionSetup.get(REGRESSOR);
     }
 
     @Override

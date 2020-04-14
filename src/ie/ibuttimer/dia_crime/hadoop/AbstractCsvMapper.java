@@ -23,6 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop;
 
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.misc.*;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
@@ -85,7 +86,7 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
         numIndices = conf.getInt(getPropertyPath(NUM_INDICES_PROP), 0);
 
         /* set date time formatter properties */
-        ConfigReader cfgReader = new ConfigReader(getEntryMapperCfg());
+        ConfigReader cfgReader = new ConfigReader(getMapperCfg());
         dateTimeFormatter = cfgReader.getDateTimeFormatter(conf, DATE_FORMAT_PROP, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         keyOutDateTimeFormatter = cfgReader.getDateTimeFormatter(conf, OUT_KEY_DATE_FORMAT_PROP, DateTimeFormatter.ISO_LOCAL_DATE);
 
@@ -93,10 +94,10 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
         dateFilter = new DateFilter(conf.get(getPropertyPath(FILTER_START_DATE_PROP), ""),
                 conf.get(getPropertyPath(FILTER_END_DATE_PROP), ""));
 
-        setDebugLevel(DebugLevel.getSetting(conf, getEntryMapperCfg()));
+        setDebugLevel(DebugLevel.getSetting(conf, getMapperCfg()));
 
         if (show(DebugLevel.MEDIUM)) {
-            getEntryMapperCfg().dumpConfiguration(getLogger(), conf);
+            getMapperCfg().dumpConfiguration(getLogger(), conf);
         }
     }
 
@@ -278,8 +279,8 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
      * @param date
      * @return
      */
-    public String getDateOutKey(LocalDate date) {
-        return date.format(keyOutDateTimeFormatter);
+    public DateWritable getDateOutKey(LocalDate date) {
+        return DateWritable.ofDate(date, keyOutDateTimeFormatter);
     }
 
     /**
@@ -326,8 +327,13 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
         }
 
         @Override
-        public String getPropertyRoot() {
+        public String getRoot() {
             return propertyRoot;
+        }
+
+        @Override
+        public String getPropertyName(String propertyPath) {
+            return propertyWrangler.getPropertyName(propertyPath);
         }
 
         @Override
@@ -436,7 +442,7 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
             // use info as its the default level
             getPropertyDefaults().forEach((p, d) -> {
                 logger.info(
-                    String.format("%s - %s [%s]", getPropertyRoot(), p, conf.get(getPropertyPath(p), "")));
+                    String.format("%s - %s [%s]", getRoot(), p, conf.get(getPropertyPath(p), "")));
             });
         }
 

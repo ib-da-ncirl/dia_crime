@@ -49,12 +49,12 @@ public class ValueCache<K, VC, VR> {
     
     private Pair<K, VC> minValue;
     private Pair<K, VC> maxValue;
-    private Map<K, VC> valueCache;       // cache with keys and associated partial values
-    private Map<K, VR> requiredCache;    // keys for which values is required, and corresponding partial values
-    private Lock lock;
-    private Comparator<K> keyComparator;
-    private UnaryOperator<K> prevKeyOp;
-    private UnaryOperator<K> nextKeyOp;
+    private final Map<K, VC> valueCache;       // cache with keys and associated partial values
+    private final Map<K, VR> requiredCache;    // keys for which values is required, and corresponding partial values
+    private final Lock lock;
+    private final Comparator<K> keyComparator;
+    private final UnaryOperator<K> prevKeyOp;
+    private final UnaryOperator<K> nextKeyOp;
 
 
     public ValueCache(Comparator<K> keyComparator, UnaryOperator<K> prevKeyOp, UnaryOperator<K> nextKeyOp) {
@@ -68,9 +68,14 @@ public class ValueCache<K, VC, VR> {
         this.nextKeyOp = nextKeyOp;
     }
 
+    /**
+     * Add an entry to the cache
+     * @param key
+     * @param value
+     * @return
+     */
     public Triple<K, VC, VR> addCache(K key, VC value) {
         Triple<K, VC, VR> result = null;
-        Pair<K, VC> entry = Pair.of(key, value);
 
         lock.lock();
         try {
@@ -120,6 +125,10 @@ public class ValueCache<K, VC, VR> {
         }
     }
 
+    /**
+     * Return required entries as the minimum entry from the cache
+     * @return
+     */
     public List<Triple<K, VC, VR>> getRequiredAsMin() {
         List<Triple<K, VC, VR>> result = new ArrayList<>();
         lock.lock();
@@ -133,6 +142,12 @@ public class ValueCache<K, VC, VR> {
         return result;
     }
 
+    /**
+     * Add a required entry
+     * @param key
+     * @param value
+     * @return  Triple of key, previously cached value and data to be added to required cache
+     */
     public Triple<K, VC, VR> addRequired(K key, VR value) {
         Triple<K, VC, VR> result = null;
         lock.lock();

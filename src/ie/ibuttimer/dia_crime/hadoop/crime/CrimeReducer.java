@@ -27,7 +27,7 @@ import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.util.*;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
 
 /**
@@ -49,7 +50,7 @@ import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
  * - output key : date
  * - output value : value string of <category>:<count> separated by ','
  */
-public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text> implements IOutputType {
+public class CrimeReducer extends AbstractReducer<DateWritable, MapWritable, DateWritable, Text> implements IOutputType {
 
     private Map<String, Class<?>> outputTypes;
 
@@ -71,7 +72,7 @@ public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text>
      * @throws InterruptedException
      */
     @Override
-    protected void reduce(Text key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
+    protected void reduce(DateWritable key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
 
         Counters.ReducerCounter counter = getCounter(context, CountersEnum.CRIME_REDUCER_COUNT);
 
@@ -82,7 +83,7 @@ public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text>
 
         // create value string of <category>:<count> separated by ',' with <total>:<count> at the end
         // e.g. 2001-01-01	01A:2, 02:87, 03:41, 04A:28, 04B:44, 05:66, 06:413, 07:60, 08A:43, 08B:252, 10:12, 11:73, 12:7, 14:233, 15:32, 16:5, 17:68, 18:89, 19:2, 20:44, 22:3, 24:4, 26:211, total:1819
-        write(context, key, new Text(MapStringifier.stringify(map)));
+        write(context, key, new Text(MAP_STRINGIFIER.stringify(map)));
     }
 
 
@@ -183,8 +184,8 @@ public class CrimeReducer extends AbstractReducer<Text, MapWritable, Text, Text>
     }
 
     @Override
-    protected Text newKey(String key) {
-        return new Text(key);
+    protected DateWritable newKey(String key) {
+        return DateWritable.ofDate(key);
     }
 
     @Override

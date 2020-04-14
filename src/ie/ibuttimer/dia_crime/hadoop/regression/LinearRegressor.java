@@ -24,36 +24,56 @@
 package ie.ibuttimer.dia_crime.hadoop.regression;
 
 
+import com.google.common.util.concurrent.AtomicDouble;
 import org.apache.commons.lang3.tuple.Pair;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class LinearRegressor {
 
-    private double weight;
+    private Map<String, Double> coefficients;
+//    private double weight;
     private double bias;
     private double learningRate;
 
-    public LinearRegressor(double weight, double bias, double learningRate) {
-        this.weight = weight;
+    public LinearRegressor(Map<String, Double> setting, double bias, double learningRate) {
         this.bias = bias;
+        this.coefficients = new HashMap<>();
+        setCoefficients(setting);
         this.learningRate = learningRate;
     }
 
+    public void setCoefficient(String name, Double value) {
+        coefficients.put(name, value);
+    }
+
+    public void setCoefficients(Map<String, Double> setting) {
+        coefficients.putAll(setting);
+    }
+
+
+
     /* cost function for mean squared error is:
-             MSE = 1/N * sum( (yi - ((weight * xi) + bias))^2 )
-         */
+         MSE = 1/N * sum( (yi - ((weight * xi) + bias))^2 )
+     */
     public double cost(double sqErrorSum, long count) {
         return sqErrorSum / count;
     }
 
-    public double predict(double xi) {
-        return (weight * xi) + bias;
+    public double predict(Map<String, Double> independents) {
+        AtomicDouble sum = new AtomicDouble(bias);
+        coefficients.forEach((key, value) -> {
+            sum.addAndGet(independents.get(key) * value);
+        });
+        return sum.get();
     }
 
-    public double error(double yi, double xi) {
+    public double error(double yi, Map<String, Double> independents) {
         /* the error for one observation is:
             ei = (yi - ((weight * xi) + bias))
          */
-        return yi - predict(xi);
+        return yi - predict(independents);
     }
 
     public double sqError(double ei) {
@@ -68,19 +88,27 @@ public class LinearRegressor {
                                 1/N * sum( -2 * (yi - ((weight * xi) + bias) ) ]
      */
 
-    public Pair<Double, Double> calcUpdatedWeights(double pdWeightSum, double pdBiasSum, long count) {
+    public Pair<Map<String, Double>, Double> calcUpdatedWeights(Map<String, Double> pdWeightSum, double pdBiasSum, long count) {
+        Map<String, Double> newCoef = new HashMap<>();
 
         // subtract because the derivatives point in direction of steepest ascent
-        weight -= ((pdWeightSum / count) * learningRate);
+        coefficients.forEach((key, value) -> {
+            double weight = value - ((pdWeightSum.get(key) / count) * learningRate);
+            newCoef.put(key, weight);
+        });
         bias -= ((pdBiasSum / count) * learningRate);
-        return Pair.of(weight, bias);
+        return Pair.of(newCoef, bias);
     }
 
-    public double partialDerivativeWeight(double xi, double ei) {
+    public Map<String, Double> partialDerivativeWeight(Map<String, Double> independents, double ei) {
         /* the partial derivative for weight is:
              -2 * xi * (yi - ((weight * xi) + bias))
          */
-        return -2 * xi * ei;
+        Map<String, Double> pdWeight = new HashMap<>();
+        independents.forEach((indo, value) -> {
+            pdWeight.put(indo, -2 * value * ei);
+        });
+        return pdWeight;
     }
 
     public double partialDerivativeBias(double ei) {
@@ -161,39 +189,10 @@ public class LinearRegressor {
 
 
 
-    public void setWeightBias(double weight, double bias) {
-        this.weight = weight;
-        this.bias = bias;
-    }
-
-    public double getWeight() {
-        return weight;
-    }
-
-    public void setWeight(double weight) {
-        this.weight = weight;
-    }
-
-    public double getBias() {
-        return bias;
-    }
-
-    public void setBias(double bias) {
-        this.bias = bias;
-    }
-
-    public double getLearningRate() {
-        return learningRate;
-    }
-
-    public void setLearningRate(double learningRate) {
-        this.learningRate = learningRate;
-    }
-
     @Override
     public String toString() {
         return "LinearRegressor{" +
-            "weight=" + weight +
+            "coefficients=" + coefficients +
             ", bias=" + bias +
             ", learningRate=" + learningRate +
             '}';

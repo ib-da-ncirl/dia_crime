@@ -27,7 +27,7 @@ import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
-import ie.ibuttimer.dia_crime.hadoop.misc.DateTimeWritable;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -46,7 +46,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : date
  * @param <VO>  output value
  */
-public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<DateTimeWritable, VO> {
+public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<DateWritable, VO> {
 
     private WeatherWritable.WeatherWritableBuilder builder;
 
@@ -55,7 +55,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<DateTi
 
     public static final List<String> WEATHER_PROPERTY_INDICES = WeatherWritable.FIELDS;
 
-    private DateTimeWritable keyOut = new DateTimeWritable();
+    private final DateWritable keyOut = new DateWritable();
 
     private Counters.MapperCounter counter;
 
@@ -122,7 +122,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<DateTi
                     counter.increment();
 
                     // file contains hourly entries, but just use date as the key
-                    keyOut.setLocalDateTime(dateTime);
+                    keyOut.setLocalDate(dateTime);
 
                     // return the day as the key and the crime entry as the value
                     writeOutput(context, keyOut, entry);
@@ -133,7 +133,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<DateTi
         }
     }
 
-    protected abstract void writeOutput(Context context, DateTimeWritable key, WeatherWritable value) throws IOException, InterruptedException;
+    protected abstract void writeOutput(Context context, DateWritable key, WeatherWritable value) throws IOException, InterruptedException;
 
     private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(WEATHER_PROP_SECTION) {
         @Override
@@ -143,7 +143,7 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<DateTi
     };
 
     @Override
-    public ICsvMapperCfg getEntryMapperCfg() {
+    public ICsvMapperCfg getMapperCfg() {
         return AbstractWeatherMapper.getClsCsvMapperCfg();
     }
 

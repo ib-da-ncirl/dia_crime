@@ -25,13 +25,13 @@ package ie.ibuttimer.dia_crime;
 
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeMapper;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.misc.Constants;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.log4j.Logger;
 
 import java.util.*;
@@ -76,15 +76,15 @@ public class CrimeDriver extends AbstractDriver {
 
             job.setReducerClass(CrimeReducer.class);
 
-            job.setMapOutputKeyClass(Text.class);
+            job.setMapOutputKeyClass(DateWritable.class);
             job.setMapOutputValueClass(MapWritable.class);
 
             /*
              * Input and Output types of a MapReduce job:
              * (input) <k1, v1> -> map -> <k2, v2> -> combine -> <k2, v2> -> reduce -> <k3, v3> (output)
-             * (input) <LongWritable, Text> -> map -> <Text, MapWritable> -> reduce -> <Text, Text> (output)
+             * (input) <LongWritable, Text> -> map -> <DateWritable, MapWritable> -> reduce -> <DateWritable, Text> (output)
              */
-            job.setOutputKeyClass(Text.class);
+            job.setOutputKeyClass(DateWritable.class);
             job.setOutputValueClass(Text.class);
         }
 

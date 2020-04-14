@@ -129,6 +129,7 @@ public class Constants {
     public static final String TARGET_COST_PROP = "target_cost";
     public static final String STEADY_TARGET_PROP = "steady_target";
     public static final String STEADY_LIMIT_PROP = "steady_limit";
+    public static final String TARGET_TIME_PROP = "target_time";
     public static final String WEIGHT_PROP = "weight";
     public static final String BIAS_PROP = "bias";
     public static final String CURRENT_EPOCH_PROP = "current_epoch";

@@ -31,49 +31,54 @@ import java.util.Map;
 
 /**
  * Utility class to manipulate key/value separated strings to/from maps
- * @param <K>   Key class
- * @param <V>   Value class
  */
-public class MapStringifier<K, V> {
+public class MapStringifier {
 
     public static final String KVP_SEPARATOR = ",";
     public static final String KV_SEPARATOR = ":";
 
-    private Map<K, V> map;
+    /**
+     * MapStringifier with default separators; "key:value,key:value"
+     */
+    public static final MapStringifier MAP_STRINGIFIER = new MapStringifier(KVP_SEPARATOR, KV_SEPARATOR);
+
+    private String pairSeparator;
+    private String keyValueSeparator;
 
     public MapStringifier() {
-        this(new HashMap<>());
+        this(KVP_SEPARATOR, KV_SEPARATOR);
     }
 
-    public MapStringifier(Map<K, V> map) {
-        this.map = map;
+    public MapStringifier(String pairSeparator, String keyValueSeparator) {
+        this.pairSeparator = pairSeparator;
+        this.keyValueSeparator = keyValueSeparator;
     }
 
-    public String stringify() {
-        return MapStringifier.stringify(map);
+    public static MapStringifier of(String pairSeparator, String keyValueSeparator) {
+        return new MapStringifier(pairSeparator, keyValueSeparator);
     }
 
-    public static <X, Y> String stringify(Map<X, Y> map) {
-        return MapStringifier.stringBuildify(map).toString();
-    }
-
-    public static <X, Y> StringBuilder stringBuildify(Map<X, Y> map) {
+    public <K, V> StringBuilder stringBuildify(Map<K, V> map) {
         StringBuilder sb = new StringBuilder();
         map.forEach((column, value) -> {
             if (sb.length() > 0) {
-                sb.append(KVP_SEPARATOR);
+                sb.append(pairSeparator);
             }
             sb.append(column)
-                    .append(KV_SEPARATOR)
+                    .append(keyValueSeparator)
                     .append(value);
         });
         return sb;
     }
 
-    public static Map<String, String> mapify(String line, Map<String, String> map) {
-        String[] keyValPairs = line.split(KVP_SEPARATOR);
+    public <K, V> String stringify(Map<K, V> map) {
+        return stringBuildify(map).toString();
+    }
+
+    public Map<String, String> mapify(String line, Map<String, String> map) {
+        String[] keyValPairs = line.split(pairSeparator);
         Arrays.stream(keyValPairs).forEach(kvp -> {
-            String[] keyVal = kvp.trim().split(KV_SEPARATOR);
+            String[] keyVal = kvp.trim().split(keyValueSeparator);
             if (keyVal.length == 2) {
                 map.put(keyVal[0], keyVal[1]);
             }
@@ -82,7 +87,7 @@ public class MapStringifier<K, V> {
         return map;
     }
 
-    public static Map<String, String> mapify(String line) {
+    public Map<String, String> mapify(String line) {
         return mapify(line, new HashMap<>());
     }
 

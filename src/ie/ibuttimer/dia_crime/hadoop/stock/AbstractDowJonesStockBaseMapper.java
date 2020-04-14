@@ -50,7 +50,7 @@ public abstract class AbstractDowJonesStockBaseMapper<VO> extends AbstractDowJon
     private static ICsvMapperCfg sCfgChk = new StockMapperCfg(DOWJONES_PROP_SECTION);
 
     @Override
-    public ICsvMapperCfg getEntryMapperCfg() {
+    public ICsvMapperCfg getMapperCfg() {
         return AbstractDowJonesStockBaseMapper.getClsCsvMapperCfg();
     }
 

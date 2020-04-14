@@ -29,9 +29,7 @@ import ie.ibuttimer.dia_crime.hadoop.ITagger;
 import ie.ibuttimer.dia_crime.hadoop.io.FileReader;
 import ie.ibuttimer.dia_crime.hadoop.stats.NameTag;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
-import ie.ibuttimer.dia_crime.misc.DebugLevel;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
-import ie.ibuttimer.dia_crime.misc.Value;
+import ie.ibuttimer.dia_crime.misc.*;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -41,9 +39,12 @@ import org.apache.hadoop.io.Writable;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.Converter.stringToDoubleMap;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.HADOOP_KEY_VAL;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 
 /**
  * Base regression mapper class
@@ -56,6 +57,8 @@ import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.HADOOP
  */
 public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends AbstractCsvMapper<K, RegressionWritable<R, V>> {
 
+    public static final String REGRESSOR = "regressor";
+
     protected List<String> independents;
     protected String dependent;
     protected List<String> allVariables;
@@ -67,35 +70,90 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
     protected LinearRegressor regressor;
 
     @Override
+    @SuppressWarnings("unchecked")
     protected void setup(Context context) throws IOException, InterruptedException {
         setLogger(getClass());
 
+        ICsvMapperCfg mapperCfg = getMapperCfg();
+
         super.setup(context);
-        super.initIndices(context, getEntryMapperCfg().getPropertyIndices());
+        super.initIndices(context, mapperCfg.getPropertyIndices());
 
         Configuration conf = context.getConfiguration();
-        StatsConfigReader cfgReader = new StatsConfigReader(getEntryMapperCfg());
+        StatsConfigReader cfgReader = new StatsConfigReader(mapperCfg);
 
         // TODO numeric variables added to config, unnecessary setting properties file, but need a better way
-        conf.set(getEntryMapperCfg().getPropertyPath(VARIABLES_PROP), VARIABLES_NUMERIC);
+        conf.set(getMapperCfg().getPropertyPath(VARIABLES_PROP), VARIABLES_NUMERIC);
         outputTypes = cfgReader.readOutputTypes(conf);
 
-        independents = cfgReader.readCommaSeparatedProperty(conf, INDEPENDENTS_PROP);
-        dependent = getConfigProperty(conf, DEPENDENT_PROP);
+        Map<String, Object> regressionSetup = getRegressionSetup(conf, cfgReader, mapperCfg, this);
+
+        independents = (List<String>) regressionSetup.get(INDEPENDENTS_PROP);
+        dependent = (String) regressionSetup.get(DEPENDENT_PROP);
+        regressor = (LinearRegressor) regressionSetup.get(REGRESSOR);
 
         allVariables = new ArrayList<>(independents);
         allVariables.add(dependent);
 
-        counts = readCounts(getConfigProperty(conf, STATS_INPUT_PATH_PROP), conf, independents);
+        counts = readCounts(getConfigProperty(conf, STATS_INPUT_PATH_PROP, getMapperCfg()), conf, independents);
+    }
 
-        double weight = cfgReader.getConfigProperty(conf, WEIGHT_PROP, (double) 0).doubleValue();
-        double bias = cfgReader.getConfigProperty(conf, BIAS_PROP, (double) 0).doubleValue();
-        double learningRate = cfgReader.getConfigProperty(conf, LEARNING_RATE_PROP, (double) 0).doubleValue();
-        regressor = new LinearRegressor(weight, bias, learningRate);
+    public static final String WEIGHT_SEPARATOR = "/";
+    public static final String WEIGHT_KV_SEPARATOR = "=";
 
-        if (show(DebugLevel.HIGH)) {
+    /**
+     * Read regression setup
+     * @param conf
+     * @param cfgReader
+     * @param mapperCfg
+     * @param debuggable
+     * @return  Map holding regressor, independents and dependent
+     */
+    @SuppressWarnings("unchecked")
+    protected static Map<String, Object> getRegressionSetup(Configuration conf, ConfigReader cfgReader,
+                                                            ICsvMapperCfg mapperCfg, DebugLevel.Debuggable debuggable) {
+
+        Map<String, Object> result = getRegressionSetting(conf, cfgReader, mapperCfg);
+
+        LinearRegressor regressor = new LinearRegressor(
+            (Map<String, Double>) result.get(WEIGHT_PROP),
+            (Double) result.get(BIAS_PROP), (Double) result.get(LEARNING_RATE_PROP));
+
+        result.put(REGRESSOR, regressor);
+
+        if (debuggable.show(DebugLevel.HIGH)) {
             getLogger().info(regressor.toString());
         }
+        return result;
+    }
+
+    /**
+     * Read regression setup
+     * @param conf
+     * @param cfgReader
+     * @param mapperCfg
+     * @return  Map holding regressor, independents and dependent
+     */
+    private static Map<String, Object> getRegressionSetting(Configuration conf, ConfigReader cfgReader,
+                                                            ICsvMapperCfg mapperCfg) {
+        Map<String, Object> result = new HashMap<>();
+
+        List<String> independents = cfgReader.readCommaSeparatedProperty(conf, INDEPENDENTS_PROP);
+        String dependent = getConfigProperty(conf, DEPENDENT_PROP, mapperCfg, cfgReader);
+
+        result.put(INDEPENDENTS_PROP, independents);
+        result.put(DEPENDENT_PROP, dependent);
+
+        Map<String, Double> coefficients = stringToDoubleMap(
+            cfgReader.readSeparatedKeyValueProperty(conf, WEIGHT_PROP, WEIGHT_SEPARATOR, WEIGHT_KV_SEPARATOR)
+        );
+        result.put(WEIGHT_PROP, coefficients);
+
+        List.of(BIAS_PROP, LEARNING_RATE_PROP).forEach(prop -> {
+            double value = cfgReader.getConfigProperty(conf, prop, (double) 0).doubleValue();
+            result.put(prop, value);
+        });
+        return result;
     }
 
     /**
@@ -112,7 +170,7 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
             boolean pass = !skipComment(value);
             if (!pass) {
                 // verify parameters specified in input file
-                ICsvMapperCfg cfg = getEntryMapperCfg();
+                ICsvMapperCfg cfg = getMapperCfg();
 
                 cfg.verifyTags(context.getConfiguration(), cfg, hKeyVal.getRight(), ITagger.DateRangeMode.WITHIN);
                 /* 2001-01-02	02:3, 03:35, 04A:15, 04B:21, 05:68, 06:221, 07:65, 08A:51, 08B:122, 10:9, 11:65, 12:2, 13:2,
@@ -156,7 +214,7 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
     protected RegressionWritable<String, Value> collectValues(String value) {
         RegressionWritable<String, Value> entry = new RegressionWritable<>();
 
-        Map<String, String> map = MapStringifier.mapify(value);
+        Map<String, String> map = MAP_STRINGIFIER.mapify(value);
 
         // collect the value for each property
         outputTypes.entrySet().stream()
@@ -230,6 +288,39 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
             list.addAll(getPropertyList(List.of(STATS_INPUT_PATH_PROP, OUTPUTTYPES_PATH_PROP, DEPENDENT_PROP)));
             list.addAll(required);
             return list;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Pair<Integer, List<String>> checkConfiguration(Configuration conf) {
+            Pair<Integer, List<String>> chkRes = super.checkConfiguration(conf);
+            int resultCode = chkRes.getLeft();
+            List<String> errors = new ArrayList<>(chkRes.getRight());
+
+            Map<String, Object> settings = getRegressionSetting(conf, new ConfigReader(this), this);
+            List<String> independents = (List<String>) settings.get(INDEPENDENTS_PROP);
+            Map<String, Double> coefficients = (Map<String, Double>) settings.get(WEIGHT_PROP);
+
+            if (independents.size() != coefficients.size()) {
+                errors.add("Error: independents/coefficients size mismatch");
+                resultCode = ECODE_CONFIG_ERROR;
+            }
+            List<String> missing = independents.stream()
+                .filter(prop -> !coefficients.containsKey(prop))
+                .collect(Collectors.toList());
+            if (missing.size() > 0) {
+                errors.add("Error: coefficients missing for " + missing);
+                resultCode = ECODE_CONFIG_ERROR;
+            }
+            missing = coefficients.keySet().stream()
+                .filter(prop -> !independents.contains(prop))
+                .collect(Collectors.toList());
+            if (missing.size() > 0) {
+                errors.add("Error: coefficients not listed in independents " + missing);
+                resultCode = ECODE_CONFIG_ERROR;
+            }
+
+            return Pair.of(resultCode, errors);
         }
 
         @Override

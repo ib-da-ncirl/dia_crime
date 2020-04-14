@@ -52,7 +52,7 @@ public class ConfigReader implements IPropertyWrangler {
 
     public ConfigReader(ICsvMapperCfg mapperCfg) {
         this.mapperCfg = mapperCfg;
-        this.propertyWrangler = new PropertyWrangler(mapperCfg.getPropertyRoot());
+        this.propertyWrangler = new PropertyWrangler(mapperCfg.getRoot());
     }
 
     public ConfigReader(String section) {
@@ -117,6 +117,14 @@ public class ConfigReader implements IPropertyWrangler {
         return readSeparatedProperty(conf, name, ",");
     }
 
+    /**
+     * Read a separated key/value property such as 'key1:value1,key2:value2'
+     * @param conf          Current configuration
+     * @param name          Property name
+     * @param separator     Term separator
+     * @param kvSeparator   Key/value separator
+     * @return  Map of keys & values
+     */
     public Map<String, String> readSeparatedKeyValueProperty(Configuration conf, String name, String separator, String kvSeparator) {
         Map<String, String> map = new HashMap<>();
         MapStringifier.ElementStringify kvSplitter = new MapStringifier.ElementStringify(kvSeparator);
@@ -135,6 +143,12 @@ public class ConfigReader implements IPropertyWrangler {
         return map;
     }
 
+    /**
+     * Read a separated key/value property such as 'key1:value1,key2:value2'
+     * @param conf          Current configuration
+     * @param name          Property name
+     * @return  Map of keys & values
+     */
     public Map<String, String> readCommaSeparatedKeyColonValueProperty(Configuration conf, String name) {
         return readSeparatedKeyValueProperty(conf, name, ",", ":");
     }

@@ -38,7 +38,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static ie.ibuttimer.dia_crime.hadoop.regression.AbstractRegressionMapper.WEIGHT_KV_SEPARATOR;
+import static ie.ibuttimer.dia_crime.hadoop.regression.AbstractRegressionMapper.WEIGHT_SEPARATOR;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 
 /**
  * Reducer for regression validation
@@ -48,6 +51,8 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output value : the current model
  */
 public class RegressionTrainReducer extends AbstractRegressionReducer<Text, RegressionWritable<String, Value>, Text, Text> {
+
+    public static final String COST = "cost";
 
     private Counters.ReducerCounter counter;
 
@@ -66,55 +71,63 @@ public class RegressionTrainReducer extends AbstractRegressionReducer<Text, Regr
         addOutputHeader(context, counter, List.of(TRAIN_START_DATE_PROP, TRAIN_END_DATE_PROP), List.of());
 
         Value sqErrorSummer = Value.of(0.0);
-        Value pdWeightSummer = Value.of(0.0);
-        Value pdBiasSummer = Value.of(0.0);
+        Map<String, Value> pdWeightSummer = new HashMap<>();
+        independents.forEach(indo -> pdWeightSummer.put(indo, Value.of(0.0)));
+        Value pdBias = Value.of(0.0);
         Value countRef = Value.of(0L);
 
         String errSqTag = NameTag.getKeyTagChain("", List.of(NameTag.ERR, NameTag.SQ));
 
         values.forEach(writable-> {
-
+            // 1 yi=1.0,06=1.0,06-CNT=59.0,06-ERR-SQ=1.0,06-PDW=-2.0,total=1.0,total-ERR=1.0,total-PDB=-2.0
             writable.forEach((name, value) -> {
-
+                // sum square errors, and pdw
+                // just set count and pdb as same every time
                 if (name.endsWith(errSqTag)) {
                     sqErrorSummer.add(value);
                 } else if (NameTag.PDW.is(name)) {
-                    pdWeightSummer.add(value);
+                    pdWeightSummer.get(NameTag.splitKeyTag(name).getLeft()).add(value);
                 } else if (NameTag.PDB.is(name)) {
-                    pdBiasSummer.add(value);
+                    pdBias.set(value);
                 } else if (NameTag.CNT.is(name)) {
                     countRef.set(value);
                 }
-
-                counter.increment();
             });
-            if (show(DebugLevel.HIGH)) {
-                StringBuilder sb = new StringBuilder()
-                    .append("sqErr=").append(sqErrorSummer.doubleValue()).append(',')
-                    .append("pdWeight=").append(pdWeightSummer.doubleValue()).append(',')
-                    .append("pdBias=").append(pdBiasSummer.doubleValue()).append(',')
-                    .append("count=").append(countRef.longValue());
-                getLogger().info(key.toString() + " " + sb.toString());
-            }
+
+            counter.increment();
 
         });
+        Map<String, Double> pdWeightSummed = new HashMap<>();
+        pdWeightSummer.forEach((indo, value) -> pdWeightSummed.put(indo, value.doubleValue()));
+
+        if (show(DebugLevel.HIGH)) {
+            StringBuilder sb = new StringBuilder()
+                .append("sqErr=").append(sqErrorSummer.doubleValue()).append(',')
+                .append("pdBias=").append(pdBias.doubleValue()).append(',')
+                .append("pdWeight=");
+            pdWeightSummed.forEach((indo, value) -> {
+                sb.append(indo).append(':').append(value).append(',');
+            });
+            sb.append("count=").append(countRef.longValue());
+            getLogger().info(key.toString() + " " + sb.toString());
+        }
 
         long count = countRef.longValue();
         double cost = regressor.cost(sqErrorSummer.doubleValue(), count);
-        Pair<Double, Double> updated = regressor.calcUpdatedWeights(
-            pdWeightSummer.doubleValue(), pdBiasSummer.doubleValue(), count);
+        Pair<Map<String, Double>, Double> updated = regressor.calcUpdatedWeights(
+                                                        pdWeightSummed, pdBias.doubleValue(), count);
 
-        Map<String, Double> result = new HashMap<>();
-        result.put(WEIGHT_PROP, updated.getLeft());
-        result.put(BIAS_PROP, updated.getRight());
-        result.put("cost", cost);
+        Map<String, String> result = new HashMap<>();
+        result.put(WEIGHT_PROP, MapStringifier.of(WEIGHT_SEPARATOR, WEIGHT_KV_SEPARATOR).stringify(updated.getLeft()));
+        result.put(BIAS_PROP, updated.getRight().toString());
+        result.put(COST, Double.toString(cost));
 
         getLogger().info(
             Utils.getSpacedDialog(
                 List.of("Regression Result",
                     String.format("%s - %s", key.toString(), result))));
 
-        context.write(key, new Text(MapStringifier.stringify(result)));
+        context.write(key, new Text(MAP_STRINGIFIER.stringify(result)));
     }
 
     @Override

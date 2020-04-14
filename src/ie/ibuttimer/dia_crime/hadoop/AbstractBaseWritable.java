@@ -108,6 +108,10 @@ public abstract class AbstractBaseWritable<W extends AbstractBaseWritable<?>> im
         this.localDateTime = LocalDateTime.of(localDate, LocalTime.MIN);
     }
 
+    public void setLocalDate(LocalDateTime localDateTime) {
+        setLocalDate(localDateTime.toLocalDate());
+    }
+
     @Override
     public void set(W other) {
         this.localDateTime = ((AbstractBaseWritable<?>)other).localDateTime;

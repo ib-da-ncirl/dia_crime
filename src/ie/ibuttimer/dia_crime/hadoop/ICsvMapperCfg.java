@@ -23,6 +23,7 @@
 
 package ie.ibuttimer.dia_crime.hadoop;
 
+import ie.ibuttimer.dia_crime.misc.IPropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
@@ -35,7 +36,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.OUT_PATH_PROP;
 /**
  * Interface to be implemented by Mapper configurations
  */
-public interface ICsvMapperCfg extends ITagger {
+public interface ICsvMapperCfg extends ITagger, IPropertyWrangler {
 
     /**
      * Get the property names and their default values
@@ -75,12 +76,6 @@ public interface ICsvMapperCfg extends ITagger {
      * @return List of names
      */
     List<String> getPropertyIndices();
-
-    /**
-     * Return the property root, i.e. the configuration file section
-     * @return
-     */
-    String getPropertyRoot();
 
     /**
      * Construct a full property path for the specified name

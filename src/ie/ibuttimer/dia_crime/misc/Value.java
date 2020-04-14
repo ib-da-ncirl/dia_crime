@@ -533,41 +533,32 @@ public class Value implements IStatOps<Value>, Writable {
         return bigDecimalValue((Number)this.value);
     }
 
-    public boolean asDouble(Consumer<? super Double> action) {
-        boolean result = isNumber();
-        if (result) {
+    public void asDouble(Consumer<? super Double> action) {
+        if (isNumber()) {
             action.accept(((Number) this.value).doubleValue());
         }
-        return result;
     }
 
-    public boolean asFloat(Consumer<? super Float> action) {
-        boolean result = isNumber();
-        if (result) {
+    public void asFloat(Consumer<? super Float> action) {
+        if (isNumber()) {
             action.accept(((Number) this.value).floatValue());
         }
-        return result;
     }
 
-    public boolean asLong(Consumer<? super Long> action) {
-        boolean result = isNumber();
-        if (result) {
+    public void asLong(Consumer<? super Long> action) {
+        if (isNumber()) {
             action.accept(((Number) this.value).longValue());
         }
-        return result;
     }
 
-    public boolean asInteger(Consumer<? super Integer> action) {
-        boolean result = isNumber();
-        if (result) {
+    public void asInteger(Consumer<? super Integer> action) {
+        if (isNumber()) {
             action.accept(((Number) this.value).intValue());
         }
-        return result;
     }
 
-    public boolean asString(Consumer<? super String> action) {
+    public void asString(Consumer<? super String> action) {
         action.accept(this.value.toString());
-        return true;
     }
 
     public <K, V> void addTo(Map<K, V> map, K key) {

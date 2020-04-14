@@ -47,6 +47,7 @@ import java.util.stream.Collectors;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.HADOOP_KEY_VAL;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 
 /**
  * Statistics mapper that outputs property value, property value squared and, property product values
@@ -80,7 +81,7 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
         counter = getCounter(context, CountersEnum.NORMALISE_MAPPER_COUNT);
 
         Configuration conf = context.getConfiguration();
-        StatsConfigReader cfgReader = new StatsConfigReader(getEntryMapperCfg());
+        StatsConfigReader cfgReader = new StatsConfigReader(getMapperCfg());
 
         variables = cfgReader.readVariables(conf);
         outputTypes = cfgReader.readOutputTypes(conf);
@@ -103,7 +104,7 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
         if (!skipHeader(key)) {
             if (skipComment(value)) {
                 // verify parameters specified in input file
-                ICsvMapperCfg cfg = getEntryMapperCfg();
+                ICsvMapperCfg cfg = getMapperCfg();
                 Pair<String, String> hKeyVal = HADOOP_KEY_VAL.destringifyElement(value.toString());
 
                 cfg.verifyTags(context.getConfiguration(), cfg, hKeyVal.getRight(), ITagger.VerifyTags.DATE);
@@ -129,7 +130,7 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
                 outputList.clear();
                 valuesOut.clear();
 
-                Map<String, String> map = MapStringifier.mapify(hKeyVal.getRight());
+                Map<String, String> map = MAP_STRINGIFIER.mapify(hKeyVal.getRight());
 
                 // load the result with current values
 
@@ -253,7 +254,7 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
     };
 
     @Override
-    public ICsvMapperCfg getEntryMapperCfg() {
+    public ICsvMapperCfg getMapperCfg() {
         return getClsCsvMapperCfg();
     }
 

@@ -28,7 +28,6 @@ import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.ConfigReader;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -60,7 +59,7 @@ public abstract class MatrixMapper extends AbstractCsvMapper<CoordinateWritable,
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        super.initIndices(context, getEntryMapperCfg().getPropertyIndices());
+        super.initIndices(context, getMapperCfg().getPropertyIndices());
 
         keyOut = CoordinateWritable.of();
 
@@ -68,7 +67,7 @@ public abstract class MatrixMapper extends AbstractCsvMapper<CoordinateWritable,
 
         Configuration conf = context.getConfiguration();
 
-        ConfigReader cfgReader = new ConfigReader(getEntryMapperCfg());
+        ConfigReader cfgReader = new ConfigReader(getMapperCfg());
 
         specThis = new Spec();
         specOther = new Spec();
@@ -252,7 +251,7 @@ public abstract class MatrixMapper extends AbstractCsvMapper<CoordinateWritable,
         private static final ICsvMapperCfg sCfgChk = new AbstractMatrixMapperCfg(MATRIX_PROP_1_SECTION);
 
         @Override
-        public ICsvMapperCfg getEntryMapperCfg() {
+        public ICsvMapperCfg getMapperCfg() {
             return getClsCsvMapperCfg();
         }
 
@@ -269,7 +268,7 @@ public abstract class MatrixMapper extends AbstractCsvMapper<CoordinateWritable,
         private static final ICsvMapperCfg sCfgChk = new AbstractMatrixMapperCfg(MATRIX_PROP_2_SECTION);
 
         @Override
-        public ICsvMapperCfg getEntryMapperCfg() {
+        public ICsvMapperCfg getMapperCfg() {
             return getClsCsvMapperCfg();
         }
 

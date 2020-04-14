@@ -25,6 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop.stock;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractBaseWritable;
 import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -44,15 +45,15 @@ public class StockWrapMapperHelper extends StockMapperHelper {
     }
 
     @Override
-    public List<Pair<String, Writable>> getWriteOutput(AbstractBaseWritable<?> entry, Text id,
-                                                       AbstractStockMapper.StockMapperKey keyOutType,
-                                                       IStockEntryKeyGenerator keyGenerator,
-                                                       DateTimeFormatter keyOutFormatter) {
+    public List<Pair<DateWritable, Writable>> getWriteOutput(AbstractBaseWritable<?> entry, Text id,
+                                                                 AbstractStockMapper.StockMapperKey keyOutType,
+                                                                 IStockEntryKeyGenerator keyGenerator,
+                                                                 DateTimeFormatter keyOutFormatter) {
         if (entry instanceof StockWritable) {
             wrapOut.setStock((StockWritable)entry);
         }
 
-        String key = keyGenerator.getWriteKey(entry, id, keyOutType, keyOutFormatter);
+        DateWritable key = keyGenerator.getWriteKey(entry, id, keyOutType, keyOutFormatter);
 
         return List.of(Pair.of(key, wrapOut));
     }

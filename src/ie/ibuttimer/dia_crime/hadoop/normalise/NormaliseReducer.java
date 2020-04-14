@@ -42,6 +42,7 @@ import java.util.TreeMap;
 
 import static ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer.saveOutputTypes;
 import static ie.ibuttimer.dia_crime.misc.Constants.NORMALISE_PROP_SECTION;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 
 /**
  * Reducer for statistics, which accumulates values to output sum of values
@@ -85,7 +86,7 @@ public class NormaliseReducer extends AbstractReducer<DateWritable, RegressionWr
                 }));
 
                 try {
-                    context.write(key, new Text(MapStringifier.stringify(outMap)));
+                    context.write(key, new Text(MAP_STRINGIFIER.stringify(outMap)));
 
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();

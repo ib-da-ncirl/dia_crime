@@ -24,7 +24,23 @@
 package ie.ibuttimer.dia_crime.misc;
 
 public interface IPropertyWrangler {
+    /**
+     * Construct a full property path for the specified name
+     * @param propertyName
+     * @return
+     */
     String getPropertyPath(String propertyName);
+
+    /**
+     * Return the property name from the specified path
+     * @param propertyPath
+     * @return
+     */
     String getPropertyName(String propertyPath);
+
+    /**
+     * Return the property root, i.e. the configuration file section
+     * @return
+     */
     String getRoot();
 }

@@ -25,6 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop.crime;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.merge.CSWWrapperWritable;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.log4j.Logger;
 
@@ -40,8 +41,6 @@ import java.io.IOException;
  */
 public class CrimeWrapMapper extends AbstractCrimeMapper<CSWWrapperWritable> {
 
-    private static final Logger logger = Logger.getLogger(CrimeWrapMapper.class);
-
     private CSWWrapperWritable wrapOut = new CSWWrapperWritable();
 
     @Override
@@ -51,7 +50,7 @@ public class CrimeWrapMapper extends AbstractCrimeMapper<CSWWrapperWritable> {
     }
 
     @Override
-    protected void writeOutput(Context context, Text key, CrimeWritable value) throws IOException, InterruptedException {
+    protected void writeOutput(Context context, DateWritable key, CrimeWritable value) throws IOException, InterruptedException {
         wrapOut.setCrime(value);
 
         // return the day as the key and the crime entry as the value

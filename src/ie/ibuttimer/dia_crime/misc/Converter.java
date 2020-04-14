@@ -21,46 +21,34 @@
  *  SOFTWARE.
  */
 
-package ie.ibuttimer.dia_crime.hadoop.weather;
+package ie.ibuttimer.dia_crime.misc;
 
-import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
-import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
-import org.apache.hadoop.io.MapWritable;
-
-import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Predicate;
 
 /**
- * Mapper for a weather entry:
- * - input key : csv file line number
- * - input value : csv file line text
- * - output key : date
- * - output value : MapWritable<date, WeatherWritable>
+ * A collection of converter utilities
  */
-public class WeatherMapper extends AbstractWeatherMapper<MapWritable> {
+public class Converter {
 
-    private MapWritable mapOut = new MapWritable();
-
-    @Override
-    protected void setup(Context context) throws IOException, InterruptedException {
-        super.setup(context);
-        setLogger(getClass());
+    private Converter() {
+        // no class instances
     }
 
-    @Override
-    protected void writeOutput(Context context, DateWritable key, WeatherWritable value) throws IOException, InterruptedException {
-        mapOut.clear();
-        mapOut.put(key, value);
-
-        // return the day as the key and the weather entry as the value
-        write(context, key, mapOut);
+    public static Map<String, Double> stringToDoubleMap(Map<String, String> map,
+                                                        Predicate<? super Map.Entry<String, String>> predicate) {
+        Map<String, Double> out = new HashMap<>();
+        map.entrySet().stream()
+            .filter(predicate)
+            .forEach(es -> {
+                out.put(es.getKey(), Double.valueOf(es.getValue()));
+            });
+        return out;
     }
 
-
-
-    public static ICsvMapperCfg getClsCsvMapperCfg() {
-        return AbstractWeatherMapper.getClsCsvMapperCfg();
+    public static Map<String, Double> stringToDoubleMap(Map<String, String> map) {
+        return stringToDoubleMap(map, es -> true);
     }
+
 }
-
-
-

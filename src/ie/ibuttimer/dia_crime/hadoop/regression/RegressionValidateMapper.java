@@ -37,6 +37,7 @@ import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -64,7 +65,6 @@ public class RegressionValidateMapper extends AbstractRegressionMapper<Text, Str
         counter = getCounter(context, CountersEnum.REGRESSION_MAPPER_COUNT);
 
         Configuration conf = context.getConfiguration();
-        StatsConfigReader cfgReader = new StatsConfigReader(getEntryMapperCfg());
 
         // use dependent as out key
         keyOut = new Text(dependent);
@@ -108,27 +108,27 @@ public class RegressionValidateMapper extends AbstractRegressionMapper<Text, Str
                 double yi = entry.getProperty(dependent).doubleValue();
                 entry.put(dependent, Value.of(yi));
 
+                Map<String, Double> xi = new HashMap<>();
+
                 independents.forEach(indo -> {
-                    double xi = entry.getProperty(indo).doubleValue();
-
-                    double yhati = regressor.predict(xi);
-
-                    // there'll only be one predicted value
-                    entry.put(NameTag.YHAT.getKeyTag(dependent), Value.of(yhati));
-
-                    if (show(DebugLevel.HIGH)) {
-                        StringBuffer sb = new StringBuffer();
-                        entry.entrySet().stream()
-                            .sorted(Map.Entry.comparingByKey())
-                            .forEach(es -> {
-                                if (sb.length() > 0) {
-                                    sb.append(',');
-                                }
-                                sb.append(es.getKey()).append('=').append(es.getValue().doubleValue());
-                            });
-                        getLogger().info(keyOut + " " + sb.toString());
-                    }
+                    xi.put(indo, entry.getProperty(indo).doubleValue());
                 });
+
+                double yhati = regressor.predict(xi);
+                entry.put(NameTag.YHAT.getKeyTag(dependent), Value.of(yhati));
+
+                if (show(DebugLevel.HIGH)) {
+                    StringBuffer sb = new StringBuffer();
+                    entry.entrySet().stream()
+                        .sorted(Map.Entry.comparingByKey())
+                        .forEach(es -> {
+                            if (sb.length() > 0) {
+                                sb.append(',');
+                            }
+                            sb.append(es.getKey()).append('=').append(es.getValue().doubleValue());
+                        });
+                    getLogger().info(keyOut + " " + sb.toString());
+                }
 
                 try {
                     context.write(keyOut, entry);
@@ -157,7 +157,7 @@ public class RegressionValidateMapper extends AbstractRegressionMapper<Text, Str
     };
 
     @Override
-    public ICsvMapperCfg getEntryMapperCfg() {
+    public ICsvMapperCfg getMapperCfg() {
         return getClsCsvMapperCfg();
     }
 

@@ -38,6 +38,7 @@ import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -63,7 +64,7 @@ public class RegressionTrainMapper extends AbstractRegressionMapper<Text, String
         counter = getCounter(context, CountersEnum.REGRESSION_MAPPER_COUNT);
 
         Configuration conf = context.getConfiguration();
-        StatsConfigReader cfgReader = new StatsConfigReader(getEntryMapperCfg());
+        StatsConfigReader cfgReader = new StatsConfigReader(getMapperCfg());
 
         epoch = cfgReader.getConfigProperty(conf, CURRENT_EPOCH_PROP, "1");
     }
@@ -98,36 +99,43 @@ public class RegressionTrainMapper extends AbstractRegressionMapper<Text, String
 
             double yi = entry.getProperty(dependent).doubleValue();
 
+            Map<String, Double> xi = new HashMap<>();
+
             independents.forEach(indo -> {
-                double xi = entry.getProperty(indo).doubleValue();
+                xi.put(indo, entry.getProperty(indo).doubleValue());
+            });
 
-                double ei = regressor.error(yi, xi);
-                double se = regressor.sqError(ei);
-                double pdw = regressor.partialDerivativeWeight(xi, ei);
-                double pdb = regressor.partialDerivativeBias(ei);
+            double ei = regressor.error(yi, xi);
+            double se = regressor.sqError(ei);
+            Map<String, Double> pdw = regressor.partialDerivativeWeight(xi, ei);
+            double pdb = regressor.partialDerivativeBias(ei);
 
-                entry.put(NameTag.ERR.getKeyTag(indo), Value.of(ei));
+            pdw.forEach((indo, val) -> {
+                entry.put(NameTag.PDW.getKeyTag(indo), Value.of(val));
+            });
+            entry.put(NameTag.ERR.getKeyTag(dependent), Value.of(ei));
+            entry.put(NameTag.PDB.getKeyTag(dependent), Value.of(pdb));
+            independents.forEach(indo -> {
+
                 entry.put(NameTag.getKeyTagChain(indo, List.of(NameTag.ERR, NameTag.SQ)), Value.of(se));
-                entry.put(NameTag.PDW.getKeyTag(indo), Value.of(pdw));
-                entry.put(NameTag.PDB.getKeyTag(indo), Value.of(pdb));
 
                 entry.put(NameTag.CNT.getKeyTag(indo), Value.of(counts.get(indo)));
 
-                if (show(DebugLevel.HIGH)) {
-                    StringBuffer sb = new StringBuffer()
-                        .append("yi=").append(yi);
-                    entry.entrySet().stream()
-                        .filter(es -> es.getKey().startsWith(indo))
-                        .sorted(Map.Entry.comparingByKey())
-                        .forEach(es -> {
-                            if (sb.length() > 0) {
-                                sb.append(',');
-                            }
-                            sb.append(es.getKey()).append('=').append(es.getValue().doubleValue());
-                        });
-                    getLogger().info(epoch + " " + sb.toString());
-                }
             });
+            if (show(DebugLevel.HIGH)) {
+                // 1 yi=1.0,06=1.0,06-CNT=59.0,06-ERR-SQ=1.0,06-PDW=-2.0,total=1.0,total-ERR=1.0,total-PDB=-2.0
+                StringBuffer sb = new StringBuffer()
+                    .append("yi=").append(yi);
+                entry.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(es -> {
+                        if (sb.length() > 0) {
+                            sb.append(',');
+                        }
+                        sb.append(es.getKey()).append('=').append(es.getValue().doubleValue());
+                    });
+                getLogger().info(epoch + " " + sb.toString());
+            }
 
             try {
                 context.write(new Text(epoch), entry);
@@ -149,10 +157,11 @@ public class RegressionTrainMapper extends AbstractRegressionMapper<Text, String
         private final Property targetCostProp = Property.of(TARGET_COST_PROP, "target cost for regression", "");
         private final Property steadyTargetProp = Property.of(STEADY_TARGET_PROP, "steady target", "");
         private final Property steadyLimitCostProp = Property.of(STEADY_LIMIT_PROP, "steady limit", "");
+        private final Property timeLimitCostProp = Property.of(TARGET_TIME_PROP, "max duration in minutes", "");
 
         private final List<Property> required = List.of(startProp, endProp);
         private final List<Property> notRequired = List.of(epochLimitProp, currentEpochProp, targetCostProp,
-                                                            steadyTargetProp, steadyLimitCostProp);
+                                                            steadyTargetProp, steadyLimitCostProp, timeLimitCostProp);
 
         @Override
         public List<Property> getAdditionalProps() {
@@ -215,7 +224,7 @@ public class RegressionTrainMapper extends AbstractRegressionMapper<Text, String
     };
 
     @Override
-    public ICsvMapperCfg getEntryMapperCfg() {
+    public ICsvMapperCfg getMapperCfg() {
         return getClsCsvMapperCfg();
     }
 

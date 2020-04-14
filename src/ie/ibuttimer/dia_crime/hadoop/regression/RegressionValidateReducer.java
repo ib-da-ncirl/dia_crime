@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 
 /**
  * Reducer for regression validation
@@ -114,7 +115,7 @@ public class RegressionValidateReducer extends AbstractRegressionReducer<Text, R
                 List.of("Regression Verification Result",
                     String.format("%s - %s", dependent, result))));
 
-        context.write(key, new Text(MapStringifier.stringify(result)));
+        context.write(key, new Text(MAP_STRINGIFIER.stringify(result)));
     }
 
     static class CacheEntry {

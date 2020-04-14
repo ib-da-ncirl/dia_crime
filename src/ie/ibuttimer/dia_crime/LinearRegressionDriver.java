@@ -40,11 +40,20 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 
+import static ie.ibuttimer.dia_crime.hadoop.regression.AbstractRegressionMapper.WEIGHT_KV_SEPARATOR;
+import static ie.ibuttimer.dia_crime.hadoop.regression.AbstractRegressionMapper.WEIGHT_SEPARATOR;
+import static ie.ibuttimer.dia_crime.hadoop.regression.RegressionTrainReducer.COST;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.HADOOP_KEY_VAL;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 import static ie.ibuttimer.dia_crime.misc.Utils.getSpacedDialog;
 
 /**
@@ -119,17 +128,28 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         String terminateCondition = null;
         boolean terminate = false;
         int steadyCount = 0;
+        LocalDateTime startTime = LocalDateTime.now();
+        LocalDateTime endTime = null;
         Map<String, Long> lastCoef = new HashMap<>();
         Map<String, Long> thisCoef = new HashMap<>();
 
         if (cfg.wait) {
             Map<String, String> epochSetting = null;
             do {
-                if (steadyTarget > 0 && steadyLimit > 0 && epochSetting != null) {
+                if (steadyTarget > 0 && steadyLimit > 0) {
+                    // check for steady state
                     double finalSteadyTarget = steadyTarget;
-                    epochSetting.forEach((key, value) -> {
+                    BiConsumer<String, String> biConsumer = (key, value) -> {
                         Double val = Double.parseDouble(value) * finalSteadyTarget;
                         thisCoef.put(key, val.longValue());
+                    };
+                    epochSetting.forEach((key, value) -> {
+                        if (key.equals(WEIGHT_PROP)) {
+                            MapStringifier.of(WEIGHT_SEPARATOR, WEIGHT_KV_SEPARATOR).mapify(value)
+                                .forEach(biConsumer);
+                        } else {
+                            biConsumer.accept(key, value);
+                        }
                     });
                     AtomicInteger match = new AtomicInteger(0);
                     thisCoef.forEach((key, value) -> {
@@ -149,6 +169,13 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
                         steadyCount = 0;
                     }
                 }
+                if (endTime != null) {
+                    if (LocalDateTime.now().isAfter(endTime)) {
+                        terminateCondition = String.format("Run time expired (%d min)",
+                            ChronoUnit.MINUTES.between(startTime, LocalDateTime.now()));
+                        break;
+                    }
+                }
 
                 Job job = getLinearRegressionJob(cfg.properties);
                 if (job != null) {
@@ -158,6 +185,11 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
                         targetCost = cfgReader.getConfigProperty(conf, TARGET_COST_PROP, 0.0).doubleValue();
                         steadyDecimalPlaces = cfgReader.getConfigProperty(conf, STEADY_TARGET_PROP, 0.0).intValue();
                         steadyLimit = cfgReader.getConfigProperty(conf, STEADY_LIMIT_PROP, 0).intValue();
+                        int minutes = cfgReader.getConfigProperty(conf, TARGET_TIME_PROP, 0).intValue();
+
+                        if (minutes > 0) {
+                            endTime = LocalDateTime.now().plus(Duration.ofMinutes(minutes));
+                        }
 
                         steadyTarget = Math.pow(10, steadyDecimalPlaces);
 
@@ -177,6 +209,8 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
 
                     if (resultCode == ECODE_SUCCESS) {
                         epochSetting = regressionJobReport(job, cfgReader, epoch);
+
+                        cost = Double.parseDouble(epochSetting.get(COST));
                     } else {
                         break;
                     }
@@ -265,9 +299,9 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
 
                     logger.info(getSpacedDialog(String.format("Epoch %s - %s", keyVal.getLeft(), keyVal.getRight())));
 
-                    Map<String, String> map = MapStringifier.mapify(keyVal.getRight());
+                    Map<String, String> map = MAP_STRINGIFIER.mapify(keyVal.getRight());
 
-                    List.of(WEIGHT_PROP, BIAS_PROP).forEach(prop -> {
+                    List.of(WEIGHT_PROP, BIAS_PROP, COST).forEach(prop -> {
                         result.put(prop, map.get(prop));
                     });
                 });
@@ -307,7 +341,7 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
                 filter(l -> !l.startsWith(COMMENT_PREFIX)).
                 findFirst().ifPresent(l -> {
                     Pair<String, String> keyVal = HADOOP_KEY_VAL.destringifyElement(l);
-                    Map<String, String> map = MapStringifier.mapify(keyVal.getRight());
+                    Map<String, String> map = MAP_STRINGIFIER.mapify(keyVal.getRight());
 
                     List.of(WEIGHT_PROP, BIAS_PROP).forEach(prop -> {
                         String path = cfgReader.getPropertyPath(prop);

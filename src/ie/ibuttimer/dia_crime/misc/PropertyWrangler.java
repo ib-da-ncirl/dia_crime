@@ -70,6 +70,7 @@ public class PropertyWrangler implements IPropertyWrangler {
         return root;
     }
 
+    @Override
     public String getPropertyPath(String propertyName) {
         return root + propertyName;
     }
@@ -78,6 +79,7 @@ public class PropertyWrangler implements IPropertyWrangler {
         return propertyPath.startsWith(root);
     }
 
+    @Override
     public String getPropertyName(String propertyPath) {
         String name;
         if (hasRoot(propertyPath)) {

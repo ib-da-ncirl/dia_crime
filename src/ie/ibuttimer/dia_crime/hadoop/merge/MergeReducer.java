@@ -29,11 +29,11 @@ import ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer;
 import ie.ibuttimer.dia_crime.hadoop.crime.CrimeWritable;
 import ie.ibuttimer.dia_crime.hadoop.crime.IOutputType;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
+import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.hadoop.stock.StockWritable;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherReducer;
 import ie.ibuttimer.dia_crime.hadoop.weather.WeatherWritable;
 import ie.ibuttimer.dia_crime.misc.ConfigReader;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Utils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
@@ -47,6 +47,7 @@ import java.util.*;
 
 import static ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer.saveOutputTypes;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 
 /**
  * Reducer to merge crime, weather and stock data to a single output file
@@ -55,7 +56,7 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
  * - output key : date
  * - output value : value string of <property>:<value> separated by ','
  */
-public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text, Text> implements IOutputType {
+public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritable, DateWritable, Text> implements IOutputType {
 
     private Map<String, Class<?>> categorySet;
 
@@ -64,7 +65,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
     protected static ValueCache<
             Long,                           // key: epoch day
             Map<String, Object>,            // cache value: stock map
-            Pair<Text, Map<String, Object>> // required cache: write key and weather/crime map
+            Pair<DateWritable, Map<String, Object>> // required cache: write key and weather/crime map
         > cache = new ValueCache<>(
         Long::compareTo,
         k -> k - 1,     // previous epoch day
@@ -133,7 +134,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
      * @throws InterruptedException
      */
     @Override
-    protected void reduce(Text key, Iterable<CSWWrapperWritable> values, Context context) throws IOException, InterruptedException {
+    protected void reduce(DateWritable key, Iterable<CSWWrapperWritable> values, Context context) throws IOException, InterruptedException {
 
         Optional<Long> inCount = dayInCounter.getCount();
         inCount.ifPresent(count -> {
@@ -142,7 +143,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
                 // get dates from crime/nasdaq/sp500/dowjones/weather section, they are all the same
                 getTagStrings(conf, ALT_SECTION).forEach(tagLine -> {
                     try {
-                        context.write(new Text(COMMENT_PREFIX), new Text(tagLine));
+                        context.write(DateWritable.COMMENT_KEY, new Text(tagLine));
                     } catch (IOException | InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -178,6 +179,8 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
         Map<String, Object> entryMap = new TreeMap<>(crimeMap);
         entryMap.putAll(weatherMap);
 
+        // Note: no stock data for non-working data
+
         // combine stocks to single map
         Map<String, Object> stockMap = new HashMap<>();
         stockList.forEach(stock -> {
@@ -190,10 +193,10 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
         });
 
         // key is date, use epoch day as ValueCache key
-        Long cacheKey = getValueCacheKey(key.toString());
+        Long cacheKey = key.getLocalDate().toEpochDay();
 
-        Triple<Long, Map<String, Object>, Pair<Text, Map<String, Object>>> cacheResult;
-        List<Triple<Text, Map<String, Object>, Map<String, Object>>> toWrite = new ArrayList<>();
+        Triple<Long, Map<String, Object>, Pair<DateWritable, Map<String, Object>>> cacheResult;
+        List<Triple<DateWritable, Map<String, Object>, Map<String, Object>>> toWrite = new ArrayList<>();
 
         if (stockMap.size() == 0) {
             // missing stock info, so add to required cache
@@ -208,7 +211,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
             cacheResult = cache.addCache(cacheKey, stockMap);
             if (cacheResult != null) {
                 // this data was previously required, so have 2 writes to do
-                Pair<Text, Map<String, Object>> required = cacheResult.getRight();
+                Pair<DateWritable, Map<String, Object>> required = cacheResult.getRight();
                 toWrite.add(Triple.of(required.getLeft(), cacheResult.getMiddle(), required.getRight()));
             }
         }
@@ -216,7 +219,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
         writeOutput(toWrite, context);
     }
 
-    protected void writeOutputEntry(Triple<Text, Map<String, Object>, Map<String, Object>> toWrite, Context context) {
+    protected void writeOutputEntry(Triple<DateWritable, Map<String, Object>, Map<String, Object>> toWrite, Context context) {
 
         Map<String, Object> outMap = new TreeMap<>(toWrite.getMiddle());
         outMap.putAll(toWrite.getRight());
@@ -224,7 +227,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
         // create value string of <property>:<value> separated by ','
         // e.g. 2001-01-01	01A:2, 02:87, 03:41, 04A:28, 04B:44, 05:66, 06:413, 07:60, 08A:43, 08B:252, 10:12, 11:73, 12:7, 14:233, 15:32, 16:5, 17:68, 18:89, 19:2, 20:44, 22:3, 24:4, 26:211, total:1819
         try {
-            write(context, toWrite.getLeft(), new Text(MapStringifier.stringify(outMap)));
+            write(context, toWrite.getLeft(), new Text(MAP_STRINGIFIER.stringify(outMap)));
 
             dayOutCounter.increment();
         } catch (IOException | InterruptedException e) {
@@ -232,7 +235,7 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
         }
     }
 
-    protected void writeOutput(List<Triple<Text, Map<String, Object>, Map<String, Object>>> toWrite, Context context) {
+    protected void writeOutput(List<Triple<DateWritable, Map<String, Object>, Map<String, Object>>> toWrite, Context context) {
         toWrite.forEach(t -> writeOutputEntry(t, context));
     }
 
@@ -240,11 +243,12 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
 
-        setSection(ALT_SECTION);    // just for type putput
+        setSection(ALT_SECTION);    // just for type output
         saveOutputTypes(context,this, this);
 
         if (context.getProgress() == 1.0) {
 
+            // anything added here will end up at the end of the output so not necessarily in chronological order
             cache.getRequiredAsMin().stream()
                 .map(t -> Triple.of(getOutKey(t.getLeft()), t.getMiddle(), t.getRight().getRight()))
                 .forEach(t -> writeOutputEntry(t, context));
@@ -267,19 +271,14 @@ public class MergeReducer extends AbstractReducer<Text, CSWWrapperWritable, Text
         return categorySet;
     }
 
-    protected Long getValueCacheKey(String date) {
-        LocalDate valueDate = Utils.getDate(date, keyOutDateTimeFormatter, getLogger());
-        return valueDate.toEpochDay();
-    }
-
-    protected Text getOutKey(Long cacheKey) {
+    protected DateWritable getOutKey(Long cacheKey) {
         LocalDate valueDate = LocalDate.ofEpochDay(cacheKey);
-        return new Text(valueDate.format(keyOutDateTimeFormatter));
+        return DateWritable.ofDate(valueDate, keyOutDateTimeFormatter);
     }
 
     @Override
-    protected Text newKey(String key) {
-        return new Text(key);
+    protected DateWritable newKey(String key) {
+        return DateWritable.ofDate(key);
     }
 
     @Override
