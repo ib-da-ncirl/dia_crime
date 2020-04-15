@@ -122,8 +122,11 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         double targetCost = 0;
         double steadyTarget = 0;
         int steadyLimit = 0;
+        int increaseLimit = 0;
         int steadyDecimalPlaces = 0;
-        double cost = Double.MAX_VALUE;
+        double cost;
+        long consecutiveCount = 0;
+        Pair<Long, Double> min = Pair.of(0L, Double.MAX_VALUE);;
         int resultCode = ECODE_FAIL;
         String terminateCondition = null;
         boolean terminate = false;
@@ -185,6 +188,7 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
                         targetCost = cfgReader.getConfigProperty(conf, TARGET_COST_PROP, 0.0).doubleValue();
                         steadyDecimalPlaces = cfgReader.getConfigProperty(conf, STEADY_TARGET_PROP, 0.0).intValue();
                         steadyLimit = cfgReader.getConfigProperty(conf, STEADY_LIMIT_PROP, 0).intValue();
+                        increaseLimit = cfgReader.getConfigProperty(conf, INCREASE_LIMIT_PROP, 0).intValue();
                         int minutes = cfgReader.getConfigProperty(conf, TARGET_TIME_PROP, 0).intValue();
 
                         if (minutes > 0) {
@@ -211,6 +215,23 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
                         epochSetting = regressionJobReport(job, cfgReader, epoch);
 
                         cost = Double.parseDouble(epochSetting.get(COST));
+
+                        if (cost < min.getRight()) {
+                            min = Pair.of(epoch, cost);
+                            if (consecutiveCount > 0) {
+                                consecutiveCount = 0;   // end consecutive increase
+                            } else {
+                                --consecutiveCount;
+                            }
+                        } else if (consecutiveCount < 0) {
+                            consecutiveCount = 0;   // end consecutive decrease
+                        } else {
+                            ++consecutiveCount;
+                            if (consecutiveCount >= increaseLimit) {
+                                terminateCondition = "Consecutive cost increase limit exceeded";
+                                break;
+                            }
+                        }
                     } else {
                         break;
                     }
@@ -230,6 +251,7 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
 
             if (terminateCondition != null) {
                 List<String> msg = List.of("Regression Complete", terminateCondition,
+                    String.format("Minimum cost [%f] identified at epoch %d", min.getRight(), min.getLeft()),
                     epochSetting.toString()
                 );
                 logger.info(Utils.getDialog(msg));

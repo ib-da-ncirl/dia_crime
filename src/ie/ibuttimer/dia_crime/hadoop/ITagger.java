@@ -197,15 +197,19 @@ public interface ITagger {
     default boolean verifyDateRangeTag(Configuration conf, ICsvMapperCfg cfg, String inputTag, DateRangeMode mode) {
         Pair<LocalDate, LocalDate> cfgDates = cfg.getDateRange(conf, cfg.getRoot());
         Pair<LocalDate, LocalDate> inDates = cfg.decodeDateRange(inputTag);
+        LocalDate cfgStart = cfgDates.getLeft();
+        LocalDate cfgEnd = cfgDates.getRight();
+        LocalDate inStart = inDates.getLeft();
+        LocalDate inEnd = inDates.getRight();
         if (mode == DateRangeMode.EXACT) {
-            if (!cfgDates.getLeft().equals(inDates.getLeft()) || !cfgDates.getRight().equals(inDates.getRight())) {
-                throw new IllegalStateException("Input dates [" + inDates.getLeft() + "/" + inDates.getRight() +
-                    "] do not match configured dates [" + cfgDates.getLeft() + "/" + cfgDates.getRight() + "]");
+            if (!cfgStart.equals(inStart) || !cfgEnd.equals(inEnd)) {
+                throw new IllegalStateException("Input dates [" + inStart + "/" + inEnd +
+                    "] do not match configured dates [" + cfgStart + "/" + cfgEnd + "]");
             }
         } else if (mode == DateRangeMode.WITHIN) {
-            if (inDates.getLeft().isBefore(cfgDates.getLeft()) || cfgDates.getRight().isBefore(inDates.getRight())) {
-                throw new IllegalStateException("Input dates [" + inDates.getLeft() + "/" + inDates.getRight() +
-                    "] outside of configured dates [" + cfgDates.getLeft() + "/" + cfgDates.getRight() + "]");
+            if (cfgStart.isBefore(inStart) || cfgEnd.isAfter(inEnd)) {
+                throw new IllegalStateException("Input dates [" + inStart + "/" + inEnd +
+                    "] outside of configured dates [" + cfgStart + "/" + cfgEnd + "]");
             }
         }
         return true;

@@ -158,6 +158,7 @@ public class RegressionTrainMapper extends AbstractRegressionMapper<Text, String
         private final Property steadyTargetProp = Property.of(STEADY_TARGET_PROP, "steady target", "");
         private final Property steadyLimitCostProp = Property.of(STEADY_LIMIT_PROP, "steady limit", "");
         private final Property timeLimitCostProp = Property.of(TARGET_TIME_PROP, "max duration in minutes", "");
+        private final Property increaseLimitCostProp = Property.of(INCREASE_LIMIT_PROP, "max number of consecutive cost increases", "");
 
         private final List<Property> required = List.of(startProp, endProp);
         private final List<Property> notRequired = List.of(epochLimitProp, currentEpochProp, targetCostProp,
