@@ -162,7 +162,8 @@ public class RegressionTrainMapper extends AbstractRegressionMapper<Text, String
 
         private final List<Property> required = List.of(startProp, endProp);
         private final List<Property> notRequired = List.of(epochLimitProp, currentEpochProp, targetCostProp,
-                                                            steadyTargetProp, steadyLimitCostProp, timeLimitCostProp);
+                                                            steadyTargetProp, steadyLimitCostProp, timeLimitCostProp,
+                                                            increaseLimitCostProp);
 
         @Override
         public List<Property> getAdditionalProps() {

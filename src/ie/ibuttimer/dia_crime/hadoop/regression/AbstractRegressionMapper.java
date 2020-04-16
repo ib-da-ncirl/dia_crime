@@ -298,16 +298,39 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
             int resultCode = chkRes.getLeft();
             List<String> errors = new ArrayList<>(chkRes.getRight());
 
-            Map<String, Object> settings = getRegressionSetting(conf, new ConfigReader(this), this);
+            ConfigReader cfgReader = new ConfigReader(this);
+            Map<String, Object> settings = getRegressionSetting(conf, cfgReader, this);
             List<String> independents = (List<String>) settings.get(INDEPENDENTS_PROP);
             Map<String, Double> coefficients = (Map<String, Double>) settings.get(WEIGHT_PROP);
+
+            if (coefficients.size() == 0) {
+                String coeff = cfgReader.getConfigProperty(conf, WEIGHT_PROP);
+                try {
+                    double setting = Double.parseDouble(coeff);
+                    Map<String, Double> map = new HashMap<>();
+                    independents.forEach(i -> {
+                        map.put(i, setting);
+                    });
+
+                    conf.set(cfgReader.getPropertyPath(WEIGHT_PROP),
+                        MapStringifier.of(WEIGHT_SEPARATOR, WEIGHT_KV_SEPARATOR).stringify(map));
+
+                    // reload settings
+                    settings = getRegressionSetting(conf, cfgReader, this);
+                    coefficients = (Map<String, Double>) settings.get(WEIGHT_PROP);
+
+                } catch (NumberFormatException nfe) {
+                    getLogger().warn("Unable to interpret " + WEIGHT_PROP + " setting: " + coeff);
+                }
+            }
 
             if (independents.size() != coefficients.size()) {
                 errors.add("Error: independents/coefficients size mismatch");
                 resultCode = ECODE_CONFIG_ERROR;
             }
+            Map<String, Double> finalCoefficients = coefficients;
             List<String> missing = independents.stream()
-                .filter(prop -> !coefficients.containsKey(prop))
+                .filter(prop -> !finalCoefficients.containsKey(prop))
                 .collect(Collectors.toList());
             if (missing.size() > 0) {
                 errors.add("Error: coefficients missing for " + missing);

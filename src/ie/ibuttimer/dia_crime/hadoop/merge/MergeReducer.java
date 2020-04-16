@@ -155,14 +155,13 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
             if (count == 0) {
                 Configuration conf = context.getConfiguration();
                 getTagStrings(conf, ALT_SECTION).forEach(tagLine -> {
-                    List.of(CRIME_WEATHER_STOCK, CRIME_WEATHER, CRIME_STOCK)
-                        .forEach(s -> {
-                            try {
-                                write(mos, s, DateWritable.COMMENT_KEY, new Text(tagLine), s);
-                            } catch (IOException | InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        });
+                    MERGE_SECTIONS.forEach(s -> {
+                        try {
+                            write(mos, s, DateWritable.COMMENT_KEY, new Text(tagLine), s);
+                        } catch (IOException | InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    });
                 });
             }
         });

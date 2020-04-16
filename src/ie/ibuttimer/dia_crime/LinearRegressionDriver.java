@@ -84,6 +84,9 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
 
         Pair<List<String>, List<String>> sectionLists = getSectionLists();
 
+        // update training path if required
+        updatePropertyWithTimestamp(properties, TRAIN_OUTPUT_PATH_PROP, PropertyWrangler.of(REGRESSION_PROP_SECTION));
+
         Job job = null;
         Configuration conf = new Configuration();
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());

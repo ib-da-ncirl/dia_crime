@@ -24,10 +24,7 @@
 package ie.ibuttimer.dia_crime;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
-import ie.ibuttimer.dia_crime.misc.DebugLevel;
-import ie.ibuttimer.dia_crime.misc.IPropertyWrangler;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
-import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
+import ie.ibuttimer.dia_crime.misc.*;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -41,6 +38,9 @@ import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
 
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -228,6 +228,13 @@ public abstract class AbstractDriver {
         }
     }
 
+    private void updateProperties(Properties properties, String setting, String value, boolean log) {
+        properties.setProperty(setting, value);
+        if (log) {
+            getLogger().info(String.format("!! Properties updated %s - [%s]", setting, value));
+        }
+    }
+
     protected void updateConfiguration(Configuration conf, String setting, String value, ICsvMapperCfg sCfgChk) {
         updateConfiguration(conf, setting, value, DebugLevel.getSetting(conf, sCfgChk).showMe(DebugLevel.HIGH));
     }
@@ -238,6 +245,24 @@ public abstract class AbstractDriver {
 
     protected void updateConfiguration(Configuration conf, String setting, String value, IPropertyWrangler wrangler) {
         updateConfiguration(conf, setting, value, DebugLevel.getSetting(conf, wrangler).showMe(DebugLevel.HIGH));
+    }
+
+    protected void updateConfigPropertyWithTimestamp(Configuration conf, String property, IPropertyWrangler wrangler) {
+        String setting = wrangler.getPropertyPath(property);
+        String propValue = conf.get(setting, "");
+        int hash = propValue.hashCode();
+        if (propValue.contains("<datetime>")) {
+            propValue = propValue.replace("<datetime>", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        }
+        if (propValue.contains("<date>")) {
+            propValue = propValue.replace("<date>", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE));
+        }
+        if (propValue.contains("<time>")) {
+            propValue = propValue.replace("<time>", LocalTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME));
+        }
+        if (propValue.hashCode() != hash) {
+            updateConfiguration(conf, setting, propValue, DebugLevel.getSetting(conf, wrangler).showMe(DebugLevel.HIGH));
+        }
     }
 
     protected String makeSubSectionKey(String section, String sub) {
@@ -253,6 +278,25 @@ public abstract class AbstractDriver {
     }
 
     protected abstract Logger getLogger();
+
+    protected void updatePropertyWithTimestamp(Properties properties, String property, IPropertyWrangler wrangler) {
+        String setting = wrangler.getPropertyPath(property);
+        String propValue = properties.getProperty(setting, "");
+        int hash = propValue.hashCode();
+        if (propValue.contains("<datetime>")) {
+            propValue = propValue.replace("<datetime>", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        }
+        if (propValue.contains("<date>")) {
+            propValue = propValue.replace("<date>", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE));
+        }
+        if (propValue.contains("<time>")) {
+            propValue = propValue.replace("<time>", LocalTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME));
+        }
+        if (propValue.hashCode() != hash) {
+            updateProperties(properties, setting, propValue, true);
+        }
+    }
+
 
     /**
      * Job configuration object
