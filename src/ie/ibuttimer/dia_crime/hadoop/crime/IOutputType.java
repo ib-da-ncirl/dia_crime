@@ -31,20 +31,42 @@ import java.util.TreeMap;
  */
 public interface IOutputType {
 
-    Map<String,Class<?>> getOutputTypeMap();
+    Map<String, OpTypeEntry> getOutputTypeMap();
 
-    default Map<String,Class<?>> newOutputTypeMap() {
+    default Map<String, OpTypeEntry> newOutputTypeMap() {
         return new TreeMap<>();
     }
 
-    default void putOutputType(String name, Class<?> cls) {
-        getOutputTypeMap().put(name, cls);
+    default void putOutputType(String name, Class<?> cls, String src) {
+        getOutputTypeMap().put(name, OpTypeEntry.of(cls, src));
     }
 
-    default void putOutputTypes(Map<? extends String, Object> collection) {
-        Map<String,Class<?>> outputTypes = getOutputTypeMap();
-        collection.forEach((key, value) -> outputTypes.put(key, value.getClass()));
+    default void putOutputTypes(Map<String, Object> collection, String src) {
+        Map<String, OpTypeEntry> outputTypes = getOutputTypeMap();
+        collection.forEach((key, value) -> outputTypes.put(key, OpTypeEntry.of(value.getClass(), src)));
     }
 
     String getSection();
+
+    class OpTypeEntry {
+        private Class<?> cls;
+        private String src;
+
+        public OpTypeEntry(Class<?> cls, String src) {
+            this.cls = cls;
+            this.src = src;
+        }
+
+        public static OpTypeEntry of(Class<?> cls, String src) {
+            return new OpTypeEntry(cls, src);
+        }
+
+        public Class<?> getCls() {
+            return cls;
+        }
+
+        public String getSrc() {
+            return src;
+        }
+    }
 }

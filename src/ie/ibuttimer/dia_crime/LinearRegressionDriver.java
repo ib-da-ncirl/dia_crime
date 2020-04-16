@@ -25,7 +25,6 @@ package ie.ibuttimer.dia_crime;
 
 import ie.ibuttimer.dia_crime.hadoop.ITagger;
 import ie.ibuttimer.dia_crime.hadoop.io.FileReader;
-import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
 import ie.ibuttimer.dia_crime.hadoop.regression.*;
 import ie.ibuttimer.dia_crime.misc.*;
 import org.apache.commons.lang3.tuple.Pair;
@@ -41,7 +40,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -91,11 +89,11 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == ECODE_SUCCESS) {
-            Map<String, SectionCfg> sections = new HashMap<>();
+            Map<String, InputCfg> ipSections = new HashMap<>();
 
-            sections.put(REGRESSION_PROP_SECTION, SectionCfg.of(RegressionTrainMapper.class));
+            ipSections.put(REGRESSION_PROP_SECTION, InputCfg.of(RegressionTrainMapper.class));
 
-            job = initJob("Linear Regression", conf, sections);
+            job = initJob("Linear Regression", conf, ipSections);
 
             job.setReducerClass(RegressionTrainReducer.class);
 
@@ -348,7 +346,7 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == ECODE_SUCCESS) {
-            Map<String, SectionCfg> sections = new HashMap<>();
+            Map<String, InputCfg> ipSections = new HashMap<>();
 
 
             // load weight & bias from result of regression job
@@ -373,9 +371,9 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
                     });
                 });
 
-            sections.put(VERIFICATION_PROP_SECTION, SectionCfg.of(RegressionValidateMapper.class));
+            ipSections.put(VERIFICATION_PROP_SECTION, InputCfg.of(RegressionValidateMapper.class));
 
-            job = initJob("Regression Verification", conf, sections);
+            job = initJob("Regression Verification", conf, ipSections);
 
             job.setReducerClass(RegressionValidateReducer.class);
 

@@ -33,7 +33,6 @@ import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionWritable;
 import ie.ibuttimer.dia_crime.hadoop.stats.NameTag;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
@@ -45,7 +44,9 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static ie.ibuttimer.dia_crime.hadoop.merge.MergeReducer.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.COMMA;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.HADOOP_KEY_VAL;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 
@@ -60,7 +61,7 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
 
     private Counters.MapperCounter counter;
 
-    private Map<String, Class<?>> outputTypes;
+    private Map<String, OpTypeEntry> outputTypes;
 
     private List<String> variables;
 
@@ -69,7 +70,7 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
     private final RegressionWritable<String, Value> valuesOut = new RegressionWritable<>();
     private final Map<DateWritable, RegressionWritable<String, Value>> outputList = new TreeMap<>();
 
-    private boolean wroteTypes = false;
+    private boolean wroteTypes;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -88,6 +89,8 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
 
         stats = readStats(cfgReader.getConfigProperty(conf, STATS_INPUT_PATH_PROP), conf,
             List.of(NameTag.MIN, NameTag.MAX), variables);
+
+        wroteTypes = !writeOutputTypes();
     }
 
     /**
@@ -142,16 +145,18 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
                         .findFirst()
                         .ifPresent(es -> {
                             String name = es.getKey();
-                            Class<?> cls = es.getValue();
+                            Class<?> cls = es.getValue().getCls();
 
                             valuesOut.put(name, Value.of(value1, cls, getDateTimeFormatter(), getLogger()));
                         }));
 
                 // read and normalise the variables
                 variables.forEach(var -> {
+                    OpTypeEntry typeEntry = outputTypes.get(var);
+
                     if (valuesOut.containsKey(var)) {
 
-                        if (Number.class.isAssignableFrom(outputTypes.get(var))) {
+                        if (Number.class.isAssignableFrom(typeEntry.getCls())) {
                             // its a number so normalise
                             double min = stats.getOrDefault(NameTag.MIN.getKeyTag(var), 0.0);
                             double max = stats.getOrDefault(NameTag.MAX.getKeyTag(var), 0.0);
@@ -160,13 +165,13 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
                                 double normalised = (valuesOut.get(var).doubleValue() - min) / (max - min);
                                 valuesOut.put(var, Value.of(normalised));
 
-                                outputTypes.put(var, Double.class);
+                                outputTypes.put(var, OpTypeEntry.of(Double.class, typeEntry.getSrc()));
                             }
                         }
-                    } else {
+                    } else if (addToOutput(typeEntry)){
                         valuesOut.put(var, Value.of(0.0));
 
-                        outputTypes.put(var, Double.class);
+                        outputTypes.put(var, OpTypeEntry.of(Double.class, typeEntry.getSrc()));
                     }
                 });
 
@@ -178,8 +183,11 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
                     RegressionWritable<String, Value> types = new RegressionWritable<>();
 
                     // set class names in 'types'
-                    outputTypes.entrySet()
-                        .forEach(es -> types.put(es.getKey(), Value.of(es.getValue().getSimpleName())));
+                    outputTypes.forEach((key1, value1) -> {
+                        types.put(key1, Value.of(
+                            COMMA.stringifyElement(value1.getCls().getSimpleName(), value1.getSrc()))
+                        );
+                    });
 
                     outputList.put(DateWritable.MIN, types);
 
@@ -187,15 +195,23 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
                 }
 
 
-                outputList.forEach((lwkey, val) -> {
+                outputList.forEach((dwKey, val) -> {
                     try {
-                        write(context, lwkey, val);
+                        write(context, dwKey, val);
                     } catch (IOException | InterruptedException e) {
                         getLogger().warn("Exception writing mapper output", e);
                     }
                 });
             }
         }
+    }
+
+    protected boolean writeOutputTypes() {
+        return true;
+    }
+
+    protected boolean addToOutput(OpTypeEntry typeEntry) {
+        return true;
     }
 
     /**
@@ -234,10 +250,16 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
     // mapper config
     private static final ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(NORMALISE_PROP_SECTION) {
 
+        private final Property cswInPath = Property.of(CSW_IN_PATH_PROP, "path to CSW input file", "");
+        private final Property csInPath = Property.of(CS_IN_PATH_PROP, "path to CS input file", "");
+        private final Property cwInPath = Property.of(CW_IN_PATH_PROP, "path to CW input file", "");
+
         @Override
         public List<Property> getAdditionalProps() {
-            return new ArrayList<>(getPropertyList(
-                List.of(OUTPUTTYPES_PATH_PROP, OUTPUTTYPES_FILE_PROP, VARIABLES_PROP, STATS_INPUT_PATH_PROP, FACTOR_PROP)));
+            List<Property> properties = new ArrayList<>(getPropertyList(
+                List.of(OUTPUTTYPES_PATH_PROP, VARIABLES_PROP, STATS_INPUT_PATH_PROP, FACTOR_PROP)));
+            properties.addAll(List.of(cswInPath, csInPath, cwInPath));
+            return properties;
         }
 
         @Override
@@ -261,4 +283,67 @@ public class NormaliseMapper extends AbstractCsvMapper<DateWritable, RegressionW
     public static ICsvMapperCfg getClsCsvMapperCfg() {
         return sCfgChk;
     }
+
+
+    public static final String PARTITION = "partition";
+
+    public static abstract class AbstractCwsNormaliseMapper extends NormaliseMapper {
+
+        private final int partition;
+
+        public AbstractCwsNormaliseMapper(String section) {
+            partition = MERGE_SECTIONS.indexOf(section);
+        }
+
+        @Override
+        public void write(Context context, DateWritable key, RegressionWritable<String, Value> value) throws IOException, InterruptedException {
+            // add destination partition to output value
+            value.put(PARTITION, Value.of(partition));
+            super.write(context, key, value);
+        }
+    }
+
+    public static class CwsNormaliseMapper extends AbstractCwsNormaliseMapper {
+
+        public CwsNormaliseMapper() {
+            super(CRIME_WEATHER_STOCK);
+        }
+    }
+
+    public static class CwNormaliseMapper extends AbstractCwsNormaliseMapper {
+
+        public CwNormaliseMapper() {
+            super(CRIME_WEATHER);
+        }
+
+        @Override
+        protected boolean writeOutputTypes() {
+            return false;
+        }
+
+        @Override
+        protected boolean addToOutput(OpTypeEntry typeEntry) {
+            // everything except stock
+            return !typeEntry.getSrc().equals(STOCK_PROP_SECTION);
+        }
+    }
+
+    public static class CsNormaliseMapper extends AbstractCwsNormaliseMapper {
+
+        public CsNormaliseMapper() {
+            super(CRIME_STOCK);
+        }
+
+        @Override
+        protected boolean writeOutputTypes() {
+            return false;
+        }
+
+        @Override
+        protected boolean addToOutput(OpTypeEntry typeEntry) {
+            // everything except weather
+            return !typeEntry.getSrc().equals(WEATHER_PROP_SECTION);
+        }
+    }
+
 }

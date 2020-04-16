@@ -25,6 +25,7 @@ package ie.ibuttimer.dia_crime.hadoop.stats;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
+import ie.ibuttimer.dia_crime.hadoop.crime.IOutputType;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.commons.lang3.tuple.Pair;
@@ -57,7 +58,7 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> {
     private Counters.ReducerCounter statsInCounter;
     private Counters.ReducerCounter statsOutCounter;
 
-    private Map<String, Class<?>> outputTypes;
+    private Map<String, IOutputType.OpTypeEntry> outputTypes;
 
     private List<String> variables;
 
@@ -196,7 +197,7 @@ public class StatsReducer extends AbstractReducer<Text, Value, Text, Text> {
             .filter(es -> es.getKey().equals(field))
             .findFirst()
             .ifPresent(es -> {
-                Class<?> cls = es.getValue();
+                Class<?> cls = es.getValue().getCls();
                 Object sum = null;
                 Object min = null;
                 Object max = null;

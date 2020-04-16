@@ -90,4 +90,10 @@ public class PropertyWrangler implements IPropertyWrangler {
         return name;
     }
 
+    @Override
+    public String toString() {
+        return "PropertyWrangler{" +
+            "root='" + root + '\'' +
+            '}';
+    }
 }

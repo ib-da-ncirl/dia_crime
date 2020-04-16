@@ -25,7 +25,9 @@ package ie.ibuttimer.dia_crime.misc;
 
 import com.google.common.base.Charsets;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.crime.IOutputType;
 import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
@@ -40,7 +42,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.COMMA;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.HADOOP_KEY_VAL;
 
 /**
  * Hadoop configuration reader
@@ -153,10 +155,17 @@ public class ConfigReader implements IPropertyWrangler {
         return readSeparatedKeyValueProperty(conf, name, ",", ":");
     }
 
-    public Map<String, Class<?>> readOutputTypeClasses(Configuration conf, String property, List<Class<?>> classes) {
+    /**
+     * Read a list of type classes from file
+     * @param conf
+     * @param property  Property containing path to fie to read
+     * @param classes
+     * @return
+     */
+    public Map<String, IOutputType.OpTypeEntry> readOutputTypeClasses(Configuration conf, String property, List<Class<?>> classes) {
         String typesPath = getConfigProperty(conf, property);
 
-        Map<String, String> entries = new HashMap<>();
+        Map<String, Pair<String, String>> entries = new HashMap<>();
         FileUtil fileUtil = new FileUtil(new Path(typesPath), conf);
 
         try (FSDataInputStream stream = fileUtil.fileReadOpen();
@@ -164,9 +173,10 @@ public class ConfigReader implements IPropertyWrangler {
              BufferedReader reader = new BufferedReader(inputStream)) {
 
             reader.lines()
-                .map(COMMA::destringifyElement)
-                .filter(p -> !TextUtils.isEmpty(p.getLeft()) && !TextUtils.isEmpty(p.getRight()))
-                .forEach(p -> entries.put(p.getLeft(), p.getRight()));
+                .filter(l -> !TextUtils.isEmpty(l))
+                .map(l -> HADOOP_KEY_VAL.destringifyElement(l).getRight())
+                .map(l -> l.split(","))
+                .forEach(p -> entries.put(p[0], Pair.of(p[1], p[2])));
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -175,14 +185,14 @@ public class ConfigReader implements IPropertyWrangler {
         return convertOutputTypeClasses(entries, classes);
     }
 
-    public Map<String, Class<?>> convertOutputTypeClasses(Map<String, String> map, List<Class<?>> classes) {
-        Map<String, Class<?>> outputTypes = new TreeMap<>();
+    public Map<String, IOutputType.OpTypeEntry> convertOutputTypeClasses(Map<String, Pair<String, String>> map, List<Class<?>> classes) {
+        Map<String, IOutputType.OpTypeEntry> outputTypes = new TreeMap<>();
 
-        map.forEach((key, name) -> {
+        map.forEach((key, pair) -> {
             classes.stream()
-                .filter(cls -> name.equals(cls.getSimpleName()))
+                .filter(cls -> pair.getLeft().equals(cls.getSimpleName()))
                 .findFirst()
-                .ifPresent(cls -> outputTypes.put(key, cls));
+                .ifPresent(cls -> outputTypes.put(key, IOutputType.OpTypeEntry.of(cls, pair.getRight())));
         });
         if (outputTypes.size() != map.size()) {
             throw new IllegalStateException("Unmatched output type class");

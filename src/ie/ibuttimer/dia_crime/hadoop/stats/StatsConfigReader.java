@@ -24,7 +24,9 @@
 package ie.ibuttimer.dia_crime.hadoop.stats;
 
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
+import ie.ibuttimer.dia_crime.hadoop.crime.IOutputType;
 import ie.ibuttimer.dia_crime.misc.ConfigReader;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 
 import java.lang.ref.WeakReference;
@@ -44,7 +46,7 @@ public class StatsConfigReader extends ConfigReader {
     private static List<Class<?>> CLASSES = List.of(Integer.class, Long.class, Float.class, Double.class, String.class,
         LocalDate.class);
 
-    private Map<String, Class<?>> outputTypes;
+    private Map<String, IOutputType.OpTypeEntry> outputTypes;
 
     private List<String> variables;
     private List<String> debugMapperToFile;
@@ -108,7 +110,7 @@ public class StatsConfigReader extends ConfigReader {
      * @param conf
      * @return
      */
-    public Map<String, Class<?>> readOutputTypes(Configuration conf) {
+    public Map<String, IOutputType.OpTypeEntry> readOutputTypes(Configuration conf) {
         Configuration confLocal = getConf(conf);
 
         if (Objects.isNull(variables)) {
@@ -129,13 +131,13 @@ public class StatsConfigReader extends ConfigReader {
      * @param vars
      * @return
      */
-    private Map<String, Class<?>> readOutputTypes(Configuration conf, OutputType type, List<String> vars) {
+    private Map<String, IOutputType.OpTypeEntry> readOutputTypes(Configuration conf, OutputType type, List<String> vars) {
         outputTypes = new HashMap<>();
 
-        Predicate<? super Map.Entry<String, Class<?>>> predicate;
+        Predicate<? super Map.Entry<String, IOutputType.OpTypeEntry>> predicate;
         switch (type) {
             case CFG:       predicate = e -> vars.stream().anyMatch(e.getKey()::equals);    break;
-            case NUMERIC:   predicate = e -> isNumericClass(e.getValue());                  break;
+            case NUMERIC:   predicate = e -> isNumericClass(e.getValue().getCls());         break;
             default:        predicate = e -> true;                                          break;
         }
         readOutputTypeClasses(conf, OUTPUTTYPES_PATH_PROP, CLASSES).entrySet().stream()
@@ -147,22 +149,22 @@ public class StatsConfigReader extends ConfigReader {
         return outputTypes;
     }
 
-    public Map<String, Class<?>> convertOutputTypeClasses(Map<String, String> map) {
+    public Map<String, IOutputType.OpTypeEntry> convertOutputTypeClasses(Map<String, Pair<String, String>> map) {
         return convertOutputTypeClasses(map, CLASSES);
     }
 
-    public Map<String, Class<?>> getNumericOutputTypes(Configuration conf) {
+    public Map<String, IOutputType.OpTypeEntry> getNumericOutputTypes(Configuration conf) {
         Configuration confLocal = getConf(conf);
 
         if (Objects.isNull(outputTypes)) {
             readOutputTypes(confLocal);
         }
 
-        Map<String, Class<?>> numericTypes = new HashMap<>();
+        Map<String, IOutputType.OpTypeEntry> numericTypes = new HashMap<>();
 
-        outputTypes.forEach((name, cls) -> {
-            if (isNumericClass(cls)) {
-                numericTypes.put(name, cls);
+        outputTypes.forEach((name, typeEntry) -> {
+            if (isNumericClass(typeEntry.getCls())) {
+                numericTypes.put(name, typeEntry);
             }
         });
 
@@ -193,8 +195,8 @@ public class StatsConfigReader extends ConfigReader {
 
         List<String> numericTypes = new ArrayList<>();
 
-        outputTypes.forEach((name, cls) -> {
-            if (isNumericClass(cls)) {
+        outputTypes.forEach((name, typeEntry) -> {
+            if (isNumericClass(typeEntry.getCls())) {
                 numericTypes.add(name);
             }
         });

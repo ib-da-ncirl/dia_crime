@@ -85,7 +85,6 @@ public class Constants {
     public static final String FBICODE_PROP = "fbicode";
     public static final String TOTAL_PROP = "total";    // total count, generated from data
 
-    public static final String OUTPUTTYPES_FILE_PROP = "outputtypes_file";  // name of output types file (for output)
     public static final String OUTPUTTYPES_PATH_PROP = "outputtypes_path";  // path for output types file (for input)
 
     // stock specific properties
@@ -152,6 +151,13 @@ public class Constants {
     public static final String SPEC_OTHER_PROP = "spec_other";
 
     // normalisation specific properties
+    public static final String CSW_IN_PATH_PROP = "csw_in_path";
+    public static final String CS_IN_PATH_PROP = "cs_in_path";
+    public static final String CW_IN_PATH_PROP = "cw_in_path";
+
+
+
+    public static final String TYPES_NAMED_OP = "types";
 
 
     public static final int ECODE_CONFIG_ERROR = -1;

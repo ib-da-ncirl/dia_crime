@@ -26,15 +26,12 @@ package ie.ibuttimer.dia_crime.hadoop.crime;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import org.apache.hadoop.io.MapWritable;
-import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.CRIME_PROP_SECTION;
-import static ie.ibuttimer.dia_crime.misc.Constants.OUTPUTTYPES_FILE_PROP;
 
 /**
  * Mapper for a crime entry. Parses input line and generates a custom writable.
@@ -67,7 +64,6 @@ public class CrimeMapper extends AbstractCrimeMapper<MapWritable> {
         @Override
         public List<Property> getAdditionalProps() {
             List<Property> list = new ArrayList<>(super.getAdditionalProps());
-            list.addAll(getPropertyList(Collections.singletonList(OUTPUTTYPES_FILE_PROP)));
             return list;
         }
 

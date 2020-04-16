@@ -309,7 +309,6 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
             COMMON_PROPERTIES = new HashMap<>();
             List.of(
                 Property.of(OUTPUTTYPES_PATH_PROP, "path to factor types input file", ""),
-                Property.of(OUTPUTTYPES_FILE_PROP, "file to save factor types to", ""),
                 Property.of(FACTOR_PROP, "list of factors to apply to values", ""),
                 Property.of(STATS_INPUT_PATH_PROP, "path to statistics file", ""),
                 Property.of(VARIABLES_PROP, "list of variables to use", ""),

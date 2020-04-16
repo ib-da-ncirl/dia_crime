@@ -35,7 +35,6 @@ import ie.ibuttimer.dia_crime.misc.Constants;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.log4j.Logger;
 
 import java.util.HashMap;
@@ -62,6 +61,12 @@ public class MergeDriver extends AbstractDriver {
         return new MergeDriver(app);
     }
 
+    /**
+     * Set up a merge job
+     * @param properties    Program properties
+     * @return
+     * @throws Exception
+     */
     public Job getMergeJob(Properties properties) throws Exception {
 
         Job job = null;
@@ -80,17 +85,23 @@ public class MergeDriver extends AbstractDriver {
         });
 
         if (resultCode.get() == ECODE_SUCCESS) {
-            Map<String, SectionCfg> sections = new HashMap<>();
+            Map<String, InputCfg> ipSections = new HashMap<>();
+            Map<String, OutputCfg> opSections = new HashMap<>();
 
             addStockSpecificsToConfig(conf);
 
-            sections.put(NASDAQ_PROP_SECTION, SectionCfg.of(NasdaqStockWrapMapper.class));
-            sections.put(DOWJONES_PROP_SECTION, SectionCfg.of(DowJonesStockWrapMapper.class));
-            sections.put(SP500_PROP_SECTION, SectionCfg.of(SP500StockWrapMapper.class));
-            sections.put(CRIME_PROP_SECTION, SectionCfg.of(CrimeWrapMapper.class));
-            sections.put(WEATHER_PROP_SECTION, SectionCfg.of(WeatherWrapMapper.class));
+            ipSections.put(NASDAQ_PROP_SECTION, InputCfg.of(NasdaqStockWrapMapper.class));
+            ipSections.put(DOWJONES_PROP_SECTION, InputCfg.of(DowJonesStockWrapMapper.class));
+            ipSections.put(SP500_PROP_SECTION, InputCfg.of(SP500StockWrapMapper.class));
+            ipSections.put(CRIME_PROP_SECTION, InputCfg.of(CrimeWrapMapper.class));
+            ipSections.put(WEATHER_PROP_SECTION, InputCfg.of(WeatherWrapMapper.class));
 
-            job = initJob("Merge", conf, sections);
+            MergeReducer.MERGE_SECTIONS.forEach(s -> {
+                opSections.put(s, OutputCfg.of(s, DateWritable.class, Text.class));
+            });
+            opSections.put(STOCK_PROP_SECTION, OutputCfg.of(TYPES_NAMED_OP, DateWritable.class, Text.class));
+
+            job = initJob("Merge", conf, ipSections, opSections);
 
             job.setReducerClass(MergeReducer.class);
 
@@ -100,10 +111,8 @@ public class MergeDriver extends AbstractDriver {
             /*
              * Input and Output types of a MapReduce job:
              * (input) <k1, v1> -> map -> <k2, v2> -> combine -> <k2, v2> -> reduce -> <k3, v3> (output)
-             * (input) <LongWritable, Text> -> map -> <DateWritable, CSWWrapperWritable> -> reduce -> <Text, Text> (output)
+             * (input) <LongWritable, Text> -> map -> <DateWritable, CSWWrapperWritable> -> reduce -> <DateWritable, Text> (output)
              */
-            job.setOutputKeyClass(Text.class);
-            job.setOutputValueClass(Text.class);
         }
 
         return job;

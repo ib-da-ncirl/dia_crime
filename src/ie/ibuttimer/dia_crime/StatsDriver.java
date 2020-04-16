@@ -35,7 +35,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -77,11 +76,11 @@ public class StatsDriver extends AbstractDriver implements ITagger {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == ECODE_SUCCESS) {
-            Map<String, SectionCfg> sections = new HashMap<>();
+            Map<String, InputCfg> ipSections = new HashMap<>();
 
-            sections.put(STATS_PROP_SECTION, SectionCfg.of(StatsMapper.class));
+            ipSections.put(STATS_PROP_SECTION, InputCfg.of(StatsMapper.class));
 
-            job = initJob("Stats", conf, sections);
+            job = initJob("Stats", conf, ipSections);
 
             job.setReducerClass(StatsReducer.class);
 

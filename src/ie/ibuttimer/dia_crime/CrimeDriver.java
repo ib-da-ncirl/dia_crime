@@ -36,6 +36,7 @@ import org.apache.log4j.Logger;
 
 import java.util.*;
 
+import static ie.ibuttimer.dia_crime.hadoop.merge.MergeReducer.CRIME_WEATHER_STOCK;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.Constants.ECODE_RUNNING;
 
@@ -68,11 +69,14 @@ public class CrimeDriver extends AbstractDriver {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());;
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, SectionCfg> sections = new HashMap<>();
+            Map<String, InputCfg> ipSections = new HashMap<>();
+            Map<String, OutputCfg> opSections = new HashMap<>();
 
-            sections.put(CRIME_PROP_SECTION, SectionCfg.of(CrimeMapper.class));
+            ipSections.put(CRIME_PROP_SECTION, InputCfg.of(CrimeMapper.class));
 
-            job = initJob("Crime", conf, sections);
+            opSections.put(CRIME_PROP_SECTION, OutputCfg.of(TYPES_NAMED_OP, DateWritable.class, Text.class));
+
+            job = initJob("Crime", conf, ipSections, opSections);
 
             job.setReducerClass(CrimeReducer.class);
 

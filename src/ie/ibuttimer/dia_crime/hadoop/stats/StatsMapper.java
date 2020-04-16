@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime.hadoop.stats;
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
+import ie.ibuttimer.dia_crime.hadoop.crime.IOutputType;
 import ie.ibuttimer.dia_crime.hadoop.merge.IDecorator;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionWritable;
@@ -57,7 +58,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> {
 
     private Counters.MapperCounter counter;
 
-    private Map<String, Class<?>> outputTypes;
+    private Map<String, IOutputType.OpTypeEntry> outputTypes;
 
     private List<String> variables;
 
@@ -137,10 +138,10 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> {
                 List<String> skipList = new ArrayList<>();
 
                 // collect the value and squared value for each property
-                outputTypes.forEach((name, cls) -> {
-                    String readValue = map.getOrDefault(name, Value.getDefaultValueStr(cls));
+                outputTypes.forEach((name, typeEntry) -> {
+                    String readValue = map.getOrDefault(name, Value.getDefaultValueStr(typeEntry.getCls()));
 
-                    Value wrapped = Value.of(readValue, cls, getDateTimeFormatter(), getLogger());
+                    Value wrapped = Value.of(readValue, typeEntry.getCls(), getDateTimeFormatter(), getLogger());
                     Value squared = wrapped.copyOf();
                     squared.pow(2);
 
@@ -164,7 +165,7 @@ public class StatsMapper extends AbstractCsvMapper<Text, Value> {
 
                             String readPropValue = map.getOrDefault(propName, "");
 
-                            Value wrappedProduct = Value.of(readPropValue, es.getValue(), getDateTimeFormatter());
+                            Value wrappedProduct = Value.of(readPropValue, es.getValue().getCls(), getDateTimeFormatter());
                             wrappedProduct.multiply(wrapped);
 
                             valuesOut.put(NameTag.PRD.getKeyTag(leftRight), wrappedProduct);

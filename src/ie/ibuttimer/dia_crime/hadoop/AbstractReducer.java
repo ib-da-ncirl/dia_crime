@@ -30,6 +30,7 @@ import ie.ibuttimer.dia_crime.misc.DebugLevel;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 import org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
 
@@ -132,8 +133,27 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
         Pair<KO, VO> decorated = decorate(key, value);
         context.write(decorated.getLeft(), decorated.getRight());
 
+        processTransform(decorated.getLeft(), decorated.getRight());
+    }
+
+    public void write(MultipleOutputs<KO, VO> mos, String namedOutput, KO key, VO value, String baseOutputPath) throws IOException, InterruptedException {
+        Pair<KO, VO> decorated = decorate(key, value);
+        if (TextUtils.isEmpty(baseOutputPath)) {
+            mos.write(namedOutput, decorated.getLeft(), decorated.getRight());
+        } else {
+            mos.write(namedOutput, decorated.getLeft(), decorated.getRight(), baseOutputPath);
+        }
+
+        processTransform(decorated.getLeft(), decorated.getRight());
+    }
+
+    public void write(MultipleOutputs<KO, VO> mos, String namedOutput, KO key, VO value) throws IOException, InterruptedException {
+        write(mos, namedOutput, key, value, null);
+    }
+
+    public void processTransform(KO key, VO value) {
         if ((decoratorMode.hasTransform() && show(DebugLevel.VERBOSE))) {
-            Pair<Object, Object> transformed = transform(decorated.getLeft(), decorated.getRight());
+            Pair<Object, Object> transformed = transform(key, value);
             getLogger().info(transformed.getLeft().toString() + " " + transformed.getRight().toString());
         }
     }
@@ -182,4 +202,46 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
     protected abstract KO newKey(String key);
 
     protected abstract VO newValue(String value);
+
+    public static class MultipleOutputsWriteEntry<KO, VO> {
+        private String namedOutput;
+        private KO key;
+        private VO value;
+        private String baseOutputPath;
+
+        public MultipleOutputsWriteEntry(String namedOutput, KO key, VO value, String baseOutputPath) {
+            this.namedOutput = namedOutput;
+            this.key = key;
+            this.value = value;
+            this.baseOutputPath = baseOutputPath;
+        }
+
+        public static <KO, VO> MultipleOutputsWriteEntry<KO, VO> of(String namedOutput, KO key, VO map, String baseOutputPath) {
+            return new MultipleOutputsWriteEntry<>(namedOutput, key, map, baseOutputPath);
+        }
+
+        public static <KO, VO> MultipleOutputsWriteEntry<KO, VO> of(String namedOutput, KO key, VO map) {
+            return new MultipleOutputsWriteEntry<>(namedOutput, key, map, null);
+        }
+
+        public static <KO, VO> MultipleOutputsWriteEntry<KO, VO> ofNamedBase(String namedOutput, KO key, VO map) {
+            return new MultipleOutputsWriteEntry<>(namedOutput, key, map, namedOutput);
+        }
+
+        public String getNamedOutput() {
+            return namedOutput;
+        }
+
+        public KO getKey() {
+            return key;
+        }
+
+        public VO getValue() {
+            return value;
+        }
+
+        public String getBaseOutputPath() {
+            return baseOutputPath;
+        }
+    }
 }

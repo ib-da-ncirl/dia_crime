@@ -30,9 +30,10 @@ import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionWritable;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Value;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -40,8 +41,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer.saveOutputTypes;
+import static ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer.formatOutputTypes;
+import static ie.ibuttimer.dia_crime.hadoop.normalise.NormaliseMapper.PARTITION;
 import static ie.ibuttimer.dia_crime.misc.Constants.NORMALISE_PROP_SECTION;
+import static ie.ibuttimer.dia_crime.misc.Constants.TYPES_NAMED_OP;
+import static ie.ibuttimer.dia_crime.misc.MapStringifier.ElementStringify.COMMA;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 
 /**
@@ -56,7 +60,9 @@ public class NormaliseReducer extends AbstractReducer<DateWritable, RegressionWr
 
     private Counters.ReducerCounter counter;
 
-    private Map<String, Class<?>> outputTypes;
+    private Map<String, OpTypeEntry> outputTypes;
+
+    private MultipleOutputs<DateWritable, Text> mos;
 
 
     @Override
@@ -68,6 +74,8 @@ public class NormaliseReducer extends AbstractReducer<DateWritable, RegressionWr
         counter = getCounter(context, CountersEnum.NORMALISE_REDUCER_COUNT);
 
         outputTypes = new TreeMap<>();
+
+        mos = new MultipleOutputs<>(context);
     }
 
     @Override
@@ -81,9 +89,11 @@ public class NormaliseReducer extends AbstractReducer<DateWritable, RegressionWr
             if (!key.equals(DateWritable.MIN)) {
                 // standard line
                 Map<String, String> outMap = new TreeMap<>();
-                value.forEach((key1, value1) -> value1.asString(s -> {
-                    outMap.put(key1, s);
-                }));
+                value.entrySet().stream()
+                    .filter(es -> !es.getKey().equals(PARTITION))   // remove the info used to partition the mapper output
+                    .forEach(es -> es.getValue().asString(s -> {
+                        outMap.put(es.getKey(), s);
+                    }));
 
                 try {
                     context.write(key, new Text(MAP_STRINGIFIER.stringify(outMap)));
@@ -92,13 +102,24 @@ public class NormaliseReducer extends AbstractReducer<DateWritable, RegressionWr
                     e.printStackTrace();
                 }
             } else {    // output types
-                // TODO should really be a separate reducer
                 // load output type from input
                 StatsConfigReader cfgReader = new StatsConfigReader(getSection());
-                Map<String, String> map = new HashMap<>();
+                Map<String, Pair<String, String>> map = new HashMap<>();
 
-                value.forEach((key1, value1) -> value1.asString(s -> map.put(key1, s)));
+                value.forEach((key1, value1) -> value1.asString(s -> map.put(key1, COMMA.destringifyElement(s))));
+
+                map.remove(PARTITION);  // remove the info used to partition the mapper output
+
                 outputTypes = cfgReader.convertOutputTypeClasses(map);
+
+                formatOutputTypes(this)
+                    .forEach(s -> {
+                        try {
+                            write(mos, TYPES_NAMED_OP, DateWritable.COMMENT_KEY, new Text(s));
+                        } catch (IOException | InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    });
             }
         });
     }
@@ -106,11 +127,12 @@ public class NormaliseReducer extends AbstractReducer<DateWritable, RegressionWr
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
-        saveOutputTypes(context,this, this);
+
+        mos.close();
     }
 
     @Override
-    public Map<String, Class<?>> getOutputTypeMap() {
+    public Map<String, OpTypeEntry> getOutputTypeMap() {
         return outputTypes;
     }
 

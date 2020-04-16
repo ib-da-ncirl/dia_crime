@@ -39,13 +39,14 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer.saveOutputTypes;
+import static ie.ibuttimer.dia_crime.hadoop.crime.CrimeReducer.formatOutputTypes;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 
@@ -58,14 +59,24 @@ import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
  */
 public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritable, DateWritable, Text> implements IOutputType {
 
-    private Map<String, Class<?>> categorySet;
+    public static final String CRIME_WEATHER_STOCK = "csw";
+    public static final String CRIME_WEATHER = "cw";
+    public static final String CRIME_STOCK = "cs";
+    public static final List<String> MERGE_SECTIONS = List.of(
+        CRIME_WEATHER_STOCK, CRIME_WEATHER, CRIME_STOCK);
+
+    private Map<String, OpTypeEntry> categorySet;
 
     private DateTimeFormatter keyOutDateTimeFormatter;
 
+    /* ValueCache is used to cache incomplete data entries, so they can be completed which the info is available.
+        e.g. there is no stock data for non-working days the a fill forward approach is used to populate non-working
+        days with the data from the last previous working day.
+     */
     protected static ValueCache<
-            Long,                           // key: epoch day
-            Map<String, Object>,            // cache value: stock map
-            Pair<DateWritable, Map<String, Object>> // required cache: write key and weather/crime map
+            Long,                   // key: epoch day
+            Map<String, Object>,    // cache value: stock map
+            List<MultipleOutputsWriteEntry<DateWritable, Map<String, Object>>>  // required cache: write entry less missing cache value
         > cache = new ValueCache<>(
         Long::compareTo,
         k -> k - 1,     // previous epoch day
@@ -76,6 +87,7 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
     private Counters.ReducerCounter dayInCounter;
     private Counters.ReducerCounter dayOutCounter;
 
+    private MultipleOutputs<DateWritable, Text> mos;
 
     public MergeReducer() {
         super();
@@ -90,7 +102,7 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
         // stocks and weather fields are known in advance so add to categories
 
         // add weather fields to categories
-        putOutputTypes(new WeatherWritable().toMap());
+        putOutputTypes(new WeatherWritable().toMap(), WEATHER_PROP_SECTION);
 
         // add stock fields for individual stocks to categories
         ConfigReader cfgReader = new ConfigReader(STOCK_PROP_SECTION);
@@ -102,7 +114,7 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
             sw.toMap().entrySet().stream()
                 .filter(es -> !es.getKey().equals(ID_PROP))
                 .forEach(es -> {
-                    putOutputType(genStockOutputKey(s, es.getKey()), es.getValue().getClass());
+                    putOutputType(genStockOutputKey(s, es.getKey()), es.getValue().getClass(), STOCK_PROP_SECTION);
                 });
         });
 
@@ -114,6 +126,8 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
         counter = getCounter(context, CountersEnum.MERGE_REDUCER_COUNT);
         dayInCounter = getCounter(context, CountersEnum.MERGE_REDUCER_GROUP_IN_COUNT);
         dayOutCounter = getCounter(context, CountersEnum.MERGE_REDUCER_GROUP_OUT_COUNT);
+
+        mos = new MultipleOutputs<>(context);
     }
 
     private String genStockOutputKey(String id, String property) {
@@ -140,13 +154,15 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
         inCount.ifPresent(count -> {
             if (count == 0) {
                 Configuration conf = context.getConfiguration();
-                // get dates from crime/nasdaq/sp500/dowjones/weather section, they are all the same
                 getTagStrings(conf, ALT_SECTION).forEach(tagLine -> {
-                    try {
-                        context.write(DateWritable.COMMENT_KEY, new Text(tagLine));
-                    } catch (IOException | InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    List.of(CRIME_WEATHER_STOCK, CRIME_WEATHER, CRIME_STOCK)
+                        .forEach(s -> {
+                            try {
+                                write(mos, s, DateWritable.COMMENT_KEY, new Text(tagLine), s);
+                            } catch (IOException | InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        });
                 });
             }
         });
@@ -175,11 +191,15 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
         // reduce weather to daily averages
         Map<String, Object> weatherMap = WeatherReducer.reduceToAverages(weatherList, counter);
 
-        // add weather and crime to single output map
-        Map<String, Object> entryMap = new TreeMap<>(crimeMap);
-        entryMap.putAll(weatherMap);
+        Map<String, Object> crimeWeatherStockMap = new TreeMap<>(crimeMap);
+        Map<String, Object> crimeWeatherMap = new TreeMap<>(crimeMap);
+        Map<String, Object> crimeStockMap = new TreeMap<>(crimeMap);
 
-        // Note: no stock data for non-working data
+        // add weather output to maps requiring it
+        crimeWeatherStockMap.putAll(weatherMap);
+        crimeWeatherMap.putAll(weatherMap);
+
+        // Note: no stock data for non-working day
 
         // combine stocks to single map
         Map<String, Object> stockMap = new HashMap<>();
@@ -195,39 +215,55 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
         // key is date, use epoch day as ValueCache key
         Long cacheKey = key.getLocalDate().toEpochDay();
 
-        Triple<Long, Map<String, Object>, Pair<DateWritable, Map<String, Object>>> cacheResult;
-        List<Triple<DateWritable, Map<String, Object>, Map<String, Object>>> toWrite = new ArrayList<>();
+        Triple<Long, Map<String, Object>, List<MultipleOutputsWriteEntry<DateWritable, Map<String, Object>>>> cacheResult;
+        List<MultipleOutputsWriteEntry<DateWritable, Map<String, Object>>> toWrite = new ArrayList<>();
+
+        // will always have
+        toWrite.add(MultipleOutputsWriteEntry.ofNamedBase(CRIME_WEATHER, key, crimeWeatherMap));
 
         if (stockMap.size() == 0) {
-            // missing stock info, so add to required cache
-            cacheResult = cache.addRequired(cacheKey, Pair.of(key, entryMap));
+            // missing stock info, so add what we have to required cache
+            // Note: make sure to use a copy of the key in the cache, hadoop reuses the one it passes in!!
+            List<MultipleOutputsWriteEntry<DateWritable, Map<String, Object>>> toCache = List.of(
+                MultipleOutputsWriteEntry.ofNamedBase(CRIME_WEATHER_STOCK, key.copyOf(), crimeWeatherStockMap),
+                MultipleOutputsWriteEntry.ofNamedBase(CRIME_STOCK, key.copyOf(), crimeStockMap));
+            cacheResult = cache.addRequired(cacheKey, toCache);
+
             if (cacheResult != null) {
                 // required data was already in cache
-                toWrite.add(Triple.of(key, cacheResult.getMiddle(), entryMap));
+                toCache.forEach(we -> {
+                    we.getValue().putAll(cacheResult.getMiddle());
+                    toWrite.add(we);
+                });
             }
         } else {
-            toWrite.add(Triple.of(key, stockMap, entryMap));
+            List.of(Pair.of(CRIME_WEATHER_STOCK, crimeWeatherStockMap),
+                    Pair.of(CRIME_STOCK, crimeStockMap))
+                .forEach(pair -> {
+                    pair.getRight().putAll(stockMap);
+                    toWrite.add(MultipleOutputsWriteEntry.ofNamedBase(pair.getLeft(), key, pair.getRight()));
+                });
 
             cacheResult = cache.addCache(cacheKey, stockMap);
             if (cacheResult != null) {
                 // this data was previously required, so have 2 writes to do
-                Pair<DateWritable, Map<String, Object>> required = cacheResult.getRight();
-                toWrite.add(Triple.of(required.getLeft(), cacheResult.getMiddle(), required.getRight()));
+                cacheResult.getRight().forEach(we -> {
+                    we.getValue().putAll(cacheResult.getMiddle());
+                    toWrite.add(we);
+                });
             }
         }
 
         writeOutput(toWrite, context);
     }
 
-    protected void writeOutputEntry(Triple<DateWritable, Map<String, Object>, Map<String, Object>> toWrite, Context context) {
-
-        Map<String, Object> outMap = new TreeMap<>(toWrite.getMiddle());
-        outMap.putAll(toWrite.getRight());
+    protected void writeOutputEntry(MultipleOutputsWriteEntry<DateWritable, Map<String, Object>> toWrite, Context context) {
 
         // create value string of <property>:<value> separated by ','
         // e.g. 2001-01-01	01A:2, 02:87, 03:41, 04A:28, 04B:44, 05:66, 06:413, 07:60, 08A:43, 08B:252, 10:12, 11:73, 12:7, 14:233, 15:32, 16:5, 17:68, 18:89, 19:2, 20:44, 22:3, 24:4, 26:211, total:1819
         try {
-            write(context, toWrite.getLeft(), new Text(MAP_STRINGIFIER.stringify(outMap)));
+            write(mos, toWrite.getNamedOutput(), toWrite.getKey(),
+                new Text(MAP_STRINGIFIER.stringify(toWrite.getValue())), toWrite.getBaseOutputPath());
 
             dayOutCounter.increment();
         } catch (IOException | InterruptedException e) {
@@ -235,7 +271,7 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
         }
     }
 
-    protected void writeOutput(List<Triple<DateWritable, Map<String, Object>, Map<String, Object>>> toWrite, Context context) {
+    protected void writeOutput(List<MultipleOutputsWriteEntry<DateWritable, Map<String, Object>>> toWrite, Context context) {
         toWrite.forEach(t -> writeOutputEntry(t, context));
     }
 
@@ -243,15 +279,27 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
 
-        setSection(ALT_SECTION);    // just for type output
-        saveOutputTypes(context,this, this);
-
         if (context.getProgress() == 1.0) {
 
+            // save output types
+            formatOutputTypes(this).forEach(s -> {
+                try {
+                    write(mos, TYPES_NAMED_OP, DateWritable.COMMENT_KEY, new Text(s));
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                }
+            });
+
+            // save incomplete entries using min entry in value cache
             // anything added here will end up at the end of the output so not necessarily in chronological order
             cache.getRequiredAsMin().stream()
-                .map(t -> Triple.of(getOutKey(t.getLeft()), t.getMiddle(), t.getRight().getRight()))
-                .forEach(t -> writeOutputEntry(t, context));
+                .map(t -> {
+                    t.getRight().forEach(we -> we.getValue().putAll(t.getMiddle()));
+                    return t.getRight();
+                })
+                .forEach(t -> writeOutput(t, context));
+
+            dayOutCounter.getCount().ifPresent(c -> dayOutCounter.setValue(c / MERGE_SECTIONS.size()));
 
             Optional<Long> inCount = dayInCounter.getCount();
             Optional<Long> outCount = dayOutCounter.getCount();
@@ -264,10 +312,12 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
                 });
             });
         }
+
+        mos.close();
     }
 
     @Override
-    public Map<String, Class<?>> getOutputTypeMap() {
+    public Map<String, OpTypeEntry> getOutputTypeMap() {
         return categorySet;
     }
 
@@ -285,4 +335,5 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
     protected Text newValue(String value) {
         return new Text(value);
     }
+
 }

@@ -24,8 +24,10 @@
 package ie.ibuttimer.dia_crime;
 
 import ie.ibuttimer.dia_crime.hadoop.ITagger;
+import ie.ibuttimer.dia_crime.hadoop.merge.MergeReducer;
 import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.hadoop.normalise.NormaliseMapper;
+import ie.ibuttimer.dia_crime.hadoop.normalise.NormalisePartitioner;
 import ie.ibuttimer.dia_crime.hadoop.normalise.NormaliseReducer;
 import ie.ibuttimer.dia_crime.hadoop.regression.RegressionWritable;
 import org.apache.commons.lang3.tuple.Pair;
@@ -36,6 +38,7 @@ import org.apache.log4j.Logger;
 
 import java.util.*;
 
+import static ie.ibuttimer.dia_crime.hadoop.merge.MergeReducer.CRIME_WEATHER_STOCK;
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 
 /**
@@ -68,13 +71,27 @@ public class NormaliseDriver extends AbstractDriver implements ITagger {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == ECODE_SUCCESS) {
-            Map<String, SectionCfg> sections = new HashMap<>();
+            Map<String, InputCfg> ipSections = new HashMap<>();
+            Map<String, OutputCfg> opSections = new HashMap<>();
 
-            sections.put(NORMALISE_PROP_SECTION, SectionCfg.of(NormaliseMapper.class));
+            ipSections.put(makeSubSectionKey(NORMALISE_PROP_SECTION, CSW_IN_PATH_PROP),
+                InputCfg.of(NormaliseMapper.CwsNormaliseMapper.class, CSW_IN_PATH_PROP));
+            ipSections.put(makeSubSectionKey(NORMALISE_PROP_SECTION, CS_IN_PATH_PROP),
+                InputCfg.of(NormaliseMapper.CsNormaliseMapper.class, CS_IN_PATH_PROP));
+            ipSections.put(makeSubSectionKey(NORMALISE_PROP_SECTION, CW_IN_PATH_PROP),
+                InputCfg.of(NormaliseMapper.CwNormaliseMapper.class, CW_IN_PATH_PROP));
 
-            job = initJob("Normalise", conf, sections);
+            opSections.put(makeSubSectionKey(NORMALISE_PROP_SECTION, CRIME_WEATHER_STOCK),
+                    OutputCfg.of(TYPES_NAMED_OP, DateWritable.class, Text.class));
+
+            job = initJob("Normalise", conf, ipSections, opSections);
 
             job.setReducerClass(NormaliseReducer.class);
+
+            // Creates reduce instances
+            job.setNumReduceTasks(MergeReducer.MERGE_SECTIONS.size());
+            // Set the partitioner class
+            job.setPartitionerClass(NormalisePartitioner.class);
 
             job.setMapOutputKeyClass(DateWritable.class);
             job.setMapOutputValueClass(RegressionWritable.class);

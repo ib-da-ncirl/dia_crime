@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.misc.DebugLevel;
 import ie.ibuttimer.dia_crime.misc.IPropertyWrangler;
+import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
@@ -36,6 +37,8 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.log4j.Logger;
 
 import java.util.*;
@@ -58,11 +61,19 @@ public abstract class AbstractDriver {
         return app;
     }
 
-
+    /**
+     * Initialise a job
+     * @param name      Job name
+     * @param conf      Job configuration
+     * @param inputs    Job inputs
+     * @param outputs   Job outputs
+     * @return
+     * @throws Exception
+     */
     public Job initJob(String name, Configuration conf,
-                       Map<String, SectionCfg> sections) throws Exception {
+                       Map<String, InputCfg> inputs, Map<String, OutputCfg> outputs) throws Exception {
 
-        if (sections.size() == 0) {
+        if (inputs.size() == 0) {
             throw new IllegalArgumentException("No sections specified");
         }
 
@@ -73,18 +84,23 @@ public abstract class AbstractDriver {
         PropertyWrangler propertyWrangler = new PropertyWrangler();
 
         String outPath = null;
-        if (sections.size() > 1) {
+        if (inputs.size() > 1) {
             // multiple inputs
             Map<String, String> outputPaths = new HashMap<>();
-            sections.forEach((section, cfg) -> {
-                propertyWrangler.setRoot(section);
+            inputs.forEach((section, cfg) -> {
+
+                if (isSubSectionKey(section)) {
+                    propertyWrangler.setRoot(getSubSection(section).getLeft());
+                } else {
+                    propertyWrangler.setRoot(section);
+                }
 
                 String inPathProp = propertyWrangler.getPropertyPath(cfg.inPath);
                 String inPath = conf.get(inPathProp);
                 MultipleInputs.addInputPath(job,
                     new Path(inPath), TextInputFormat.class, cfg.mapper);
 
-                if (!cfg.inPath.equals(SectionCfg.DEFAULT_IN_PATH)) {
+                if (!cfg.inPath.equals(InputCfg.DEFAULT_IN_PATH)) {
                     if (DebugLevel.getSetting(conf, section).showMe(DebugLevel.HIGH)) {
                         getLogger().info(String.format("!! Non-standard mapper input path: %s - [%s] %s",
                             inPathProp, inPath, cfg.mapper.getSimpleName()));
@@ -105,10 +121,10 @@ public abstract class AbstractDriver {
                 }
             }
         } else {
-            assert sections.size() == 1;
+            assert inputs.size() == 1;
 
             AtomicReference<String> singleOutPath = new AtomicReference<>();
-            sections.forEach((section, cfg) -> {
+            inputs.forEach((section, cfg) -> {
                 propertyWrangler.setRoot(section);
                 singleOutPath.set(conf.get(propertyWrangler.getPropertyPath(OUT_PATH_PROP)));
 
@@ -122,11 +138,27 @@ public abstract class AbstractDriver {
         if (outPath != null) {
             FileOutputFormat.setOutputPath(job, new Path(outPath));
         } else {
-            // TODO MultipleOutputs
+            // TODO multiple output paths
             throw new UnsupportedOperationException("Multiple output path not currently supported");
         }
 
+        outputs.forEach((section, cfg) -> {
+            MultipleOutputs.addNamedOutput(job, cfg.namedOutput, TextOutputFormat.class, cfg.keyClass, cfg.valueClass);
+        });
+
         return job;
+    }
+
+    /**
+     * Initialise a single output job
+     * @param name      Job name
+     * @param conf      Job configuration
+     * @param inputs    Job inputs
+     * @return
+     * @throws Exception
+     */
+    public Job initJob(String name, Configuration conf, Map<String, InputCfg> inputs) throws Exception {
+        return initJob(name, conf, inputs, Collections.emptyMap());
     }
 
     /**
@@ -166,7 +198,8 @@ public abstract class AbstractDriver {
     }
 
     protected void setMultipleInputsInputPath(Job job, String section,
-                  Map<String, Pair<Integer, Configuration>> configs, Map<String, Class<? extends Mapper>> sections) {
+                                                Map<String, Pair<Integer, Configuration>> configs,
+                                                Map<String, Class<? extends Mapper<?,?,?,?>>> sections) {
 
         if (configs.containsKey(section)) {
             Configuration conf = configs.get(section).getRight();
@@ -177,7 +210,8 @@ public abstract class AbstractDriver {
     }
 
     protected void setAllMultipleInputsInputPath(Job job,
-                  Map<String, Pair<Integer, Configuration>> configs, Map<String, Class<? extends Mapper>> sections) {
+                                                Map<String, Pair<Integer, Configuration>> configs,
+                                                 Map<String, Class<? extends Mapper<?,?,?,?>>> sections) {
 
         configs.forEach((section, value) -> {
             Configuration conf = configs.get(section).getRight();
@@ -206,9 +240,23 @@ public abstract class AbstractDriver {
         updateConfiguration(conf, setting, value, DebugLevel.getSetting(conf, wrangler).showMe(DebugLevel.HIGH));
     }
 
+    protected String makeSubSectionKey(String section, String sub) {
+        return MapStringifier.elementStringifier().stringifyElement(section, sub);
+    }
+
+    protected boolean isSubSectionKey(String section) {
+        return MapStringifier.elementStringifier().isElementified(section);
+    }
+
+    protected Pair<String, String> getSubSection(String section) {
+        return MapStringifier.elementStringifier().destringifyElement(section);
+    }
 
     protected abstract Logger getLogger();
 
+    /**
+     * Job configuration object
+     */
     public static class JobConfig {
 
         Properties properties;
@@ -234,25 +282,46 @@ public abstract class AbstractDriver {
         }
     }
 
-    public static class SectionCfg {
+    /**
+     * Input configuration object
+     */
+    public static class InputCfg {
 
         static final String DEFAULT_IN_PATH = IN_PATH_PROP;
 
         Class<? extends Mapper<?, ?, ?, ?>> mapper;
         String inPath;  // in path property name
 
-        public SectionCfg(Class<? extends Mapper<?, ?, ?, ?>> mapper, String inPath) {
+        public InputCfg(Class<? extends Mapper<?, ?, ?, ?>> mapper, String inPath) {
             this.mapper = mapper;
             this.inPath = inPath;
         }
 
-        static SectionCfg of(Class<? extends Mapper<?, ?, ?, ?>> mapper, String inPath) {
-            return new SectionCfg(mapper, inPath);
+        static InputCfg of(Class<? extends Mapper<?, ?, ?, ?>> mapper, String inPath) {
+            return new InputCfg(mapper, inPath);
         }
 
-        static SectionCfg of(Class<? extends Mapper<?, ?, ?, ?>> mapper) {
-            return new SectionCfg(mapper, DEFAULT_IN_PATH);
+        static InputCfg of(Class<? extends Mapper<?, ?, ?, ?>> mapper) {
+            return new InputCfg(mapper, DEFAULT_IN_PATH);
         }
     }
 
+    /**
+     * Output configuration object
+     */
+    public static class OutputCfg {
+
+        String namedOutput;
+        Class<?> keyClass;
+        Class<?> valueClass;
+
+        public OutputCfg(String namedOutput, Class<?> keyClass, Class<?> valueClass) {
+            this.namedOutput = namedOutput;
+            this.keyClass = keyClass;
+            this.valueClass = valueClass;
+        }
+        public static OutputCfg of (String namedOutput, Class<?> keyClass, Class<?> valueClass) {
+            return new OutputCfg(namedOutput, keyClass, valueClass);
+        }
+    }
 }

@@ -36,7 +36,6 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.log4j.Logger;
 
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
@@ -61,6 +60,7 @@ public class StockDriver extends AbstractDriver {
         return new StockDriver(app);
     }
 
+    /** section lists for stock: main section and supplementary */
     public static Pair<List<String>, List<String>> getSectionLists() {
         // List<String> sections, List<String> commonSection
         return Pair.of(STOCK_SECTIONS, Collections.singletonList(STOCK_PROP_SECTION));
@@ -83,15 +83,15 @@ public class StockDriver extends AbstractDriver {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, SectionCfg> sections = new HashMap<>();
+            Map<String, InputCfg> ipSections = new HashMap<>();
 
             addStockSpecificsToConfig(conf);
 
-            sections.put(NASDAQ_PROP_SECTION, SectionCfg.of(NasdaqStockMapper.class));
-            sections.put(DOWJONES_PROP_SECTION, SectionCfg.of(DowJonesStockMapper.class));
-            sections.put(SP500_PROP_SECTION, SectionCfg.of(SP500StockMapper.class));
+            ipSections.put(NASDAQ_PROP_SECTION, InputCfg.of(NasdaqStockMapper.class));
+            ipSections.put(DOWJONES_PROP_SECTION, InputCfg.of(DowJonesStockMapper.class));
+            ipSections.put(SP500_PROP_SECTION, InputCfg.of(SP500StockMapper.class));
 
-            job = initJob("Stocks", conf, sections);
+            job = initJob("Stocks", conf, ipSections);
 
             job.setReducerClass(StockReducer.class);
 

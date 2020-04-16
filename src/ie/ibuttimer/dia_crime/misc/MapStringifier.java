@@ -126,6 +126,10 @@ public class MapStringifier {
             return field+separator+value;
         }
 
+        public boolean isElementified(String element) {
+            return element.contains(separator);
+        }
+
         public Pair<String, String> destringifyElement(String element) {
             Pair<String, String> result;
             String[] splits = element.split(regex);

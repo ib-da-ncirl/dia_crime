@@ -32,7 +32,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.log4j.Logger;
 
 import java.util.*;
@@ -68,13 +67,13 @@ public class MatrixDriver extends AbstractDriver {
         int resultCode = readConfigs(conf, properties, sectionLists.getLeft(), sectionLists.getRight());
 
         if (resultCode == Constants.ECODE_SUCCESS) {
-            Map<String, SectionCfg> sections = new HashMap<>();
+            Map<String, InputCfg> ipSections = new HashMap<>();
             Map<String, String> tags = new HashMap<>();
 
-            sections.put(MATRIX_PROP_1_SECTION, SectionCfg.of(MatrixMapper.MatrixMapper1.class));
-            sections.put(MATRIX_PROP_2_SECTION, SectionCfg.of(MatrixMapper.MatrixMapper2.class));
+            ipSections.put(MATRIX_PROP_1_SECTION, InputCfg.of(MatrixMapper.MatrixMapper1.class));
+            ipSections.put(MATRIX_PROP_2_SECTION, InputCfg.of(MatrixMapper.MatrixMapper2.class));
 
-            job = initJob("Matrix", conf, sections);
+            job = initJob("Matrix", conf, ipSections);
 
             job.setReducerClass(MatrixReducer.class);
 

@@ -26,6 +26,7 @@ package ie.ibuttimer.dia_crime.hadoop.regression;
 import ie.ibuttimer.dia_crime.hadoop.AbstractCsvMapper;
 import ie.ibuttimer.dia_crime.hadoop.ICsvMapperCfg;
 import ie.ibuttimer.dia_crime.hadoop.ITagger;
+import ie.ibuttimer.dia_crime.hadoop.crime.IOutputType;
 import ie.ibuttimer.dia_crime.hadoop.io.FileReader;
 import ie.ibuttimer.dia_crime.hadoop.stats.NameTag;
 import ie.ibuttimer.dia_crime.hadoop.stats.StatsConfigReader;
@@ -63,7 +64,7 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
     protected String dependent;
     protected List<String> allVariables;
 
-    protected Map<String, Class<?>> outputTypes;
+    protected Map<String, IOutputType.OpTypeEntry> outputTypes;
 
     protected Map<String, Double> counts;
 
@@ -221,7 +222,7 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
             .filter(es -> allVariables.stream().anyMatch(v -> v.equals(es.getKey())))
             .forEach(es -> {
                 String name = es.getKey();
-                Class<?> cls = es.getValue();
+                Class<?> cls = es.getValue().getCls();
                 String readValue = map.getOrDefault(name, Value.getDefaultValueStr(cls));
 
                 Value wrapped = Value.of(readValue, cls, getDateTimeFormatter(), getLogger());

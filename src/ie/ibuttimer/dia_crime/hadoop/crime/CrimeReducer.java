@@ -25,19 +25,18 @@ package ie.ibuttimer.dia_crime.hadoop.crime;
 
 import ie.ibuttimer.dia_crime.hadoop.AbstractReducer;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
-import ie.ibuttimer.dia_crime.hadoop.io.FileUtil;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
-import ie.ibuttimer.dia_crime.misc.PropertyWrangler;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
@@ -52,7 +51,9 @@ import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
  */
 public class CrimeReducer extends AbstractReducer<DateWritable, MapWritable, DateWritable, Text> implements IOutputType {
 
-    private Map<String, Class<?>> outputTypes;
+    private Map<String, OpTypeEntry> outputTypes;
+
+    private MultipleOutputs<DateWritable, Text> mos;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -61,6 +62,8 @@ public class CrimeReducer extends AbstractReducer<DateWritable, MapWritable, Dat
         super.setup(context);
         setLogger(getClass());
         outputTypes = newOutputTypeMap();
+
+        mos = new MultipleOutputs<>(context);
     }
 
     /**
@@ -90,7 +93,21 @@ public class CrimeReducer extends AbstractReducer<DateWritable, MapWritable, Dat
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
-        saveOutputTypes(context,this, this);
+
+        if (context.getProgress() == 1.0) {
+
+            formatOutputTypes(this).forEach(s -> {
+                try {
+                    write(mos, TYPES_NAMED_OP, DateWritable.COMMENT_KEY, new Text(s));
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                }
+            });
+        } else {
+            getLogger().info("Skipping generation of output types file, job incomplete: " + context.getProgress());
+        }
+
+        mos.close();
     }
 
     /**
@@ -113,7 +130,7 @@ public class CrimeReducer extends AbstractReducer<DateWritable, MapWritable, Dat
                 counts.put(category, 0);
 
                 // add category to output name/type info
-                reducer.putOutputType(category, Integer.class);
+                reducer.putOutputType(category, Integer.class, CRIME_PROP_SECTION);
             }
             counts.put(category, counts.get(category) + 1);
 
@@ -133,53 +150,27 @@ public class CrimeReducer extends AbstractReducer<DateWritable, MapWritable, Dat
         map.put(TOTAL_PROP, total);
 
         // add total to output name/type info
-        reducer.putOutputType(TOTAL_PROP, Integer.class);
+        reducer.putOutputType(TOTAL_PROP, Integer.class, CRIME_PROP_SECTION);
 
         return map;
     }
 
     /**
-     * Save the types of the crime properties to file
-     * @param context
+     * Format the types of the properties for saving
      * @param otProduce
-     * @param reducer
      */
-    public static void saveOutputTypes(Reducer<?,?,?,?>.Context context, IOutputType otProduce,
-                                       AbstractReducer<?,?,?,?> reducer) {
-        // TODO check this in case of multiple reducers
-        if (context.getProgress() == 1.0) {
-            Configuration conf = context.getConfiguration();
-            String ls = System.getProperty("line.separator");
-            PropertyWrangler propertyWrangler = new PropertyWrangler(reducer.getSection());
-            Map<String,Class<?>> outputTypes = otProduce.getOutputTypeMap();
+    public static List<String> formatOutputTypes(IOutputType otProduce) {
 
-            Path outDir = new Path(conf.get(propertyWrangler.getPropertyPath(OUT_PATH_PROP)));
-            String outPath = conf.get(OUTPUTTYPES_FILE_PROP, "output_types.txt");
-            FileUtil fileUtil = new FileUtil(outDir, conf);
+        Map<String, OpTypeEntry> outputTypes = otProduce.getOutputTypeMap();
 
-            try (FSDataOutputStream stream = fileUtil.fileWriteOpen(outPath, true)) {
-                StringBuilder sb = new StringBuilder();
-                outputTypes.entrySet().stream()
-                    .sorted(Map.Entry.comparingByKey())
-                    .map(e -> e.getKey() + "," + e.getValue().getSimpleName() + ls)
-                    .forEach(sb::append);
-                fileUtil.write(stream, sb.toString());
-            } catch (IOException ioe) {
-                reducer.getLogger().warn("Unable to output categories file", ioe);
-            } finally {
-                try {
-                    fileUtil.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        } else {
-            reducer.getLogger().info("Skipping generation of output types file, job incomplete: " + context.getProgress());
-        }
+        return outputTypes.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .map(e -> e.getKey() + "," + e.getValue().getCls().getSimpleName() + "," + e.getValue().getSrc())
+            .collect(Collectors.toList());
     }
 
     @Override
-    public Map<String, Class<?>> getOutputTypeMap() {
+    public Map<String, OpTypeEntry> getOutputTypeMap() {
         return outputTypes;
     }
 
@@ -194,35 +185,3 @@ public class CrimeReducer extends AbstractReducer<DateWritable, MapWritable, Dat
     }
 }
 
-
-// attempt at combiner version but leave for now
-//public class CrimeReducer extends Reducer<Text, SortedMapWritable<Text>, Text, Text> {
-//
-//    /**
-//     * Reduce the values for a key
-//     * @param key       Key value; date string
-//     * @param values    Values for the specified key
-//     * @param context   Current context
-//     * @throws IOException
-//     * @throws InterruptedException
-//     */
-//    @Override
-//    protected void reduce(Text key, Iterable<SortedMapWritable<Text>> values, Context context) throws IOException, InterruptedException {
-//
-//        // create value string of <category>:<count> separated by ',' with <total>:<count> at the end
-//        // e.g. 2001-01-01	01A:2, 02:87, 03:41, 04A:28, 04B:44, 05:66, 06:413, 07:60, 08A:43, 08B:252, 10:12, 11:73, 12:7, 14:233, 15:32, 16:5, 17:68, 18:89, 19:2, 20:44, 22:3, 24:4, 26:211, total:1819
-//        StringBuffer sb = new StringBuffer();
-//        for (SortedMapWritable<Text> category : values) {
-//            for (Map.Entry<Text, Writable> entry : category.entrySet()) {
-//                if (sb.length() > 0) {
-//                    sb.append(", ");
-//                }
-//                sb.append(entry.getKey().toString())
-//                        .append(":")
-//                        .append(entry.getValue());
-//            }
-//        }
-//
-//        context.write(key, new Text(sb.toString()));
-//    }
-//}
