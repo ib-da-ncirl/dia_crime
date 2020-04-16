@@ -34,6 +34,7 @@ import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -136,6 +137,14 @@ public abstract class AbstractWeatherMapper<VO> extends AbstractCsvMapper<DateWr
     protected abstract void writeOutput(Context context, DateWritable key, WeatherWritable value) throws IOException, InterruptedException;
 
     private static ICsvMapperCfg sCfgChk = new AbstractCsvMapperCfg(WEATHER_PROP_SECTION) {
+
+        @Override
+        public List<Property> getAdditionalProps() {
+            List<Property> list = new ArrayList<>(super.getAdditionalProps());
+            list.add(Property.of(WIDS_PATH_PROP, "path to weather ids input file", ""));
+            return list;
+        }
+
         @Override
         public List<String> getPropertyIndices() {
             return WEATHER_PROPERTY_INDICES;

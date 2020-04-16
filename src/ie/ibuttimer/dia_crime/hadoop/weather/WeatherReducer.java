@@ -28,18 +28,17 @@ import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.misc.DateWritable;
 import ie.ibuttimer.dia_crime.misc.Counter;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 
 import java.io.IOException;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static ie.ibuttimer.dia_crime.misc.Constants.WEATHER_ID_NAMED_OP;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
 import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
 
@@ -51,6 +50,19 @@ import static ie.ibuttimer.dia_crime.misc.Utils.iterableOfMapsToList;
  * - output value : value string of <field>:<value> separated by ','
  */
 public class WeatherReducer extends AbstractReducer<DateWritable, MapWritable, DateWritable, Text> {
+
+    protected static Set<Integer> weatherIDs;
+
+    private MultipleOutputs<DateWritable, Text> mos;
+
+    @Override
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+
+        weatherIDs = new HashSet<>();
+
+        mos = new MultipleOutputs<>(context);
+    }
 
     /**
      * Reduce the values for a key
@@ -89,7 +101,14 @@ public class WeatherReducer extends AbstractReducer<DateWritable, MapWritable, D
         AtomicInteger total = new AtomicInteger();
         Counter<Integer, Triple<Integer, String, String>> descCounter = new Counter<>();
 
+        if (weatherIDs == null) {
+            // being called from another reducer, so just create a local variable
+            weatherIDs = new HashSet<>();
+        }
+
         values.forEach(weather -> {
+            weatherIDs.add(weather.getWeatherId());
+
             Triple<Integer, String, String> toCount =
                 Triple.of(weather.getWeatherId(), weather.getWeatherMain(), weather.getWeatherDescription());
             descCounter.inc(toCount.getLeft(), toCount);
@@ -121,6 +140,27 @@ public class WeatherReducer extends AbstractReducer<DateWritable, MapWritable, D
         });
 
         return avgCalc.toMap();
+    }
+
+    @Override
+    protected void cleanup(Context context) throws IOException, InterruptedException {
+        super.cleanup(context);
+
+        if (context.getProgress() == 1.0) {
+            AtomicInteger count = new AtomicInteger(0);
+            weatherIDs.stream()
+                .sorted()
+                .forEach(wid -> {
+                    try {
+                        String op = wid + "," + count.getAndIncrement();
+                        write(mos, WEATHER_ID_NAMED_OP, DateWritable.COMMENT_KEY, new Text(op));
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                });
+        }
+
+        mos.close();
     }
 
     @Override

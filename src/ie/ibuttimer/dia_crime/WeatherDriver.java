@@ -68,11 +68,14 @@ public class WeatherDriver extends AbstractDriver {
 
         if (resultCode == Constants.ECODE_SUCCESS) {
             Map<String, InputCfg> ipSections = new HashMap<>();
-            Map<String, String> tags = new HashMap<>();
+            Map<String, OutputCfg> opSections = new HashMap<>();
 
             ipSections.put(WEATHER_PROP_SECTION, InputCfg.of(WeatherMapper.class));
 
-            job = initJob("Weather", conf, ipSections);
+            opSections.put(WEATHER_PROP_SECTION,
+                OutputCfg.of(WEATHER_ID_NAMED_OP, DateWritable.class, Text.class));
+
+            job = initJob("Weather", conf, ipSections, opSections);
 
             job.setReducerClass(WeatherReducer.class);
 

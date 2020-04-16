@@ -87,6 +87,8 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
     private Counters.ReducerCounter dayInCounter;
     private Counters.ReducerCounter dayOutCounter;
 
+    private Map<Integer, Integer> widsMap;
+
     private MultipleOutputs<DateWritable, Text> mos;
 
     public MergeReducer() {
@@ -117,6 +119,14 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
                     putOutputType(genStockOutputKey(s, es.getKey()), es.getValue().getClass(), STOCK_PROP_SECTION);
                 });
         });
+
+        // read weather ids and store in map with id as key and ordinal conversion as value
+        cfgReader.setSection(WEATHER_PROP_SECTION);
+        List<List<String>> widsList = cfgReader.readCommaSeparatedFile(conf, WIDS_PATH_PROP);
+        widsMap = new HashMap<>();
+        widsList.stream()
+            .filter(list -> list.size() == 2)
+            .forEach(list -> widsMap.put(Integer.parseInt(list.get(0)), Integer.parseInt(list.get(1))));
 
         /* set date time formatter for output key, could use any weather/crime/stock section */
         cfgReader.setSection(WEATHER_PROP_SECTION);
@@ -177,7 +187,10 @@ public class MergeReducer extends AbstractReducer<DateWritable, CSWWrapperWritab
             if (iter_value.getCrime() != null) {
                 crimeList.add(iter_value.getCrime());
             } else if (iter_value.getWeather() != null) {
-                weatherList.add(iter_value.getWeather());
+                WeatherWritable weather = iter_value.getWeather();
+                // convert the weather id to its corresponding ordinal
+                weather.setWeatherId(widsMap.get(weather.getWeatherId()));
+                weatherList.add(weather);
             } else if (iter_value.getStock() != null) {
                 stockList.add(iter_value.getStock());
             } else {

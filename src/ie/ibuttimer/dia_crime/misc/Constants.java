@@ -118,6 +118,8 @@ public class Constants {
     public static final String WEATHER_MAIN_PROP = "weather_main";
     public static final String WEATHER_DESC_PROP = "weather_description";
 
+    public static final String WIDS_PATH_PROP = "wids_path";  // path for weather ids file (for input)
+
     // regression specific properties
     public static final String INDEPENDENTS_PROP = "independents";
     public static final String DEPENDENT_PROP = "dependent";
@@ -158,6 +160,7 @@ public class Constants {
 
 
     public static final String TYPES_NAMED_OP = "types";
+    public static final String WEATHER_ID_NAMED_OP = "wids";
 
 
     public static final int ECODE_CONFIG_ERROR = -1;

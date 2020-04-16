@@ -156,9 +156,10 @@ public class ConfigReader implements IPropertyWrangler {
     }
 
     /**
-     * Read a list of type classes from file
+     * Read a list of type classes from a Hadoop output file
+     * e.g. '#	01A,Double,crime'
      * @param conf
-     * @param property  Property containing path to fie to read
+     * @param property  Property containing path to file to read
      * @param classes
      * @return
      */
@@ -199,6 +200,37 @@ public class ConfigReader implements IPropertyWrangler {
         }
         return outputTypes;
     }
+
+    /**
+     * Read a list of comma separated values from a Hadoop output file
+     * e.g. '#	300,0'
+     * @param conf
+     * @param property  Property containing path to file to read
+     * @return
+     */
+    public List<List<String>> readCommaSeparatedFile(Configuration conf, String property) {
+        String filePath = getConfigProperty(conf, property);
+
+        List<List<String>> entries = new ArrayList<>();
+        FileUtil fileUtil = new FileUtil(new Path(filePath), conf);
+
+        try (FSDataInputStream stream = fileUtil.fileReadOpen();
+             InputStreamReader inputStream = new InputStreamReader(stream, Charsets.UTF_8);
+             BufferedReader reader = new BufferedReader(inputStream)) {
+
+            entries = reader.lines()
+                .filter(l -> !TextUtils.isEmpty(l))
+                .map(l -> HADOOP_KEY_VAL.destringifyElement(l).getRight())
+                .map(l -> List.of(l.split(",")))
+                .collect(Collectors.toList());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return entries;
+    }
+
 
     /**
      * Read a date time formatter property
