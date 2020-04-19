@@ -41,6 +41,7 @@ import org.apache.log4j.Logger;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -52,6 +53,12 @@ import static ie.ibuttimer.dia_crime.misc.Constants.*;
 public abstract class AbstractDriver {
 
     private DiaCrimeMain app;
+
+    private final DateTimeFormatter timestampFmt = new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("uuuu-MM-dd_HH-mm-ss")
+        .toFormatter();
+
 
     public AbstractDriver(DiaCrimeMain app) {
         this.app = app;
@@ -252,13 +259,13 @@ public abstract class AbstractDriver {
         String propValue = conf.get(setting, "");
         int hash = propValue.hashCode();
         if (propValue.contains("<datetime>")) {
-            propValue = propValue.replace("<datetime>", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            propValue = propValue.replace("<datetime>", LocalDateTime.now().format(timestampFmt));
         }
         if (propValue.contains("<date>")) {
-            propValue = propValue.replace("<date>", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE));
+            propValue = propValue.replace("<date>", LocalDateTime.now().format(timestampFmt));
         }
         if (propValue.contains("<time>")) {
-            propValue = propValue.replace("<time>", LocalTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME));
+            propValue = propValue.replace("<time>", LocalTime.now().format(timestampFmt));
         }
         if (propValue.hashCode() != hash) {
             updateConfiguration(conf, setting, propValue, DebugLevel.getSetting(conf, wrangler).showMe(DebugLevel.HIGH));
@@ -284,13 +291,13 @@ public abstract class AbstractDriver {
         String propValue = properties.getProperty(setting, "");
         int hash = propValue.hashCode();
         if (propValue.contains("<datetime>")) {
-            propValue = propValue.replace("<datetime>", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            propValue = propValue.replace("<datetime>", LocalDateTime.now().format(timestampFmt));
         }
         if (propValue.contains("<date>")) {
-            propValue = propValue.replace("<date>", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE));
+            propValue = propValue.replace("<date>", LocalDateTime.now().format(timestampFmt));
         }
         if (propValue.contains("<time>")) {
-            propValue = propValue.replace("<time>", LocalTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME));
+            propValue = propValue.replace("<time>", LocalTime.now().format(timestampFmt));
         }
         if (propValue.hashCode() != hash) {
             updateProperties(properties, setting, propValue, true);
@@ -306,23 +313,27 @@ public abstract class AbstractDriver {
         Properties properties;
         boolean wait;
         boolean verbose;
+        String inPathRoot = "";
+        String outPathRoot = "";
 
-        private JobConfig(Properties properties) {
-            this(properties , true);
+        private JobConfig(Properties properties, String inPathRoot, String outPathRoot) {
+            this(properties , true, inPathRoot, outPathRoot);
         }
 
-        private JobConfig(Properties properties, boolean wait) {
+        private JobConfig(Properties properties, boolean wait, String inPathRoot, String outPathRoot) {
             this.properties = properties;
             this.wait = wait;
             this.verbose = true;
+            this.inPathRoot = inPathRoot;
+            this.outPathRoot = outPathRoot;
         }
 
-        public static JobConfig of(Properties properties, boolean wait) {
-            return new JobConfig(properties, wait);
+        public static JobConfig of(Properties properties, boolean wait, String inPathRoot, String outPathRoot) {
+            return new JobConfig(properties, wait, inPathRoot, outPathRoot);
         }
 
-        public static JobConfig of(Properties properties) {
-            return new JobConfig(properties);
+        public static JobConfig of(Properties properties, String inPathRoot, String outPathRoot) {
+            return new JobConfig(properties, inPathRoot, outPathRoot);
         }
     }
 
@@ -364,6 +375,7 @@ public abstract class AbstractDriver {
             this.keyClass = keyClass;
             this.valueClass = valueClass;
         }
+
         public static OutputCfg of (String namedOutput, Class<?> keyClass, Class<?> valueClass) {
             return new OutputCfg(namedOutput, keyClass, valueClass);
         }

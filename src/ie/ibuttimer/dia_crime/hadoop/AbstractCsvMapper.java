@@ -417,7 +417,7 @@ public abstract class AbstractCsvMapper<K, V> extends AbstractMapper<LongWritabl
                 if ((startDate != null) && (endDate != null)) {
                     Period period = Period.between(startDate, endDate.plusDays(1)); // start inclusive, end exclusive
                     if (period.isZero() || period.isNegative()) {
-                        errors.add("Error: '" + start + "' before '" + end + "'");
+                        errors.add("Error: '" + start + "' after '" + end + "'");
                         resultCode = ECODE_CONFIG_ERROR;
                     }
                 }

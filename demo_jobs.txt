@@ -1,0 +1,13 @@
+-j weather -c demo.properties;config.properties
+-j stocks -c demo.properties;config.properties
+-j crime -c demo.properties;config.properties
+-j merge -c demo.properties;config.properties;merge.properties
+-j stats -c demo.properties;config.properties;stats.properties
+-j normalise -c demo.properties;config.properties;normalise.properties
+
+-j linear_regression -c demo.properties;config.properties;regression.properties;cs_regression.properties
+-j verify_regression -c demo.properties;config.properties;regression.properties;verification.properties;cs_regression.properties
+
+#-j linear_regression -c demo.properties;config.properties;regression.properties;cw_regression.properties
+#-j verify_regression -c demo.properties;config.properties;regression.properties;verification.properties;cs_regression.properties
+

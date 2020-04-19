@@ -28,14 +28,15 @@ import com.google.common.util.concurrent.AtomicDouble;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class LinearRegressor {
 
     private Map<String, Double> coefficients;
-//    private double weight;
     private double bias;
-    private double learningRate;
+    private final double learningRate;
 
     public LinearRegressor(Map<String, Double> setting, double bias, double learningRate) {
         this.bias = bias;
@@ -52,18 +53,25 @@ public class LinearRegressor {
         coefficients.putAll(setting);
     }
 
+    public List<String> getMissingCoefficients(List<String> independents) {
+        return independents.stream()
+            .filter(i -> !coefficients.containsKey(i))
+            .collect(Collectors.toList());
+    }
 
-
-    /* cost function for mean squared error is:
-         MSE = 1/N * sum( (yi - ((weight * xi) + bias))^2 )
-     */
+    /* cost function for half mean squared error is:
+             MSE = 1/2N * sum( (yi - ((weight * xi) + bias))^2 )
+         */
     public double cost(double sqErrorSum, long count) {
-        return sqErrorSum / count;
+        return sqErrorSum / (2 * count);
     }
 
     public double predict(Map<String, Double> independents) {
         AtomicDouble sum = new AtomicDouble(bias);
         coefficients.forEach((key, value) -> {
+            if (!independents.containsKey(key)) {
+                throw new IllegalStateException("Missing value for independent variable '" + key + "'");
+            }
             sum.addAndGet(independents.get(key) * value);
         });
         return sum.get();
@@ -73,7 +81,7 @@ public class LinearRegressor {
         /* the error for one observation is:
             ei = (yi - ((weight * xi) + bias))
          */
-        return yi - predict(independents);
+        return predict(independents) - yi;
     }
 
     public double sqError(double ei) {
@@ -84,8 +92,8 @@ public class LinearRegressor {
     }
 
     /* the gradient of the cost function is:
-         f'(weight, bias) = [ 1/N * sum( -2 * xi * (yi - ((weight * xi) + bias)) ),
-                                1/N * sum( -2 * (yi - ((weight * xi) + bias) ) ]
+         f'(weight, bias) = [ 1/N * sum( xi * (((weight * xi) + bias) - yi) ),
+                                1/N * sum( (((weight * xi) + bias) - yi) ]
      */
 
     public Pair<Map<String, Double>, Double> calcUpdatedWeights(Map<String, Double> pdWeightSum, double pdBiasSum, long count) {
@@ -102,20 +110,20 @@ public class LinearRegressor {
 
     public Map<String, Double> partialDerivativeWeight(Map<String, Double> independents, double ei) {
         /* the partial derivative for weight is:
-             -2 * xi * (yi - ((weight * xi) + bias))
+             sum(xi * error) / N
          */
         Map<String, Double> pdWeight = new HashMap<>();
         independents.forEach((indo, value) -> {
-            pdWeight.put(indo, -2 * value * ei);
+            pdWeight.put(indo, value * ei);
         });
         return pdWeight;
     }
 
     public double partialDerivativeBias(double ei) {
-        /* the partial derivative for weight is:
-             -2 * (yi - ((weight * xi) + bias))
+        /* the partial derivative for bias is:
+             sum(error) / N
          */
-        return -2 * ei;
+        return ei;
     }
 
 
@@ -139,7 +147,7 @@ public class LinearRegressor {
      * @return
      */
     public double errorSum(double yi, double yhati) {
-        /* the SSR is:
+        /* the SSE is:
             sum((yi - yhati)^2)
          */
         return Math.pow(yi - yhati, 2);
@@ -152,7 +160,7 @@ public class LinearRegressor {
      * @return
      */
     public double totalSum(double yi, double ymean) {
-        /* the SSR is:
+        /* the SST is:
             sum((yi - ymean)^2)
          */
         return Math.pow(yi - ymean, 2);
@@ -180,11 +188,25 @@ public class LinearRegressor {
      */
     public double calcRBarSquared(double rSquared, long n, long k) {
         /* R bar squared is:
-            1 - ((n - 1)/(n-k-1)) * (1 - R squared)
+            1 - ((n - 1)/(n - k - 1)) * (1 - R squared)
          */
-        return 1 - (((double)(n - 1)/(n - k - 1)) * (1 - rSquared));
+        return 1 - ((((double)(n - 1))/(n - k - 1)) * (1 - rSquared));
     }
 
+
+    public double meanSquaredError(double sse, long n, long k) {
+        /* mean squared error is:
+            sse / (n - k - 1)
+         */
+        return (sse / (n - k - 1));
+    }
+
+    public double stdErrorOfRegression(double sse, long n, long k) {
+        /* standard error of regression is:
+            sqrt( sse / (n - k - 1) )
+         */
+        return Math.sqrt(meanSquaredError(sse, n, k));
+    }
 
 
 

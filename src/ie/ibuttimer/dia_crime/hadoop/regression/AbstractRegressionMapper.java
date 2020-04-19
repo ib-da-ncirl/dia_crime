@@ -264,13 +264,14 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
     protected static class RegressionMapperCfg extends AbstractCsvMapperCfg {
 
         private static final Property trainPathProp = Property.of(TRAIN_OUTPUT_PATH_PROP, "path to output training file", "");
+        private static final Property verifyPathProp = Property.of(VERIFY_OUTPUT_PATH_PROP, "path to output verification file", "");
         private static final Property indoProp = Property.of(INDEPENDENTS_PROP, "list of independent variables to use", "");
         private static final Property learningProp = Property.of(LEARNING_RATE_PROP, "learning rate to use for gradient descent", "");
         private static final Property weightProp = Property.of(WEIGHT_PROP, "weight for regression calculation", "");
         private static final Property biasProp = Property.of(BIAS_PROP, "bias for regression calculation", "");
 
-        private static final List<Property> required = List.of(trainPathProp, indoProp, learningProp,
-                                                                weightProp, biasProp);
+        private static final List<Property> notRequired = List.of(trainPathProp, verifyPathProp);
+        private static final List<Property> required = List.of(indoProp, learningProp, weightProp, biasProp);
 
         public RegressionMapperCfg(String propertyRoot) {
             super(propertyRoot);
@@ -278,7 +279,7 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
 
         @Override
         public List<Property> getAdditionalProps() {
-            List<Property> list = new ArrayList<>(required);
+            List<Property> list = new ArrayList<>(notRequired);
             list.addAll(getPropertyList(List.of(FACTOR_PROP)));
             return list;
         }
@@ -304,6 +305,7 @@ public abstract class AbstractRegressionMapper<K, R, V extends Writable> extends
             Map<String, Double> coefficients = (Map<String, Double>) settings.get(WEIGHT_PROP);
 
             if (coefficients.size() == 0) {
+                // read universal weight setting for all independents
                 String coeff = cfgReader.getConfigProperty(conf, WEIGHT_PROP);
                 try {
                     double setting = Double.parseDouble(coeff);

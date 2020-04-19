@@ -34,6 +34,7 @@ import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -120,22 +121,34 @@ public class FileReader {
 
     /**
      * Get all the lines matching the specified predicate
-     * @param predicate
+     * @param filter
      * @return
      * @throws IOException
      */
-    public List<String> getAllLines(Predicate<? super String> predicate) throws IOException {
+    public List<String> getAllLines(Predicate<? super String> filter,
+                                    Function<? super String, ? extends String> postFilterMap) throws IOException {
         List<String> lines = null;
         resetReader();
         try {
             lines = bufferedReader.lines()
-                .filter(predicate)
+                .filter(filter)
+                .map(postFilterMap)
                 .collect(Collectors.toList());
         } catch (Exception e) {
             e.printStackTrace();
             close();
         }
         return lines;
+    }
+
+    /**
+     * Get all the lines matching the specified predicate
+     * @param filter
+     * @return
+     * @throws IOException
+     */
+    public List<String> getAllLines(Predicate<? super String> filter) throws IOException {
+        return getAllLines(filter, l -> l);
     }
 
     /**

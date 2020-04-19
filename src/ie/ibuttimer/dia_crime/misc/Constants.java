@@ -41,6 +41,8 @@ public class Constants {
     /* property aliases are stored in the format "<section>.<property> = property-alias:<other section>.<other property>" */
     public static final String PROPERTY_ALIAS = "property-alias";
     public static final String PROPERTY_ALIAS_SEPARATOR = ":";
+    public static final String PROPERTY_SUM = "property-sum";
+    public static final String PROPERTY_SUM_SEPARATOR = ",";
 
     public static final String CONF_PROPERTY_ROOT = "conf_property_root";
 
@@ -157,7 +159,8 @@ public class Constants {
     public static final String CS_IN_PATH_PROP = "cs_in_path";
     public static final String CW_IN_PATH_PROP = "cw_in_path";
 
-
+    // verification specific properties
+    public static final String VERIFY_OUTPUT_PATH_PROP = "verify_output_path";
 
     public static final String TYPES_NAMED_OP = "types";
     public static final String WEATHER_ID_NAMED_OP = "wids";

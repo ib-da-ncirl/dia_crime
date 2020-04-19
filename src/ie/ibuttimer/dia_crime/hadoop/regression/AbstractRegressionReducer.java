@@ -69,6 +69,11 @@ public abstract class AbstractRegressionReducer<KI, VI, KO, VO> extends Abstract
         independents = (List<String>) regressionSetup.get(INDEPENDENTS_PROP);
         dependent = (String) regressionSetup.get(DEPENDENT_PROP);
         regressor = (LinearRegressor) regressionSetup.get(REGRESSOR);
+
+        List<String> missing = regressor.getMissingCoefficients(independents);
+        if (missing.size() > 0) {
+            throw new IllegalArgumentException("Missing weight setting for " + missing);
+        }
     }
 
     @Override

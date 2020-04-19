@@ -78,6 +78,8 @@ public abstract class AbstractReducer<KI, VI, KO, VO> extends Reducer<KI, VI, KO
         String section = conf.get(CONF_PROPERTY_ROOT, "");
         if (!TextUtils.isEmpty(section)) {
             setDebugLevel(DebugLevel.getSetting(conf, section));
+        } else {
+            setDebugLevel(DebugLevel.getSetting(conf, getSection()));
         }
     }
 

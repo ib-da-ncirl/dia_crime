@@ -32,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.http.util.TextUtils;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -292,7 +293,10 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         if (reader.wasSuccess()) {
             // read result
             reader.open("part-r-00000");
-            List<String> lines = reader.getAllLines(l -> !l.startsWith(COMMENT_PREFIX));
+            String timestamp = LocalDateTime.now().toString();
+            List<String> lines = reader.getAllLines(l -> !l.startsWith(COMMENT_PREFIX),
+                                                    l -> timestamp + "  " + l);
+
             reader.close();
 
             if (epoch == 1) {
@@ -336,13 +340,20 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         Files.deleteIfExists(Paths.get(getResultsPath(job, cfgReader)));
     }
     private String getResultsPath(Job job, ConfigReader cfgReader) {
-        return job.getConfiguration().get(cfgReader.getPropertyPath(TRAIN_OUTPUT_PATH_PROP), "regression.txt");
+        return getProperty(job, cfgReader, TRAIN_OUTPUT_PATH_PROP, "regression.txt");
+    }
+
+    private String getProperty(Job job, ConfigReader cfgReader, String property, String dfltValue) {
+        return job.getConfiguration().get(cfgReader.getPropertyPath(property), dfltValue);
     }
 
 
     public Job getRegressionValidationJob(Properties properties) throws Exception {
 
         Pair<List<String>, List<String>> sectionLists = getVerificationSectionLists();
+
+        // update training path if required
+        updatePropertyWithTimestamp(properties, VERIFY_OUTPUT_PATH_PROP, PropertyWrangler.of(VERIFICATION_PROP_SECTION));
 
         Job job = null;
         Configuration conf = new Configuration();
@@ -361,6 +372,7 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
             fileReader.close();
 
             lines.stream().
+                filter(l -> !TextUtils.isEmpty(l)).
                 filter(l -> !l.startsWith(COMMENT_PREFIX)).
                 findFirst().ifPresent(l -> {
                     Pair<String, String> keyVal = HADOOP_KEY_VAL.destringifyElement(l);
@@ -402,6 +414,9 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         if (job != null) {
             if (cfg.wait) {
                 resultCode = job.waitForCompletion(cfg.verbose) ? Constants.ECODE_SUCCESS : Constants.ECODE_FAIL;
+                if (resultCode == ECODE_SUCCESS) {
+                    verificationJobReport(job, new ConfigReader(VERIFICATION_PROP_SECTION));
+                }
             } else {
                 job.submit();
                 resultCode = ECODE_RUNNING;
@@ -409,6 +424,32 @@ public class LinearRegressionDriver extends AbstractDriver implements ITagger {
         }
 
         return resultCode;
+    }
+
+    private void verificationJobReport(Job job, ConfigReader cfgReader) throws IOException {
+
+        Map<String, String> result = new HashMap<>();
+
+        Configuration conf = job.getConfiguration();
+
+        Path outDir = new Path(conf.get(cfgReader.getPropertyPath(OUT_PATH_PROP)));
+        FileReader reader = new FileReader(outDir, conf);
+
+        // may take a moment for filesystem to catch up, so if not 'wasSuccess' wait a tick
+        if (!reader.wasSuccess()) {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        if (reader.wasSuccess()) {
+            // read result
+            Files.copy(Paths.get(conf.get(cfgReader.getPropertyPath(OUT_PATH_PROP)), "part-r-00000"),
+                Paths.get(getProperty(job, cfgReader, VERIFY_OUTPUT_PATH_PROP, "verification.txt")));
+        }
+
+        reader.close();
     }
 
     @Override

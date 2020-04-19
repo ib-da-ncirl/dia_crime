@@ -26,7 +26,6 @@ package ie.ibuttimer.dia_crime.hadoop.regression;
 import ie.ibuttimer.dia_crime.hadoop.CountersEnum;
 import ie.ibuttimer.dia_crime.hadoop.misc.Counters;
 import ie.ibuttimer.dia_crime.hadoop.stats.NameTag;
-import ie.ibuttimer.dia_crime.misc.MapStringifier;
 import ie.ibuttimer.dia_crime.misc.Utils;
 import ie.ibuttimer.dia_crime.misc.Value;
 import org.apache.hadoop.io.Text;
@@ -36,6 +35,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static ie.ibuttimer.dia_crime.misc.Constants.*;
 import static ie.ibuttimer.dia_crime.misc.MapStringifier.MAP_STRINGIFIER;
@@ -52,6 +52,9 @@ public class RegressionValidateReducer extends AbstractRegressionReducer<Text, R
     private Counters.ReducerCounter counter;
 
     private List<CacheEntry> yYhatCache;
+
+    private Text keyOut = new Text(COMMENT_PREFIX);
+    private Text valueOut = new Text();
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -78,8 +81,12 @@ public class RegressionValidateReducer extends AbstractRegressionReducer<Text, R
 
         String yhatTag = NameTag.YHAT.getKeyTag(dependent);
 
+        AtomicInteger numVariables = new AtomicInteger(0);
         values.forEach(writable-> {
             if (writable.containsKey(dependent) && writable.containsKey(yhatTag)) {
+
+                // num independents is writable size minus dependent & yhat entries
+                numVariables.set(writable.size() - 2);
 
                 double yi = writable.get(dependent).doubleValue();
                 double yhati = writable.get(yhatTag).doubleValue();
@@ -96,26 +103,48 @@ public class RegressionValidateReducer extends AbstractRegressionReducer<Text, R
         summer.divide(yYhatCache.size());
         double mean = summer.doubleValue();
 
+        StringBuilder sb = new StringBuilder();
+
         // calc stats
-        yYhatCache.forEach(pair -> {    // only one for now
-            regSummer.add(regressor.regressionSum(pair.yhat, mean));
-            errSummer.add(regressor.errorSum(pair.y, pair.yhat));
-            totalSummer.add(regressor.totalSum(pair.y, mean));
+        yYhatCache.forEach(pair -> {
+            double ssr = regressor.regressionSum(pair.yhat, mean);
+            double sse = regressor.errorSum(pair.y, pair.yhat);
+            double sst = regressor.totalSum(pair.y, mean);
+            regSummer.add(ssr);
+            errSummer.add(sse);
+            totalSummer.add(sst);
+
+            sb.delete(0, sb.length());
+            valueOut.set(
+                sb.append("yi=").append(pair.y)
+                    .append(",yhati=").append(pair.yhat)
+                    .append(",ssr=").append(ssr)
+                    .append(",sse=").append(sse)
+                    .append(",sst=").append(sst)
+                    .toString());
+            try {
+                context.write(keyOut, valueOut);
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
         });
 
         Map<String, Double> result = new HashMap<>();
         double rSquared = regressor.calcRSquared(regSummer.doubleValue(), totalSummer.doubleValue());
-        double rBarSquared = regressor.calcRBarSquared(rSquared, yYhatCache.size(), 1);
+        double rBarSquared = regressor.calcRBarSquared(rSquared, yYhatCache.size(), numVariables.get());
+        double stdError = regressor.stdErrorOfRegression(errSummer.doubleValue(), yYhatCache.size(), numVariables.get());
 
         result.put("r_squared", rSquared);
         result.put("r_bar_squared", rBarSquared);
+        result.put("regression_std_err", stdError);
 
         getLogger().info(
             Utils.getSpacedDialog(
                 List.of("Regression Verification Result",
                     String.format("%s - %s", dependent, result))));
 
-        context.write(key, new Text(MAP_STRINGIFIER.stringify(result)));
+        valueOut.set(MAP_STRINGIFIER.stringify(result));
+        context.write(key, valueOut);
     }
 
     static class CacheEntry {

@@ -87,17 +87,19 @@ public class DiaCrimeMain {
     private static final String OPT_NO_WAIT = "nw";
     private static final String OPT_LIST_JOBS = "l";
     private static final String OPT_MULTI_JOB = "m";
+    private static final String OPT_IN_ROOT = "i";
+    private static final String OPT_OUT_ROOT = "o";
 
     /* sample argument lists
-        -j weather
-        -j stocks
-        -j crime
-        -j merge -c config.properties;merge.properties
-        -j stats -c config.properties;stats.properties
-        -j normalise -c config.properties;normalise.properties
-        -j linear_regression -c config.properties;regression.properties
-        -j regression_verify -c config.properties;regression.properties;verification.properties
-        -j matrix_multiply -c config.properties;matrix.properties
+        -j weather -c prod.properties;config.properties
+        -j stocks -c prod.properties;config.properties
+        -j crime -c prod.properties;config.properties
+        -j merge -c prod.properties;config.properties;merge.properties
+        -j stats -c prod.properties;config.properties;stats.properties
+        -j normalise -c prod.properties;config.properties;normalise.properties
+        -j linear_regression -c prod.properties;config.properties;regression.properties
+        -j regression_verify -c prod.properties;config.properties;regression.properties;verification.properties
+        -j matrix_multiply -c prod.properties;config.properties;matrix.properties
         -m <path to file>
      */
 
@@ -142,7 +144,13 @@ public class DiaCrimeMain {
         options.addOption(OPT_NO_WAIT, false, "do not wait for job completion");
         options.addOption(OPT_LIST_JOBS, false, "list available jobs");
         options.addOption(OPT_MULTI_JOB, true, "process multiple jobs as per specified file");
+        options.addOption(OPT_IN_ROOT, true, "input root folder");
+        options.addOption(OPT_OUT_ROOT, true, "output root folder");
     }
+
+    private String inPathRoot = "";
+    private String outPathRoot = "";
+
 
     public static void main(String[] args) throws Exception {
 
@@ -152,6 +160,13 @@ public class DiaCrimeMain {
         int resultCode = ECODE_SUCCESS;
         try {
             CommandLine cmd = parser.parse(options, args);
+
+            if (cmd.hasOption(OPT_IN_ROOT)) {
+                app.inPathRoot = cmd.getOptionValue(OPT_IN_ROOT);
+            }
+            if (cmd.hasOption(OPT_OUT_ROOT)) {
+                app.outPathRoot = cmd.getOptionValue(OPT_OUT_ROOT);
+            }
 
             if (cmd.hasOption(OPT_MULTI_JOB)) {
                 String jobFile = cmd.getOptionValue(OPT_MULTI_JOB);
@@ -209,6 +224,14 @@ public class DiaCrimeMain {
                 if (cmd.hasOption(OPT_JOB)) {
                     // read the config
                     Properties properties = getResources(resourceFile);
+
+                    if (!TextUtils.isEmpty(inPathRoot)) {
+                        properties.setProperty("global.in_path_root", inPathRoot);
+                    }
+                    if (!TextUtils.isEmpty(outPathRoot)) {
+                        properties.setProperty("global.out_path_root", outPathRoot);
+                    }
+
                     if (properties.isEmpty()) {
                         resultCode = ECODE_CONFIG_ERROR;
                         System.out.format("No configuration specified, properties empty%n%n");
@@ -216,7 +239,7 @@ public class DiaCrimeMain {
                     } else {
                         // run the job
                         AbstractDriver.JobConfig jobCfg = AbstractDriver.JobConfig.of(properties,
-                            (!cmd.hasOption(OPT_NO_WAIT)));
+                            (!cmd.hasOption(OPT_NO_WAIT)), inPathRoot, outPathRoot);
 
                         String name = cmd.getOptionValue(OPT_JOB);
                         jobList.stream()
@@ -370,17 +393,7 @@ public class DiaCrimeMain {
                     .forEach(k -> {
                         String prop = sectionWrangler.getPropertyName(k);
                         if (propDefault.containsKey(prop)) {
-                            String propertyValue = properties.getProperty(k, propDefault.get(prop));
-
-                            if (propertyValue.startsWith(PROPERTY_ALIAS)) {
-                                // read other property for value
-                                Pair<String, String> otherProperty = MapStringifier.ElementStringify.of(PROPERTY_ALIAS_SEPARATOR)
-                                    .destringifyElement(propertyValue);
-                                if (otherProperty.getRight() != null) {
-                                    propertyValue = properties.getProperty(otherProperty.getRight(), "");
-                                }
-                            }
-
+                            String propertyValue = getProperty(properties, k, propDefault.get(prop));
                             conf.set(confPropWrangler.getPropertyPath(prop), propertyValue);
                         }
                     });
@@ -388,6 +401,39 @@ public class DiaCrimeMain {
         }
         return conf;
     }
+
+    public String getProperty(Properties properties, String name, String dfltValue) {
+        String propertyValue = properties.getProperty(name, dfltValue).trim();
+
+        if (propertyValue.startsWith(PROPERTY_ALIAS)) {
+            // read other property for value
+            Pair<String, String> otherProperty = MapStringifier.ElementStringify.of(PROPERTY_ALIAS_SEPARATOR)
+                .destringifyElement(propertyValue);
+            if (otherProperty.getRight() != null) {
+                propertyValue = properties.getProperty(otherProperty.getRight().trim(), "");
+            }
+        } else if (propertyValue.startsWith(PROPERTY_SUM)) {
+            // read other properties for value
+            Pair<String, String> propertyPair = MapStringifier.ElementStringify.of(PROPERTY_ALIAS_SEPARATOR)
+                .destringifyElement(propertyValue);
+            if (propertyPair.getRight() != null) {
+                Pair<String, String> otherProperties =
+                    MapStringifier.ElementStringify.COMMA.destringifyElement(propertyPair.getRight());
+                StringBuilder sb = new StringBuilder();
+                if (otherProperties.getLeft() != null) {
+                    sb.append(properties.getProperty(otherProperties.getLeft().trim(), ""));
+                }
+                if (otherProperties.getRight() != null) {
+                    sb.append(otherProperties.getRight().trim());
+                }
+                propertyValue = sb.toString();
+            }
+        }
+        return propertyValue;
+    }
+
+
+
 
     /**
      * Check configuration for specified MapReduce
